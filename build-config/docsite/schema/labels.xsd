@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding ="UTF-8"?>
+<!--suppress XmlDefaultAttributeValue -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="1.1"
+           xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" vc:minVersion="1.1">
+    <xs:element name="labels">
+        <xs:complexType mixed="false">
+            <xs:sequence>
+                <xs:element ref="primary-label" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element ref="secondary-label" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element ref="for" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="for">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="primary-label" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element ref="secondary-label" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute ref="instance" use="required"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="primary-label" type="PrimaryLabelElement"/>
+    <xs:element name="secondary-label" type="SecondaryLabelElement"/>
+
+    <xs:complexType name="PrimaryLabelElement" mixed="true">
+        <xs:attributeGroup ref="LabelElementAttributes"/>
+        <xs:attribute name="href" type="xs:string" use="optional"/>
+        <xs:attribute name="short-name" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="SecondaryLabelElement" mixed="true">
+        <xs:attributeGroup ref="LabelElementAttributes"/>
+        <xs:attribute name="short-name" type="xs:string" use="prohibited"/>
+    </xs:complexType>
+
+    <xs:attribute name="id" type="xs:string">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                <p>Specify an identifier for an element:</p>
+
+                <pre>
+                    &lt;p id="intro"&gt;This is an introduction.&lt;/p&gt;
+                </pre>
+
+                <p>You can use this identifier as an anchor for a link:</p>
+
+                <pre>
+                    &lt;a href="topic.topic" anchor="intro"&gt;Link to intro&lt;/a&gt;
+                </pre>
+
+                <p>You can also include the whole element via its identifier:</p>
+
+                <pre>
+                    &lt;include from="topic.topic" element-id="intro"/&gt;
+                </pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:attribute>
+
+    <xs:attributeGroup name="LabelElementAttributes">
+        <xs:attribute ref="id" use="required"/>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attribute ref="instance" use="optional"/>
+        <xs:attribute ref="color" use="optional"/>
+    </xs:attributeGroup>
+
+    <xs:simpleType name="InstanceIdListKind">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="!*(\d+)(,\s*\d+)*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:attribute name="instance" type="InstanceIdListKind"/>
+
+    <xs:attribute name="color">
+        <xs:simpleType>
+            <xs:restriction base="xs:string">
+                <xs:enumeration value="tangerine"/>
+                <xs:enumeration value="strawberry"/>
+                <xs:enumeration value="purple"/>
+                <xs:enumeration value="blue"/>
+                <xs:enumeration value="red"/>
+                <xs:enumeration value="marine"/>
+                <xs:enumeration value="yellow"/>
+                <xs:enumeration value="green"/>
+                <xs:enumeration value="primary"/>
+                <xs:enumeration value="black"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:attribute>
+</xs:schema>

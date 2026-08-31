@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="pipeline" title="The weaving pipeline">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <tldr>
+        <p>This is the weaving moment of <a href="weaving-model.topic">the weaving model</a> in
+        detail, once a class the plan already named reaches the engine.</p>
+    </tldr>
+
+    <p>
+        A driver hands bytes over and gets bytes back. Between the two stand four gates. Most
+        classes stop at the first. Past the fourth, a class can still lose a merge or an
+        injection without losing what already applied.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Bytes from a driver"] --> B["The plan lookup"]
+    B -->|no weave names it| X["Handed back unchanged"]
+    B --> C["Class file format"]
+    C -->|preview mismatch| X
+    C --> D["Policy"]
+    D -->|JDK, or the framework itself| X
+    D --> E["The fingerprint"]
+    E -->|this plan applied already| X
+    E --> F["Injections, then merges"]
+    F -->|nothing survived either half| X
+    F --> G["Verification"]
+    G -->|refused bytes| X
+    G --> H["The stamp"]
+    H --> I["Woven bytes go back"]
+    </code-block>
+
+    <chapter title="What stops a class early" id="early">
+        <p>
+            Four gates run before a single instruction is rewritten. This chapter covers three;
+            the fourth, on the fingerprint, follows below.
+        </p>
+
+        <deflist type="full">
+            <def title="The plan lookup">
+                <p>
+                    Two lookups by internal name. One finds the injections planned for this
+                    class. The other finds the weaves that dissolve into it. Empty both times and
+                    the class goes straight back. Nothing is reported. A driver that supplies
+                    bytes lazily is never asked for them, unless an
+                    <a href="extension-methods.topic">extension</a> is in force.
+                </p>
+            </def>
+            <def title="The class file format">
+                <p>
+                    A preview class file loads only on the exact JVM that produced it.
+                    <code>AW2004</code> fires when the weaver's own JVM is a different one.
+                    Recompile the target against the JVM that will run it, or run the weaver on
+                    the JVM that compiled it. An anonymous or local class only warns, as
+                    <code>AW1092</code>, and is woven. The compiler numbered that name in source
+                    order. Name the enclosing class instead, and narrow it with a
+                    <a href="selectors.topic">selector</a>.
+                </p>
+            </def>
+            <def title="Policy">
+                <p>
+                    Asked once, and only for a class the two gates above passed. A JDK package is
+                    <code>AW3001</code>. Reopen exactly the one you need in code: build the policy
+                    with <code>DefaultWeavePolicy.Builder.allowPackage</code> and hand it to
+                    <code>Weaver.builder().policy(...)</code>. It takes one package and never a
+                    subtree. <code>java.*</code> is the exception, refused whatever you set, and
+                    the framework's own classes are <code>AW3003</code> on the same terms. A class
+                    file older than major version 50 is <code>AW2003</code>. Recompile the target;
+                    its stack maps are absent or inferred.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                Two more of the standard policy's rules never fire here, because the engine
+                describes the target from the class file alone. A signed artefact is refused
+                only by a driver that knew beforehand. A declared weave class as a target is
+                caught earlier still, at planning and again at compile time, never by this gate.
+                <a href="policy-and-safety.topic">Weave policy</a> has the settings.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Already woven" id="idempotence">
+        <p>
+            Every plan carries a fingerprint. It is a SHA-256 over four things.
+        </p>
+
+        <list>
+            <li><p>Its entries, in the order the plan holds them.</p></li>
+            <li><p>The weaves that dissolve, and the members each of them declares.</p></li>
+            <li><p>The plugins loaded, and the identifiers they registered.</p></li>
+            <li><p>Each plugin's own metadata entries.</p></li>
+        </list>
+
+        <p>
+            Where a weave was found on disk stays out. Two machines building the same sources
+            therefore agree. The fingerprint is stamped into every class the plan named, and read
+            back before that class is woven again. What happens then depends on the driver, and
+            on whether the fingerprint still matches.
+            <a href="choose-a-driver.topic">Choose a driver</a> has the three outcomes.
+        </p>
+
+        <note>
+            <p>
+                Dissolving weaves reach the digest in discovery order, unsorted. With two or
+                more, another order gives another fingerprint, which the driver then treats as
+                two plans meeting the same class.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Applying, whole or not at all" id="apply">
+        <p>
+            Injections run first, structural merges second, over what the injections produced.
+            A declaration whose injector refuses is dropped and the rest still weave. A merge
+            that refuses keeps whatever injections already applied. Only a refusal with nothing
+            to keep hands your bytes back unchanged. The rewrite builds a fresh
+            class rather than editing this one, so nothing half-woven is ever the result.
+        </p>
+
+        <list>
+            <li><p>A declaration matching fewer positions than its <code>require</code> is
+                <code>AW1043</code>. That is one of two origins for the code. The other is the
+                point's own, reported when nothing of its kind was found at all; see
+                <a href="injection-points.topic">Injection points</a>. Where the target
+                legitimately varies, list the alternatives in an
+                <a href="annotations.topic#weave"><code>@Group</code></a> rather than requiring each.</p></li>
+            <li><p>More positions than its <code>allow</code> is <code>AW1044</code> — but only
+                when <code>allow</code> is set to a bound. Left at the default of zero there is
+                no upper limit, and the code cannot fire. Narrow it with an ordinal or a slice;
+                <a href="injection-points.topic">Injection points</a> covers both.</p></li>
+            <li><p>A target method grown past 65535 bytes of code is <code>AW4003</code>. Only the
+                call costs anything here, not the handler's body. Cut injection points in that
+                method.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="Verification, and what a refusal costs" id="verify">
+        <p>
+            Woven bytes that reach this stage are examined twice, in order. Exception tables
+            first, as <code>AW4004</code>: re-run with class dumps enabled and report the dump.
+            Then the JDK's own verifier, as <code>AW4001</code>. Its remedy is to compare the
+            <code>javap</code> output before and after; the first error names the method. Neither blames your
+            target.
+        </p>
+
+        <p>
+            The class writer itself can also report <code>AW4004</code>, for a class it refuses
+            to write at all. That is a different stage from these two, with the same remedy.
+        </p>
+
+        <deflist type="medium">
+            <def title="STRICT">
+                <p>
+                    The default. A refusal throws, and weaving fails at the class it went wrong on.
+                </p>
+            </def>
+            <def title="REPORT">
+                <p>
+                    A refusal is reported. The class you passed in comes back instead, and the
+                    target goes on working unwoven. On the weaving path the run counts it as
+                    failed rather than woven; a refusal from an extension's own pass touches no
+                    counter.
+                </p>
+            </def>
+            <def title="OFF">
+                <p>
+                    Nothing is examined, so the woven class is returned whatever it holds. An
+                    unverifiable one fails when the JVM links it. The error names that class, and
+                    nothing about weaving. <a href="configuration-keys.topic">Driver options</a> has the key that
+                    sets this.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="The stamp a woven class carries" id="stamp">
+        <p>
+            The last stage writes two marks from one record, so they cannot disagree.
+        </p>
+
+        <deflist type="medium">
+            <def title="The AetherWeave attribute">
+                <p>
+                    Always written, for a class the plan named. It holds the weaver version, the
+                    fingerprint, a flag word, and one entry per injection the plan named for this
+                    class. Whether that injection survived validation does not matter. A merge
+                    applied in the same pass is not among the entries. The policy-override and
+                    structural flags are both written false.
+                </p>
+            </def>
+            <def title="The @Woven annotation">
+                <p>
+                    As much as the detail level asks for. It alone carries the plugin
+                    coordinates and metadata. <code>NONE</code> writes no annotation at all.
+                    <code>SUMMARY</code> leaves out the per-declaration listing, and
+                    <code>FULL</code> adds it, capped at 32 entries. A flag says when that listing
+                    was cut. <a href="annotations.topic">The annotation reference</a> has the elements.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                A class the plan named nowhere is never stamped and never counted as woven. It
+                reaches the verifier only when an <a href="extension-methods.topic">extension</a> rewrote
+                something in it; otherwise nothing runs on it at all.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="weave-discovery.topic">How a weave is found</a>
+            <a href="selectors.topic">Selectors</a>
+            <a href="injection-points.topic">Injection points</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">Annotations</a>
+            <a href="configuration-keys.topic">Configuration keys</a>
+        </category>
+    </seealso>
+</topic>

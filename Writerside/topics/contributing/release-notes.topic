@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="release-notes" title="Release notes">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Every released version, and where its notes are.
+    </p>
+
+    <table style="header-row">
+        <tr>
+            <td>Version</td>
+            <td>Released</td>
+            <td>Status</td>
+        </tr>
+        <tr>
+            <td>%version%</td>
+            <td>2026-08-31</td>
+            <td>Current</td>
+        </tr>
+    </table>
+
+    <chapter title="Where the notes are" id="where">
+        <p>
+            One file holds them:
+            <a href="https://github.com/aether-framework/aether-weaver/blob/main/CHANGELOG.md">CHANGELOG.md</a>.
+            The <a href="https://github.com/aether-framework/aether-weaver/releases">GitHub
+            release</a> shows the same text. Its workflow reads that section out of the file.
+        </p>
+
+        <p>
+            An entry names what arrived, what moved, and what broke.
+            <a href="artifacts.topic">Artefacts and modules</a> has what each coordinate publishes.
+            <a href="install.topic">Install</a> has where the number goes.
+        </p>
+    </chapter>
+
+    <chapter title="What the number promises" id="semver">
+        <deflist>
+            <def title="Patch — 0.1.1">
+                <p>A fix. Nothing you compiled against moves.</p>
+            </def>
+            <def title="Minor — 0.2.0">
+                <p>Something was added. What you wrote still compiles, and still weaves.</p>
+            </def>
+            <def title="Major — 1.0.0">
+                <p>Something you may have to change. The entry says what to write instead.</p>
+            </def>
+            <def title="Outside the promise">
+                <p><code>de.splatgames.aether.weaver.api.experimental</code>. Every type there
+                    carries <code>@ApiStatus.Experimental</code>, and that annotation is the whole
+                    promise.</p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Moving up a version" id="upgrading">
+        <p>
+            Read the entry's <emphasis>Known limitations</emphasis> first. That half says what the
+            version still does not do.
+        </p>
+
+        <p>
+            Then check the JDK floor, which is %jdk%. The enforcer stops an older build by name,
+            rather than failing later on a missing class.
+        </p>
+
+        <p>
+            These pages ship with the framework. This site was built from the version above, and
+            <a href="building-and-testing.topic">Building and testing</a> builds both from a clone.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="contributing">
+            <a href="repository-layout.topic">Repository layout</a>
+            <a href="building-and-testing.topic">Building and testing</a>
+        </category>
+        <category ref="reference">
+            <a href="artifacts.topic">Artefacts and modules</a>
+        </category>
+    </seealso>
+</topic>

@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="redirect-and-wrap" title="Redirect and Wrap">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Both take over an operation the target performs. A redirect replaces it outright. A wrap
+        hands your handler a handle to it. The handler decides whether it happens.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["A call, field access or instantiation"] --> B{"What claims it"}
+    B -->|"@Redirect"| C["Your handler gets the operands"]
+    B -->|"@Wrap"| D["Operands, and an Operation"]
+    C --> G["Original never runs"]
+    D --> E{"Was call invoked"}
+    E -->|no| G
+    E -->|yes| F["Next handler runs, or the original if innermost"]
+    G --> H["What the handler returns stands in"]
+    F --> H
+    </code-block>
+
+    <chapter title="Which one you want" id="choose">
+        <p>The question is whether your handler needs the original.</p>
+
+        <table style="header-row">
+            <tr>
+                <td>Difference</td>
+                <td><code>@Redirect</code></td>
+                <td><code>@Wrap</code></td>
+            </tr>
+            <tr>
+                <td>The handler receives</td>
+                <td>the operands</td>
+                <td>the operands and an <code>Operation</code></td>
+            </tr>
+            <tr>
+                <td>The original</td>
+                <td>is gone</td>
+                <td>runs only at the innermost level</td>
+            </tr>
+            <tr>
+                <td>Extra parameters</td>
+                <td>target arguments and <code>@Local</code></td>
+                <td>none</td>
+            </tr>
+            <tr>
+                <td>Two on one site</td>
+                <td>refused</td>
+                <td>they nest</td>
+            </tr>
+            <tr>
+                <td>Cost per execution</td>
+                <td>one call</td>
+                <td>one call and an array</td>
+            </tr>
+        </table>
+
+        <p>
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a> has the bands those
+            parameters are declared in. <a href="locals.topic">Locals</a> says what a redirect does
+            with a capture. Both declarations also refuse a <code>shift</code>, which
+            <a href="injection-points.topic">injection points</a> covers.
+        </p>
+    </chapter>
+
+    <chapter title="What counts as an operation" id="operations">
+        <p>
+            A handler stands in for the operation. So the operation needs a signature. Three
+            instructions carry one. The engine reads it off whatever the point matched.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Operation</td>
+                <td>The handler's leading parameters</td>
+                <td>It returns</td>
+            </tr>
+            <tr><td>Instance call</td><td>the receiver, then the arguments</td>
+                <td>the call's return type</td></tr>
+            <tr><td>Static call</td><td>the arguments</td><td>the call's return type</td></tr>
+            <tr><td>Instance field read</td><td>the owner</td><td>the field's type</td></tr>
+            <tr><td>Static field read</td><td>none</td><td>the field's type</td></tr>
+            <tr><td>Instance field write</td><td>the owner, then the value</td>
+                <td><code>void</code></td></tr>
+            <tr><td>Static field write</td><td>the value</td><td><code>void</code></td></tr>
+            <tr><td>Instantiation</td><td>the constructor's arguments</td>
+                <td>the created type</td></tr>
+        </table>
+
+        <list>
+            <li>
+                <p>
+                    A receiver is pushed before the descriptor's own arguments and is no part of
+                    it. It is therefore the first parameter, and an instance operation has one
+                    input more than its descriptor.
+                </p>
+            </li>
+            <li>
+                <p>
+                    A matched instruction that is none of the three is <code>AW1061</code>: name
+                    the call, field access or instantiation you meant, or use <code>@Inject</code>,
+                    which adds code at a bare position.
+                    <a href="injection-points.topic">Injection points</a> says which points can
+                    reach an operation at all.
+                </p>
+            </li>
+            <li>
+                <p>
+                    A point a plugin contributes is never checked by name. It is judged by the
+                    instruction it lands on, and the same code follows.
+                    <a href="plugins.topic">Extending the engine</a> covers contributing one.
+                </p>
+            </li>
+        </list>
+    </chapter>
+
+    <chapter title="An instantiation is one operation" id="new">
+        <p>
+            A <code>new</code> in a class file is an allocation and a constructor call. A
+            <code>dup</code> sits between them when the result is kept, and both declarations take
+            over all of it.
+        </p>
+
+        <list>
+            <li>
+                <p>
+                    The allocation stops existing, and so does the <code>dup</code> when there is
+                    one. Your handler produces the reference itself, and the call to it replaces
+                    the constructor call.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Everything between them stays. That is the code computing the arguments your
+                    handler is about to receive.
+                </p>
+            </li>
+            <li>
+                <p>
+                    No receiver is among the inputs. The object does not exist until your handler
+                    returns one.
+                </p>
+            </li>
+        </list>
+    </chapter>
+
+    <chapter title="The Operation a wrap receives" id="operation">
+        <p>
+            The engine writes the operation into the site as a dynamic constant. The JVM resolves
+            that once and caches it. Every execution hands your handler the same instance.
+        </p>
+
+        <deflist type="medium">
+            <def title="call(Object...)">
+                <p>
+                    Performs the next level in and returns what it produced. Call it twice and the
+                    operation happens twice. Never call it, and it never happens: whatever your
+                    handler returns stands in.
+                </p>
+            </def>
+            <def title="Its arguments">
+                <p>
+                    Exactly the operation's inputs, in the order the JVM pushes them, and you may
+                    pass values other than the ones you were handed. A different number is an
+                    <code>IllegalArgumentException</code> naming the operation and both counts. It
+                    is thrown at run time; nothing counts them while the class is woven.
+                </p>
+            </def>
+            <def title="Boxing">
+                <p>
+                    Arguments and result cross as <code>Object</code>. A primitive is boxed both
+                    ways, and an operation producing nothing yields <code>null</code>. A reference
+                    of the wrong type fails with a <code>ClassCastException</code>, and a
+                    <code>null</code> where the operation takes a primitive with a
+                    <code>NullPointerException</code>.
+                </p>
+            </def>
+            <def title="What it throws">
+                <p>
+                    Whatever the operation throws passes through unchanged, checked exceptions
+                    included. The target's own <code>catch</code> blocks see what they were
+                    compiled against.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                The handle holds nothing from the target's frame. A handler that stores it in a
+                field and calls it later performs the operation again, outside the target's control
+                flow.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Several claims on one operation" id="nesting">
+        <p>
+            Wraps nest instead of colliding. Only the outermost is called from the site. The rest
+            are bound into the <code>Operation</code> it receives.
+        </p>
+
+        <list>
+            <li>
+                <p>
+                    The outermost is the first in plan order, which puts the highest
+                    <code>@Weave(priority)</code> on the outside.
+                    <a href="ordering.topic">Ordering</a> has the tie-breakers behind it.
+                </p>
+            </li>
+            <li>
+                <p>
+                    So <code>call</code> reaches the next handler in, not the target's own
+                    instruction. Only the innermost reaches that.
+                </p>
+            </li>
+            <li>
+                <p>
+                    An inner handler that performs nothing returns a value of its own, and the one
+                    outside it cannot tell.
+                </p>
+            </li>
+            <li>
+                <p>
+                    A redirect never joins the nest. Two redirects on one site, or a redirect
+                    meeting a wrap, is <code>AW1060</code>: make both of them <code>@Wrap</code>,
+                    or narrow one with an <code>ordinal</code> or a <code>slice</code>.
+                </p>
+                <deflist type="medium">
+                    <def title="What it compares">
+                        <p>
+                            The site as the declaration spells it: the method text, the point, the
+                            target, the ordinal and the slice — not the resolved instruction.
+                        </p>
+                    </def>
+                    <def title="Its limit">
+                        <p>
+                            Two declarations reaching the same instruction through different
+                            spelling collide silently. So does a bare <code>ordinal</code> meeting
+                            one that pins it.
+                        </p>
+                    </def>
+                    <def title="If it misses">
+                        <p>
+                            Nothing catches it at emission either. Both handlers replace the
+                            instruction, and the class file ends up with two calls where the
+                            operation stood.
+                        </p>
+                    </def>
+                </deflist>
+            </li>
+        </list>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>
+            <a href="injection-points.topic">Injection points</a>
+            <a href="ordering.topic">Ordering</a>
+            <a href="locals.topic">Locals</a>
+        </category>
+        <category ref="plugins">
+            <a href="plugins.topic">Extending the engine</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">The annotation reference</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

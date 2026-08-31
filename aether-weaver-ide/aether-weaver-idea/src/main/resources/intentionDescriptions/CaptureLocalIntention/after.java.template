@@ -1,0 +1,4 @@
+@Inject(method = "record(BigDecimal)",
+        at = @At(value = Point.INVOKE, target = "Receipt.valid()", ordinal = 0))
+private void onValid(BigDecimal amount, @Local Receipt receipt) {
+}

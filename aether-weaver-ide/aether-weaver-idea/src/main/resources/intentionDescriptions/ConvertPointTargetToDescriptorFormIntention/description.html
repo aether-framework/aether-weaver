@@ -1,0 +1,21 @@
+<html>
+<body>
+Rewrites an <code>@At</code> target as a JVM descriptor.
+<p>
+    A source-form target matches by name: <code>"Ledger.flush()"</code> matches a call on any class
+    whose name ends in <code>Ledger</code>, and keeps doing so until a second one appears in the
+    target method and the weave silently attaches to the wrong call. The descriptor form names one
+    class and one signature and cannot drift.
+</p>
+<p>
+    The owner and the descriptor come from the resolved method, not from the text, and the result is
+    resolved again before being offered: it has to land on the same method. Where the target resolves
+    to several methods the intention is not offered, because choosing one of them is a narrowing
+    decision the author makes rather than a change of spelling.
+</p>
+<!-- tooltip end -->
+<pre><code>target = "Ledger.flush()"</code></pre>
+becomes
+<pre><code>target = "desc:com/acme/Ledger.flush()V"</code></pre>
+</body>
+</html>

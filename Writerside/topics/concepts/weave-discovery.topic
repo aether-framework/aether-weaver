@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="weave-discovery" title="How a weave is found">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        Nothing scans a classpath for <code>@Weave</code>. Every module that declares one ships a
+        manifest, written while it compiled. A driver reads the manifests it can see. It parses
+        each class they name and hands the planner what survives.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["The class you annotated"] --> B["aether-weaver-processor writes META-INF/aether/weaves.json"]
+    B --> C["A driver reads whichever manifests it sees"]
+    C --> D["One candidate per class named"]
+    D --> E["The parser reads that class file"]
+    E --> F{"Configuration keeps it?"}
+    F -->|no| G["Dropped, after parsing"]
+    F -->|yes| H["Handed to the planner"]
+    </code-block>
+
+    <chapter title="The manifest" id="manifest">
+        <deflist type="full">
+            <def title="Written by the processor, once">
+                <p>
+                    <code>aether-weaver-processor</code> collects what a compilation declared. It
+                    writes the manifest in the final round, into the compilation output at
+                    <code>META-INF/aether/weaves.json</code>. A weave the processor refuses is
+                    recorded too. A refused extension is not: only the holder's registration
+                    survives. <a href="install.topic">Install</a> has the pom that puts the
+                    processor on the annotation processor path.
+                </p>
+            </def>
+            <def title="Absent where nothing was declared">
+                <p>
+                    A module declaring neither a weave nor an
+                    <a href="extension-methods.topic">extension</a> gets no file at all. That is
+                    the common case: most modules in a build declare nothing. A missing manifest
+                    can also mean the processor was never configured. A runtime driver that finds
+                    none anywhere warns with <code>AW2302</code>.
+                    <a href="install.topic">Install</a> has the remedy.
+                </p>
+            </def>
+            <def title="Merged over what is already there">
+                <p>
+                    Writing merges by class name over the file already in the output directory. An
+                    incremental build therefore keeps the entries it did not recompile. A document
+                    from a newer schema is refused whole, as <code>AW2301</code>. Upgrade Aether
+                    Weaver, or rebuild that artefact against this version.
+                    <a href="manifest-format.topic">The manifest reference</a> has the keys.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Where each driver looks" id="drivers">
+        <table style="header-row">
+            <tr>
+                <td>Driver</td>
+                <td>Its weaves come from</td>
+            </tr>
+            <tr>
+                <td>The Maven plugin</td>
+                <td>the module's own output</td>
+            </tr>
+            <tr>
+                <td>The Java agent</td>
+                <td>every manifest it can reach</td>
+            </tr>
+            <tr>
+                <td>A weaving class loader, from <code>create</code></td>
+                <td>its roots, and its parent</td>
+            </tr>
+            <tr>
+                <td>A weaving class loader, from the constructor</td>
+                <td>nothing — the <code>Weaver</code> you already built</td>
+            </tr>
+            <tr>
+                <td>The testkit</td>
+                <td>the classes you name</td>
+            </tr>
+        </table>
+
+        <p>
+            Under Maven the classpath is still read, for
+            <a href="extension-methods.topic">extensions</a> and for one warning.
+            <code>AW3010</code> names an artefact that declares a weave and that nothing here asked
+            for. Declare that dependency directly, or exclude it.
+        </p>
+
+        <p>
+            Under <code>weave-tests</code>, though, the check reaches too far. It compares only
+            against the test output directory, not the module's own main classes. A weave declared
+            there is reported too. Neither remedy applies: it is not a dependency at all.
+            <a href="choose-a-driver.topic">Choose a driver</a> covers what each driver reaches and
+            what each one costs.
+        </p>
+    </chapter>
+
+    <procedure title="From an entry to a parsed weave" id="steps">
+        <step>
+            <p>
+                Each entry becomes a candidate: a class name, and the artefact its manifest came
+                from. Nothing else in the entry is used.
+            </p>
+        </step>
+        <step>
+            <p>
+                The bytes are read out of that same artefact, never out of the classpath at large.
+                A class it no longer holds is <code>AW2300</code> under a runtime driver. Rebuild
+                the artefact, whose manifest has outlived the class. The Maven goal skips it
+                without a word.
+            </p>
+        </step>
+        <step>
+            <p>
+                The parser reads the class file. Targets, handlers and members all come from there;
+                <a href="weaving-model.topic">the weaving model</a> lists them. A class carrying no
+                <code>@Weave</code> is dropped in silence. Anything else the parser refuses is
+                reported first.
+            </p>
+        </step>
+        <step>
+            <p>
+                Configuration decides last, and only under a runtime driver. The order matters. A
+                weave switched off is still parsed, so its faults surface now, not on the
+                deployment that switches it back on.
+            </p>
+        </step>
+    </procedure>
+
+    <chapter title="Kept, or dropped" id="kept">
+        <p>
+            Two settings judge a parsed weave. Neither reaches the
+            <a href="choose-a-driver.topic">Maven plugin or the testkit</a>.
+        </p>
+
+        <list>
+            <li><p>An <code>enabled</code> override on the weave's binary name settles it, whatever
+                tags say.</p></li>
+            <li><p>Otherwise the tag filter answers. One excluded tag rejects the weave. Include
+                anything by name, and a weave carrying no tag is rejected too.
+                <a href="configuration-keys.topic">The configuration reference</a> has both keys.</p></li>
+        </list>
+
+        <note>
+            <p>
+                A dropped weave is gone before the plan exists. It reaches no gate on
+                <a href="pipeline.topic">the weaving pipeline</a>, and changes no fingerprint.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="One class name, two artefacts" id="duplicates">
+        <p>
+            A runtime driver reads many manifests. Two of them may name one weave class. That is
+            <code>AW2303</code>, a warning. Remove the duplicate dependency, or rename one of the
+            weaves. Both candidates are kept, each read from its own artefact.
+        </p>
+
+        <p>
+            Which class of that name loads is the classpath's decision. The tie they leave in the
+            plan falls back to discovery order. With dissolving weaves that order reaches the
+            fingerprint too. <a href="ordering.topic">Ordering</a> has the key it ties on, and
+            <a href="determinism.topic">Determinism</a> what a moved fingerprint costs.
+        </p>
+    </chapter>
+
+    <chapter title="A source of your own" id="sources">
+        <p>
+            <code>WeaveSource</code> is the interface behind the manifest reader. Nothing looks one
+            up: no service file is read for it. A <a href="plugins.topic">weaver plugin</a>
+            registers injectors and selectors, never a source. Your own source is one your code
+            constructs and calls itself, feeding the same parse.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="install.topic">Install</a>
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="ordering.topic">Ordering</a>
+            <a href="determinism.topic">Determinism</a>
+        </category>
+        <category ref="reference">
+            <a href="manifest-format.topic">The weave manifest</a>
+            <a href="configuration-keys.topic">Configuration keys</a>
+        </category>
+    </seealso>
+</topic>

@@ -1,0 +1,30 @@
+<html>
+<body>
+Reports a <code>@Weave</code> declaration that cannot do what it says, on grounds the source alone
+settles.
+<p>
+    Four rules, each stated in the framework's own API documentation:
+</p>
+<ul>
+    <li><code>AW1001</code> — the weave names no target, so nothing would be woven</li>
+    <li><code>AW1002</code> — the weave names its targets twice, as class literals and as names</li>
+    <li><code>AW1090</code> — <code>@Shadow</code> in a static weave, whose code never moves into
+        the target and therefore has no reference to be rewritten into
+    </li>
+    <li><code>AW1091</code> — <code>@Unique</code> in a static weave, which merges nothing and so
+        has no member to make unique
+    </li>
+</ul>
+<p>
+    A handler's own signature — <code>AW1040</code>, <code>AW1041</code>, <code>AW1071</code> — is
+    the neighbouring inspection <em>Handler signature does not fit the target</em>, because deciding
+    it means resolving the target first.
+</p>
+<p>
+    Deliberately absent from both is everything that needs a compiled body: <code>AW1043</code>,
+    <code>AW1050</code> and their neighbours. The build reports those, and the annotation processor
+    says out loud (<code>AW1200</code>) when it cannot. An editor approximating them would produce
+    false reports on exactly the shapes injection exists for.
+</p>
+</body>
+</html>

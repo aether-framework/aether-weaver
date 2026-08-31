@@ -1,0 +1,605 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Aether Weaver — aggregator and parent.
+
+  The dependency arrow points one way: api <- engine <- drivers. The api module depends on
+  nothing, the engine only on the api, and no driver depends on another. That is what makes the
+  weaving result identical whether a class is woven at build time or at load time, because the
+  weaving logic has exactly one implementation and the drivers contribute only I/O and lifecycle.
+
+  Two project rules are enforced mechanically from this file:
+    * bytecode manipulation goes through java.lang.classfile exclusively — ASM, Javassist,
+      Byte Buddy and cglib are banned dependencies in every module, tests included;
+    * no module-info.java anywhere — Aether Weaver is a classpath library (enforced by
+      checkstyle and by an architecture test).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>de.splatgames.aether.weaver</groupId>
+    <artifactId>aether-weaver-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Aether Weaver (Parent)</name>
+    <description>
+        Aether Weaver is a general-purpose bytecode weaving framework for the JVM, built on the
+        standard Java Class-File API.
+    </description>
+    <url>https://github.com/aether-framework/aether-weaver</url>
+    <inceptionYear>2026</inceptionYear>
+
+    <organization>
+        <name>Splatgames.de Software</name>
+        <url>https://splatgames.de</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>SPLG-10000</id>
+            <name>Erik Pförtner</name>
+            <url>https://github.com/Splatcrafter</url>
+            <organization>Splatgames.de Software</organization>
+            <organizationUrl>https://software.splatgames.de</organizationUrl>
+            <roles>
+                <role>author</role>
+                <role>maintainer</role>
+            </roles>
+            <timezone>Europe/Berlin</timezone>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/aether-framework/aether-weaver.git</connection>
+        <developerConnection>scm:git:git@github.com:aether-framework/aether-weaver.git</developerConnection>
+        <url>https://github.com/aether-framework/aether-weaver</url>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/aether-framework/aether-weaver/issues</url>
+    </issueManagement>
+
+    <ciManagement>
+        <system>GitHub Actions</system>
+        <url>https://github.com/aether-framework/aether-weaver/actions</url>
+    </ciManagement>
+
+    <modules>
+        <module>aether-weaver-bom</module>
+        <module>aether-weaver-api</module>
+        <module>aether-weaver-engine</module>
+        <module>aether-weaver-runtime</module>
+        <module>aether-weaver-agent</module>
+        <module>aether-weaver-processor</module>
+        <module>aether-weaver-maven-plugin</module>
+        <module>aether-weaver-testkit</module>
+        <module>aether-weaver-tests</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- Reproducible builds: a fixed timestamp for every archive entry. -->
+        <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
+
+        <!--
+          Overridden by every module that produces a published jar. Modules that do not
+          (bom, tests) leave it at this value; nothing reads it there.
+        -->
+        <automatic.module.name>de.splatgames.aether.weaver</automatic.module.name>
+
+        <!-- Shared build configuration, resolved from the reactor root. -->
+        <build.config.dir>${maven.multiModuleProjectDirectory}/build-config</build.config.dir>
+
+        <!-- Plugin versions, pinned. -->
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+        <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <checkstyle.version>10.21.1</checkstyle.version>
+        <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+        <maven-clean-plugin.version>3.4.0</maven-clean-plugin.version>
+
+        <!--
+          Release-only plugins. Pinned here rather than in the profile so that every version this
+          build can resolve is visible in one place. None of them runs outside the `release`
+          profile, so an ordinary `mvn verify` never downloads them.
+
+          The source and resources plugins are pinned to their last stable 3.x. Their newest
+          release on Central is a 4.0.0-beta, and a release build is the last place to run a beta.
+        -->
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
+
+        <!-- Dependency versions, pinned. -->
+        <!--
+          Maven's own API, used by the plugin module and by the cross-driver equivalence test that
+          drives its goal. One definition, because two would drift and the drift would show up as a
+          NoSuchMethodError in a test rather than as a version conflict in a report.
+        -->
+        <maven.api.version>3.9.9</maven.api.version>
+        <maven-plugin-tools.version>3.15.2</maven-plugin-tools.version>
+        <!--
+          JMH, for the performance suite in aether-weaver-tests. Its transitive dependencies are
+          jopt-simple and commons-math3; neither is a bytecode library, so the banned-dependency
+          rule is untouched.
+        -->
+        <jmh.version>1.37</jmh.version>
+        <junit.version>5.11.4</junit.version>
+        <assertj.version>3.27.2</assertj.version>
+        <jetbrains-annotations.version>26.1.0</jetbrains-annotations.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Reactor modules. -->
+            <dependency>
+                <groupId>de.splatgames.aether.weaver</groupId>
+                <artifactId>aether-weaver-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.splatgames.aether.weaver</groupId>
+                <artifactId>aether-weaver-engine</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.splatgames.aether.weaver</groupId>
+                <artifactId>aether-weaver-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.splatgames.aether.weaver</groupId>
+                <artifactId>aether-weaver-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.splatgames.aether.weaver</groupId>
+                <artifactId>aether-weaver-processor</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.splatgames.aether.weaver</groupId>
+                <artifactId>aether-weaver-testkit</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!--
+              Managed so that aether-weaver-tests can drive the real Maven goal in the cross-driver
+              equivalence test. Nothing else depends on the plugin as a library.
+            -->
+            <dependency>
+                <groupId>de.splatgames.aether.weaver</groupId>
+                <artifactId>aether-weaver-maven-plugin</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!--
+              JetBrains annotations are `provided`: every annotation used here has CLASS
+              retention, so nothing reaches the runtime and consumers inherit no dependency.
+              This is the only third-party dependency the api and engine modules are permitted.
+              Everything else a library like this would normally pull in — a JSON parser, a
+              logging facade — is deliberately hand-rolled or pushed out to a driver, because
+              this code is loaded into arbitrary applications and every dependency is a
+              potential version conflict.
+            -->
+            <dependency>
+                <groupId>org.jetbrains</groupId>
+                <artifactId>annotations</artifactId>
+                <version>${jetbrains-annotations.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-core</artifactId>
+                <version>${jmh.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-generator-annprocess</artifactId>
+                <version>${jmh.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+                <scope>test</scope>
+                <exclusions>
+                    <!--
+                      AssertJ pulls Byte Buddy in for its soft-assertion proxies. We use none of
+                      those, and a bytecode framework has no business carrying a second bytecode
+                      library on any classpath — not even the test one, where it would be one
+                      import away from accidental use. Excluding it keeps the banned-dependency
+                      rule strict instead of carving out an exception for it.
+                    -->
+                    <exclusion>
+                        <groupId>net.bytebuddy</groupId>
+                        <artifactId>byte-buddy</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <compilerArgs>
+                            <arg>-Xlint:all,-serial,-processing</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>${maven-jar-plugin.version}</version>
+                    <configuration>
+                        <archive>
+                            <manifestEntries>
+                                <!--
+                                  One manifest line, NOT a module descriptor. It gives consumers
+                                  who use JPMS a stable automatic-module name instead of one
+                                  derived from the jar filename, and imposes nothing on this
+                                  build: no modular compilation, no requires, no module path.
+                                -->
+                                <Automatic-Module-Name>${automatic.module.name}</Automatic-Module-Name>
+                                <Implementation-Title>${project.artifactId}</Implementation-Title>
+                                <Implementation-Version>${project.version}</Implementation-Version>
+                                <Implementation-Vendor>Splatgames.de Software</Implementation-Vendor>
+                            </manifestEntries>
+                        </archive>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${maven-checkstyle-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.puppycrawl.tools</groupId>
+                            <artifactId>checkstyle</artifactId>
+                            <version>${checkstyle.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>${maven-javadoc-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-project-rules</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>Aether Weaver requires JDK 25+: it is built on the
+                                        standard Class-File API.</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                </requireMavenVersion>
+                                <bannedDependencies>
+                                    <!--
+                                      Bytecode manipulation goes through java.lang.classfile
+                                      exclusively, in every module, including tests and build
+                                      plugins.
+                                    -->
+                                    <excludes>
+                                        <exclude>org.ow2.asm:*</exclude>
+                                        <exclude>asm:*</exclude>
+                                        <exclude>org.javassist:*</exclude>
+                                        <exclude>javassist:*</exclude>
+                                        <exclude>net.bytebuddy:*</exclude>
+                                        <exclude>cglib:*</exclude>
+                                        <exclude>cglib-nodep:*</exclude>
+                                    </excludes>
+                                    <message>ASM, Javassist, Byte Buddy and cglib are banned.
+                                        Use java.lang.classfile.</message>
+                                </bannedDependencies>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>checkstyle-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <configLocation>${build.config.dir}/checkstyle.xml</configLocation>
+                            <!--
+                              Named explicitly rather than left to default to every compile source
+                              root: a generated root joins that list as soon as one is produced,
+                              and generated code is not anybody's to style.
+                            -->
+                            <sourceDirectories>
+                                <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+                            </sourceDirectories>
+                            <testSourceDirectories>
+                                <testSourceDirectory>${project.build.testSourceDirectory}</testSourceDirectory>
+                            </testSourceDirectories>
+                            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                            <consoleOutput>true</consoleOutput>
+                            <violationSeverity>error</violationSeverity>
+                            <failOnViolation>true</failOnViolation>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              The javadoc goal keeps a record of its last run and skips when it decides nothing
+              has changed. That record is derived from the arguments rather than from the source
+              text, so editing a doc comment does not invalidate it: on the second `mvn verify`
+              the goal prints "everything is up to date" and a broken reference sails through.
+              Measured, not assumed — a deliberately broken {@link} passed until this ran.
+
+              Dropping the record makes the gate unconditional. It is the only lever the plugin
+              offers; there is no forceRegeneration.
+            -->
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>${maven-clean-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>drop-javadoc-stale-data</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>maven-javadoc-plugin-stale-data.txt</include>
+                                    </includes>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              Resolves every {@link} and parses the HTML in every doc comment. Nothing else in
+              this build does: a reference that names a type which no longer exists compiles,
+              tests green, and ships as a dead link in the published documentation.
+
+              `missing` is excluded on purpose. JavadocCoverageTest owns completeness and
+              reports it per member with a reason; leaving `missing` in would duplicate that
+              with worse messages and hold the gate red until the last file is written.
+
+              failOnWarnings is not optional. doclint reports as warnings, so without it the
+              goal prints every broken reference and then succeeds — a build that claims the
+              links were checked while checking nothing is worse than no gate at all.
+            -->
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>javadoc-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <!--
+                              no-fork, because `javadoc` forks a generate-sources lifecycle and
+                              Checkstyle then runs a second time — against the annotation
+                              processor's output, which nobody writes and no rule should judge.
+                              By `verify` the sources it needs are long since generated.
+                            -->
+                            <goal>javadoc-no-fork</goal>
+                        </goals>
+                        <configuration>
+                            <doclint>all,-missing</doclint>
+                            <failOnWarnings>true</failOnWarnings>
+                            <quiet>true</quiet>
+                            <encoding>UTF-8</encoding>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+      ============================================================================================
+      Release.
+      ============================================================================================
+
+      Everything publication needs, and nothing an ordinary build has to carry. `mvn verify` never
+      activates this profile, never resolves these plugins and never asks for a signing key; the
+      release workflow passes `-Prelease` and nothing else does.
+
+      What Maven Central requires of every non-pom artefact, and what each plugin below is here
+      for: a sources jar, a javadoc jar, a GPG signature beside every file, and pom metadata —
+      name, description, url, licence, developer, scm — all of which this pom already carries.
+      ============================================================================================
+    -->
+    <profiles>
+        <profile>
+            <id>release</id>
+
+            <build>
+                <plugins>
+                    <!--
+                      `jar-no-fork` rather than `jar`: the sources are already there by the time
+                      this runs, and forking a second generate-sources lifecycle would run the
+                      whole validate phase again for nothing.
+                    -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!--
+                      The javadoc jar. `verify` already resolves every link with failOnWarnings,
+                      so by the time this runs the documentation is known to be clean; this
+                      execution only packages it. It keeps the same doclint setting so that the
+                      published jar cannot be built from anything the gate would have rejected.
+                    -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <doclint>all,-missing</doclint>
+                                    <failOnWarnings>true</failOnWarnings>
+                                    <failOnError>true</failOnError>
+                                    <quiet>true</quiet>
+                                    <encoding>UTF-8</encoding>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!--
+                      Signing. The passphrase arrives in the environment variable the plugin reads
+                      by default, MAVEN_GPG_PASSPHRASE — never as a property on the command line
+                      and never from settings.xml, both of which the plugin now deprecates.
+
+                      The loopback pinentry mode configured below is what lets gpg take that
+                      passphrase without a terminal. Without it a CI run hangs or fails at the
+                      first artefact.
+                    -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!--
+                      Publication through the Sonatype Central Portal. `extensions` registers the
+                      lifecycle participant that stages each module's artefacts and uploads them as
+                      one bundle at the end of the reactor.
+
+                      autoPublish with waitUntil=published means the job fails if Central rejects
+                      the deployment, rather than leaving it sitting in VALIDATED for somebody to
+                      notice. A release that needs a human to press a button in a web UI is a
+                      release that silently does not happen.
+
+                      aether-weaver-tests is excluded by artifactId. It sets maven.deploy.skip in
+                      its own pom, which stops the deploy plugin but not this one — the two are
+                      unrelated mechanisms, and only the exclusion below keeps a test-only jar out
+                      of the bundle.
+                    -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                            <deploymentName>${project.groupId}:${project.version}</deploymentName>
+                            <checksums>all</checksums>
+                            <excludeArtifacts>
+                                <excludeArtifact>aether-weaver-tests</excludeArtifact>
+                            </excludeArtifacts>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

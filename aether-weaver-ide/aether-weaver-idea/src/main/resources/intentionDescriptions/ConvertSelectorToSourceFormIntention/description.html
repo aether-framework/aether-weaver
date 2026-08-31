@@ -1,0 +1,27 @@
+<html>
+<body>
+Rewrites a <code>desc:</code> selector into the source form that names the same member.
+<p>
+    Both spellings are interchangeable by design, and neither is second-class. This converts the one
+    a reader has to decode into the one they can read, without changing which member is named — the
+    result is parsed back and compared before it is offered, so a conversion that would not survive
+    the round trip never appears.
+</p>
+<p>
+    The opposite direction is deliberately absent, and not because of a defect: a source-form
+    selector has no descriptor form until something resolves its types.
+    <code>charge(java.math.BigDecimal)</code> could name class <code>BigDecimal</code> in package
+    <code>java.math</code> or a nested <code>math.BigDecimal</code> inside <code>java</code>, which
+    are different descriptors. <code>MemberSelector</code> does not resolve — that is the engine's
+    job, against a classpath — so it hands such a selector back unchanged, and an intention offering
+    to convert it would change nothing. The plugin could resolve it through PSI and decline to:
+    working out what a selector means in a second place is the one thing this plugin is arranged to
+    avoid, and a descriptor written by the IDE that disagreed with the build's would disagree
+    silently.
+</p>
+<!-- tooltip end -->
+<pre><code>desc:charge(Ljava/math/BigDecimal;)V</code></pre>
+becomes
+<pre><code>charge(java.math.BigDecimal):void</code></pre>
+</body>
+</html>

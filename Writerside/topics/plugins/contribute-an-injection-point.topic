@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="contribute-an-injection-point" title="Contribute an injection point">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>
+            Continues <a href="write-a-plugin.topic">Write a plugin</a>. A factory is registered
+            from <code>contribute</code>, so your plugin has to load first.
+        </p>
+    </tldr>
+
+    <p>
+        Give an <code>@At</code> an identifier of your own. Decide where in a method it lands.
+        This one answers <code>acme:AFTER_LOGGING</code> with every call whose owner is
+        <code>java.util.logging.Logger</code>.
+    </p>
+
+    <code-block lang="java" src="AcmePoints.java"/>
+
+    <chapter title="What each method answers" id="methods">
+        <code-block lang="java" src="AfterLogging.java"/>
+
+        <deflist type="full">
+            <def title="namespace() and ids()">
+                <p>
+                    The weaver reads both while it is built. It asks for the namespace once and
+                    for the identifiers twice. Every identifier you offer carries your namespace.
+                    One that does not costs the factory all of them —
+                    <a href="namespaces.topic">Namespaces and identifiers</a> has the grammar and
+                    the refusal.
+                </p>
+            </def>
+            <def title="create(id)">
+                <p>
+                    The engine calls this once per resolution, and caches nothing it hands back.
+                    A resolution is one <code>@At</code> against one method. Return a constant.
+                    The identifier is the spelling the declaration wrote. A factory that switches
+                    on it must answer for its retired spellings too.
+                </p>
+            </def>
+            <def title="targetRequirement()">
+                <p>
+                    The point answers <code>FORBIDDEN</code>: it finds its own positions. A
+                    declaration that writes <code>target</code> anyway is refused with
+                    <code>AW1043</code>, before <code>find</code> runs. Drop the target, or answer
+                    <code>REQUIRED</code> and read <code>spec.rawTarget()</code>.
+                </p>
+            </def>
+            <def title="supportsShift(shift)">
+                <p>
+                    The engine asks once per resolution here too. The shift comes as written,
+                    <code>NONE</code> included. A refusal is <code>AW1102</code>, again before
+                    <code>find</code>. The author drops <code>shift</code> from the
+                    <code>@At</code>, or names a different point.
+                </p>
+            </def>
+            <def title="find(method, code, spec, reporter)">
+                <p>
+                    Answer with positions in the view you were handed. Order them as an ordinal
+                    should count them. One instance serves every weave, and a loader weaves
+                    several classes at once. Keep nothing across a call —
+                    <a href="runtime-weaving.topic">Runtime weaving</a> has that loader.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What the engine does around find" id="pipeline">
+        <code-block lang="mermaid">
+flowchart TB
+    A["A declaration names acme:AFTER_LOGGING"] --> B{"Target and shift accepted?"}
+    B -->|no| R["Refused before your code runs"]
+    B -->|yes| C["Slice narrows the body"]
+    C --> D["find hands back sites"]
+    D --> E["Indices translated into the whole method"]
+    E --> F["Ordinal picks one"]
+    F --> G["Shift moves it"]
+    G --> H["Unsafe positions dropped"]
+    H --> I["The injector emits there"]
+        </code-block>
+
+        <list>
+            <li><p>An index counts elements of <code>code.elements()</code>, not bytecode offsets.
+                Labels, line numbers and local-variable entries are elements as well.</p></li>
+            <li><p><code>Site.Kind.AFTER_ELEMENT</code> is what moves a position past the
+                instruction you matched. Add one to the index yourself and it lands an element too
+                far.</p></li>
+            <li><p>An ordinal counts inside the slice, which is all you were shown. Narrowing
+                belongs to the engine. A point that applies the ordinal applies it twice.</p></li>
+        </list>
+    </chapter>
+
+    <procedure title="Reach it from a weave" id="run">
+        <step>
+            <p>Register the factory from <code>contribute</code>. Everything else about the class
+                is <a href="write-a-plugin.topic">Write a plugin</a>.</p>
+            <code-block lang="java" src="AcmePlugin.java"/>
+        </step>
+        <step>
+            <p>Write a target that logs, and a weave naming the identifier through
+                <code>custom</code>. <a href="annotations.topic">Annotations</a> has the rest of
+                the <code>@At</code> elements.</p>
+            <code-block lang="java" src="Service.java"/>
+            <code-block lang="java" src="Audited.java"/>
+        </step>
+        <step>
+            <p>Compile the two of them in one round. The processor reports <code>AW1200</code>,
+                which asks nothing of you. It leaves the identifier to weave time.</p>
+            <code-block lang="bash"><![CDATA[
+javac -proc:full -cp "lib/*" -d plugins \
+      src/fixture/Service.java src/fixture/Audited.java
+]]></code-block>
+            <p>Compile the weave alone, against a <code>Service.class</code> the processor can
+                read, and <code>AW1101</code> comes back instead. The processor resolves the
+                built-in points and no others — <a href="what-a-plugin-can-do.topic">What a plugin
+                can do</a>. Run one javac over the weave and its target together.</p>
+        </step>
+        <step>
+            <p>Turn the logger on. The call you match then prints something of its own.</p>
+            <code-block lang="properties" src="logging.properties"/>
+        </step>
+        <step>
+            <p>Build a weaver that carries your plugin, and load the target through it. Keep
+                <path>plugins</path> off the classpath you pass.</p>
+            <code-block lang="java" src="Logged.java"/>
+            <code-block lang="bash"><![CDATA[
+javac -cp "lib/*" -d classes \
+      src/acme/AcmePoints.java src/acme/AfterLogging.java \
+      src/acme/AcmePlugin.java src/launcher/Logged.java
+
+java -Djava.util.logging.config.file=logging.properties \
+     -cp "classes:lib/*" launcher.Logged 2>&1
+]]></code-block>
+        </step>
+        <step>
+            <p>Three lines, with <code>audited</code> between the two the target prints. The site
+                landed after the logger call. Before it, <code>audited</code> would print
+                first.</p>
+            <code-block lang="console"><![CDATA[
+starting
+audited
+running
+]]></code-block>
+            <note>
+                <p>Two lines instead of three, with <code>AW1101</code> and <code>AW1043</code>
+                    above them. The weaver was built without your plugin. Give
+                    <code>Weaver.builder()</code> the plugin, or check the identifier for a
+                    typo.</p>
+            </note>
+        </step>
+    </procedure>
+
+    <chapter title="When the method has nothing you match" id="empty">
+        <p>
+            Answer with an empty list. That is not an error by itself. The declaration decides
+            what it becomes.
+        </p>
+
+        <deflist type="full">
+            <def title="The declaration leaves require out">
+                <p>The parser makes it 1, so an empty list is <code>AW1043</code>. Widen what you
+                    match, or have the author write <code>require = 0</code>.</p>
+            </def>
+            <def title="The declaration names a group">
+                <p>Nothing reads <code>require</code> at all. The matches are accounted against
+                    the <a href="annotations.topic#weave"><code>@Group</code></a> the run declares.
+                    Only the group's own bounds can fail.</p>
+            </def>
+        </deflist>
+
+        <p>
+            Report why, too. The sample raises <code>acme:NO_LOGGING</code> beside that refusal,
+            saying which method held nothing to match.
+            <a href="reporting.topic">Report rather than throw</a> covers the codes you may raise
+            and what a throw costs. One throw is not caught: a bound reached from a built-in
+            <code>@At</code> — <a href="reporting.topic#gaps">Where the guard does not
+            reach</a>.
+        </p>
+
+        <note>
+            <p>
+                A bound is handed <code>Reporter.NOOP</code>. A report you make while resolving
+                one goes nowhere. The engine raises <code>AW1120</code> or <code>AW1121</code>
+                itself. Each names the method and the bound, never the slice. Give the bound a
+                site to land on, or it is refused.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="plugins">
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a>
+            <a href="namespaces.topic">Namespaces and identifiers</a>
+            <a href="spi.topic">The plugin SPI</a>
+        </category>
+        <category ref="concepts">
+            <a href="injection-points.topic">Injection points</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-declaration.topic">AW1xxx - declarations and injection</a>
+        </category>
+    </seealso>
+</topic>

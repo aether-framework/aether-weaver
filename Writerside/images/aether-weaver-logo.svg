@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" width="240" height="64" role="img"
+     aria-label="Aether Weaver">
+    <g fill="none" stroke="#7A5CFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 50 L30 16 L48 50"/>
+        <path d="M20 36 H40"/>
+        <path d="M12 50 L48 16" stroke-opacity="0.35"/>
+    </g>
+    <text x="64" y="42" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" font-size="22"
+          font-weight="600" fill="currentColor">Aether Weaver</text>
+</svg>

@@ -1,0 +1,8 @@
+@Weave(Session.class)
+public final class SessionTracing {
+
+    @Inject(method = "close()", at = @At(Point.HEAD))
+    void onClose() {
+        Tracer.end(this.ledger);
+    }
+}

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="write-a-plugin" title="Write a plugin">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>
+            No shipped driver loads a <code>WeaverPlugin</code> of yours. Only a weaver your own
+            code builds does — <a href="what-a-plugin-can-do.topic">What a plugin can do</a> has
+            the boundary.
+        </p>
+    </tldr>
+
+    <p>
+        You implement <code>id()</code> and <code>apiLevel()</code>. Register what you add from
+        <code>contribute</code>, and hear what the run did in <code>observe</code>. This plugin
+        stamps a key into every woven class. It prints each rewrite as well.
+    </p>
+
+    <code-block lang="java" src="TracePlugin.java"/>
+
+    <chapter title="The four methods" id="methods">
+        <p>
+            Two are yours to implement. The other two carry a default. Override the ones you
+            need.
+        </p>
+
+        <deflist type="full">
+            <def title="id()">
+                <p>
+                    Return a constant field. <a href="plugin-lifecycle.topic">The plugin
+                    lifecycle</a> says why, and <a href="namespaces.topic">Namespaces and
+                    identifiers</a> has the grammar your namespace must satisfy.
+                </p>
+            </def>
+            <def title="apiLevel()">
+                <p>
+                    Return <code>WeaverApi.LEVEL</code>, never a literal.
+                    <a href="spi.topic">The plugin SPI</a> has the rule and the two codes a
+                    mismatch carries.
+                </p>
+            </def>
+            <def title="contribute(PluginContext)">
+                <p>
+                    Called once, and everything you add goes through the context it hands you. A
+                    throw out of it is <code>AW3115</code>, and the plugin loses what it had
+                    already registered. Report through <code>ctx.diagnostics()</code> and return
+                    instead — <a href="reporting.topic">Report rather than throw</a>. What may
+                    go on the context is in
+                    <a href="what-a-plugin-can-do.topic">What a plugin can do</a>.
+                </p>
+            </def>
+            <def title="observe(PluginEvent)">
+                <p>
+                    <code>observeApply()</code> is what buys <code>ClassWoven</code>. Every other
+                    event, <code>PluginsLoaded</code>, <code>Prepared</code> and
+                    <code>WeavingFinished</code>, reaches every contributor regardless. Keep any
+                    state you hold thread-safe: the class loader in the sample below weaves on
+                    several threads at once, and <a href="runtime-weaving.topic">Runtime
+                    weaving</a> is where that loader is described.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Get it in front of a weaver" id="install">
+        <code-block lang="mermaid">
+flowchart TB
+    A["Your class implements WeaverPlugin"] --> B{"Which route into the loader?"}
+    B -->|plugin| C["An instance handed to the builder"]
+    B -->|discoverPlugins| D["ServiceLoader over a class loader you name"]
+    C --> E["Load gates admit or drop it"]
+    D --> E
+    E --> F["contribute runs once"]
+    F --> G["PluginsLoaded, then Prepared"]
+    G --> H["Weaving, and ClassWoven per class"]
+        </code-block>
+
+        <p>
+            Both routes belong to whoever builds the weaver. <code>plugin(...)</code> adds rather
+            than replaces. The launcher below drives one class through a weaving class loader.
+            <a href="runtime-weaving.topic">Runtime weaving</a> covers that loader.
+        </p>
+
+        <code-block lang="java" src="Traced.java"/>
+
+        <note>
+            <p>
+                This plugin records metadata and observes because both reach a weave written with
+                annotations. No annotation names a contributed injector kind, and an
+                <code>@At</code> naming a contributed point is <code>AW1101</code> wherever the
+                processor can check it — name a built-in point there.
+                <a href="what-a-plugin-can-do.topic">What a plugin can do</a> has both limits.
+            </p>
+        </note>
+    </chapter>
+
+    <procedure title="Compile it and run it" id="run">
+        <step>
+            <p>Resolve <code>aether-weaver-runtime</code> and <code>aether-weaver-processor</code>,
+                with their transitive dependencies, into <path>lib</path>. Neither jar is shaded;
+                you need the engine and the API alongside them, which a dependency manager pulls
+                in on its own. <a href="artifacts.topic">Artefacts and modules</a> has the
+                coordinates and the dependency graph.</p>
+        </step>
+        <step>
+            <p>Build the fixture into <path>plugins</path>, which nothing else is on. Those two
+                classes are <a href="first-weave.topic">Your first weave</a>, and the processor
+                writes the manifest that <a href="weave-discovery.topic">discovery</a>
+                reads.</p>
+            <code-block lang="bash"><![CDATA[
+javac -proc:full -cp "lib/*" \
+      -d plugins src/fixture/Target.java src/fixture/Audit.java
+]]></code-block>
+        </step>
+        <step>
+            <p>Build your plugin and the launcher into <path>classes</path>.</p>
+            <code-block lang="bash"><![CDATA[
+javac -cp "lib/*" -d classes \
+      src/acme/TracePlugin.java src/launcher/Traced.java
+]]></code-block>
+        </step>
+        <step>
+            <p>Run it, keeping <path>plugins</path> away from the classpath you pass.</p>
+            <code-block lang="bash"><![CDATA[
+java -cp "classes:lib/*" launcher.Traced
+]]></code-block>
+        </step>
+        <step>
+            <p>Three lines. Your observer prints the first; the other two come off the
+                <code>@Woven</code> annotation the weaver left behind.</p>
+            <code-block lang="console"><![CDATA[
+acme wove fixture/Target: 1 applied
+[:%version%, acme:1.0]
+[acme:trace=on]
+]]></code-block>
+            <p><code>acme:1.0</code> beside the engine's own coordinate is proof that the loader
+                admitted your plugin. <code>acme:trace=on</code> is your key with your namespace
+                applied to it. A stamp carrying neither means the plugin was never admitted; the
+                reason is on the line <code>LOG</code> printed. A changed value moves the
+                fingerprint — <a href="determinism.topic">Determinism</a> says what that costs.</p>
+        </step>
+    </procedure>
+
+    <chapter title="Ship it for discovery" id="service">
+        <p>
+            <code>discoverPlugins(loader)</code> asks <code>ServiceLoader</code> for
+            <code>WeaverPlugin</code> on the loader you name. Add one provider file there,
+            holding the single line <code>acme.TracePlugin</code>.
+        </p>
+
+        <code-block lang="text">
+classes/META-INF/services/
+    de.splatgames.aether.weaver.api.spi.WeaverPlugin
+        </code-block>
+
+        <p>
+            The same run then loads it without the <code>plugin(...)</code> call, and every gate
+            still applies. <a href="loading-plugins.topic">Loading and isolating plugins</a> covers
+            the allowlist and a provider that fails to construct.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="plugins">
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a>
+            <a href="plugin-lifecycle.topic">The plugin lifecycle</a>
+            <a href="namespaces.topic">Namespaces and identifiers</a>
+        </category>
+        <category ref="guides">
+            <a href="runtime-weaving.topic">Runtime weaving</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">AW3xxx - policy and plugins</a>
+        </category>
+    </seealso>
+</topic>

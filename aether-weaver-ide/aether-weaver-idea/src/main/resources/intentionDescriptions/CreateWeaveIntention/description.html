@@ -1,0 +1,20 @@
+<html>
+<body>
+Creates an empty weave class on the class the caret is in.
+<p>
+    The weave is written beside its target, in the same package, so it can reach package-private
+    members without any of them being made public — the arrangement most weaves want and the one that
+    is tedious to set up by hand.
+</p>
+<p>
+    Offered on a class a weave can name: not on an interface or an annotation, which have neither a
+    body to merge into nor method bodies to inject into, and not on an anonymous or local class,
+    which has no qualified name for a weave to name it by.
+</p>
+<!-- tooltip end -->
+<pre><code>public class Gateway { ... }</code></pre>
+creates
+<pre><code>@Weave(Gateway.class)
+public final class GatewayWeave { }</code></pre>
+</body>
+</html>

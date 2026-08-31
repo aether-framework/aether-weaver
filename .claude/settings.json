@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(pkill *)",
+      "Bash(killall *)"
+    ],
+    "autoMode": {
+      "hard_deny": [
+        "$defaults",
+        "Never run pkill, killall, or any other command that selects processes by matching a pattern against their command lines. This selects by text, so it reaches processes belonging to the user and to other tools, not only the ones the agent started. Terminating a process is acceptable only when it is addressed by an explicit PID captured earlier in the same session, or through TaskStop for a background task the agent started itself. No stated reason clears this."
+      ]
+    }
+  }
+}

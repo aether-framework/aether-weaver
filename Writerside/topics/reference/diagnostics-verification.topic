@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="diagnostics-verification" title="AW4xxx - verification and engine faults">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Five codes for what goes wrong turning an accepted plan into bytes. Two trace back to what
+        you declared; the rest point outside your source — at an artefact, a directory, or the
+        engine itself. All five are errors.
+    </p>
+
+    <table style="header-row">
+        <tr>
+            <td>Code</td>
+            <td>What happened</td>
+            <td>What to do</td>
+        </tr>
+        <tr>
+            <td><code>AW4001</code></td>
+            <td>Refused verifying the class</td>
+            <td>Check the message; the cause is below</td>
+        </tr>
+        <tr>
+            <td><code>AW4002</code></td>
+            <td>Never reported</td>
+            <td>Nothing — it reserves a number</td>
+        </tr>
+        <tr>
+            <td><code>AW4003</code></td>
+            <td>Refused writing the class</td>
+            <td>Remove injection points from that method</td>
+        </tr>
+        <tr>
+            <td><code>AW4004</code></td>
+            <td>Refused writing or verifying it</td>
+            <td>Check the message; the cause is below</td>
+        </tr>
+        <tr>
+            <td><code>AW4090</code></td>
+            <td>Reported wherever weaving fails</td>
+            <td>Check the message; the sites are below</td>
+        </tr>
+    </table>
+
+    <note>
+        <p>
+            Under Maven a refusal by the verifier arrives as <code>AW4090</code>. The plugin takes
+            no verification parameter, so the fatal default stands, and the message is the
+            verifier's own. The agent and the weaving class loader instead read
+            <code>aether.weaver.verification</code>, and under <code>report</code> the refused
+            class is kept rather than thrown. The agent still prints nothing for it once installed:
+            it drains its diagnostics only once, while installing.
+            <a href="configuration-keys.topic">Configuration keys</a> has the key;
+            <a href="diagnostics.topic">Diagnostic codes</a> has the drain.
+        </p>
+    </note>
+
+    <chapter title="What is yours to fix" id="yours">
+
+        <p>Some of these have a cause in your own weave. Rule both out before you open an issue.</p>
+
+        <list>
+            <li>
+                <p>
+                    A <code>@Redirect</code> handler may declare a trailing <code>Callback</code>,
+                    and the engine accepts it — nothing pushes one, so the call it writes is a
+                    parameter short. Where the redirected value is discarded, the writer refuses
+                    the bytes first: <code>AW4004</code>. Where it feeds a larger expression,
+                    other values sit beneath it on the stack, so the class is written but fails
+                    verification: <code>AW4001</code>. Remove the parameter either way; a redirect
+                    stands in for the operation, so there is nothing to cancel.
+                    <a href="handlers-and-callbacks.topic">Handlers and callbacks</a> has the bands
+                    a handler is read in.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <code>AW4003</code> is the class file's own limit: 65535 bytes of code in one
+                    method. Only the call costs bytes there, not the handler's body. Remove
+                    injection points from that method; a smaller handler buys nothing.
+                    <a href="redirect-and-wrap.topic">Redirect and Wrap</a> replace an operation
+                    instead of adding to one.
+                </p>
+            </li>
+        </list>
+    </chapter>
+
+    <chapter title="Faults with no code of their own" id="internal">
+
+        <p>
+            <code>AW4090</code> is what a driver reports when nothing more specific fits. Every
+            driver reports it against whatever it was working on; what the message names
+            differs by condition below.
+        </p>
+
+        <deflist type="full">
+            <def title="An exception escaped while weaving a class">
+                <p>
+                    <a href="diagnostics.topic">Diagnostic codes</a> has what each driver's error
+                    policy does with it. Whatever it decides, no dump exists for these bytes — the
+                    write that would produce one never runs. Under Maven only a verifier's
+                    <code>WeaveException</code> becomes <code>AW4090</code> this way; any other
+                    exception aborts the goal instead, unreported. Give the class name and the
+                    message to the <a href="%issues%">issue tracker</a>.
+                </p>
+            </def>
+            <def title="The verifier refused the woven bytes and threw">
+                <p>
+                    Use the message it carries: it is the <code>AW4001</code> or the
+                    <code>AW4004</code> above, and the remedy there is the one to follow.
+                </p>
+            </def>
+            <def title="A class dump could not be written">
+                <p>
+                    The woven class is written all the same. Check that the dump directory exists
+                    and is writable, or unset it.
+                </p>
+            </def>
+            <def title="No injector is registered for a declaration's kind">
+                <p>
+                    That declaration is skipped and the rest of the class is woven. Add the plugin
+                    that contributes the kind. <a href="plugins.topic">Extending the engine</a>
+                    covers how one is loaded.
+                </p>
+            </def>
+            <def title="A dependency jar could not be read">
+                <p>
+                    Weaving that artefact stops where the read failed. Check the artefact, then run
+                    the build again.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What a report needs" id="report">
+
+        <p>Two things make an engine fault reproducible.</p>
+
+        <list>
+            <li>
+                <p>
+                    The whole line: the code, the message, and every indented detail under it.
+                    <a href="diagnostics.topic">Diagnostic codes</a> reads one apart. A class dump
+                    will not add to it — none of the five codes above leaves one behind.
+                </p>
+            </li>
+            <li>
+                <p>
+                    The weave that was applied, and the target's class file where you may share it.
+                </p>
+            </li>
+        </list>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+    </seealso>
+</topic>

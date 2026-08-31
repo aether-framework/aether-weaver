@@ -1,0 +1,41 @@
+# ------------------------------------------------------------------------------------------------
+# Line endings.
+#
+# The build is checked for reproducibility on every push: two clean builds must produce
+# byte-identical jars. A file that arrives with CRLF on Windows and LF on Linux breaks that the
+# moment it is read as a resource, and it breaks the architecture tests, which compare source text.
+# So the repository normalises to LF and lets Git hand Windows whatever its own core.autocrlf
+# setting asks for.
+# ------------------------------------------------------------------------------------------------
+* text=auto eol=lf
+
+# Scripts that a shell must be able to execute, and their Windows counterparts, which cmd.exe
+# cannot parse with LF endings.
+*.sh      text eol=lf
+gradlew   text eol=lf
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+
+# ------------------------------------------------------------------------------------------------
+# Binary content. Declared rather than sniffed, so that a diff never tries to render one and a
+# merge never tries to resolve one.
+# ------------------------------------------------------------------------------------------------
+*.png     binary
+*.jpg     binary
+*.gif     binary
+*.ico     binary
+*.jar     binary
+*.class   binary
+*.zip     binary
+*.woff    binary
+*.woff2   binary
+
+# ------------------------------------------------------------------------------------------------
+# Language statistics. Without this the repository reports itself as a documentation project: the
+# Writerside module and the generated help sources outweigh the Java by volume and say nothing
+# about what the code is.
+# ------------------------------------------------------------------------------------------------
+Writerside/**        linguist-documentation
+build-config/**      linguist-documentation
+.claude/**           linguist-vendored
+*.topic              linguist-language=XML

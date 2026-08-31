@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="selectors" title="Selectors">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        A selector is the text that names a member: the <code>method</code> element of an
+        injection, the <code>target</code> of an <code>@At</code>. It constrains only the parts
+        you spell out. Matching runs against one class at a time.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["method = charge(BigDecimal)"] --> B["Owner, name, parameters, return type"]
+    B --> C{"How many declared methods fit?"}
+    C -->|none| D["AW1020, with every candidate listed"]
+    C -->|one| E["That overload is woven"]
+    C -->|several| F["AW1021, with the matches listed"]
+    </code-block>
+
+    <chapter title="What each part constrains" id="parts">
+        <p>The name is the only part you cannot leave off.</p>
+
+        <table style="header-row">
+            <tr>
+                <td>Part</td>
+                <td>With it</td>
+                <td>Without it</td>
+            </tr>
+            <tr>
+                <td>Owner</td>
+                <td>only that class</td>
+                <td>any class</td>
+            </tr>
+            <tr>
+                <td>Parameter list</td>
+                <td>that arity, then position by position</td>
+                <td>any signature</td>
+            </tr>
+            <tr>
+                <td>Each parameter type</td>
+                <td>that erased type</td>
+                <td><code>*</code> matches any</td>
+            </tr>
+            <tr>
+                <td>Return or field type</td>
+                <td>that erased type</td>
+                <td>any type</td>
+            </tr>
+        </table>
+
+        <list>
+            <li>
+                <p>
+                    <code>*</code> stands for a whole name, never part of one.
+                    <code>get*</code> is <code>AW1015</code>; use <code>*</code> alone, or name
+                    the method in full.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Type arguments parse, then get thrown away. A class file records erased
+                    signatures, and <code>AW1016</code> says so; delete them.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <a href="selector-grammar.topic">The selector grammar</a> has the rest, including the
+                    constant forms an <a href="injection-points.topic">injection point</a> takes.
+                </p>
+            </li>
+        </list>
+    </chapter>
+
+    <chapter title="Absent, empty and wildcard" id="arity">
+        <p>Three spellings of one name behave differently, and the difference is the feature.</p>
+
+        <deflist type="medium">
+            <def title="charge">
+                <p>
+                    Every method of that name, whatever it takes and returns. Write it when the
+                    target has one <code>charge</code> and its signature may still move.
+                </p>
+            </def>
+            <def title="charge()">
+                <p>
+                    Only the overload taking nothing. The parentheses have to close up.
+                    <code>charge( )</code> is <code>AW1015</code>: a type is expected once
+                    anything but <code>)</code> follows. Remove the space.
+                </p>
+            </def>
+            <def title="*">
+                <p>
+                    Every method the target declares. At compile time, matching several is
+                    <code>AW1022</code> unless <code>allow</code> is set above zero — it says
+                    "several is intended", not how many; a count that later grows is not caught.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                <code>allow</code> is checked again when the class is woven, and differently:
+                there it is a ceiling, and a wildcard matching more methods than <code>allow</code>
+                permits is <code>AW1044</code>. See <a href="pipeline.topic">the pipeline</a> for
+                that check.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Two spellings, one selector" id="forms">
+        <p>
+            One member, two ways to name it. Which one you write decides whether the text is a
+            pattern or a pin.
+        </p>
+
+        <code-block lang="text">
+charge(BigDecimal)
+desc:com/acme/Gateway.charge(Ljava/math/BigDecimal;)V
+        </code-block>
+
+        <deflist type="medium">
+            <def title="Source form">
+                <p>
+                    The one to write by hand. It names types the way Java source does, and only
+                    this form takes a wildcard. Slashes belong to the other one.
+                    <code>com/acme/Gateway.charge()</code> is <code>AW1015</code>: use dots, or
+                    add the <code>desc:</code> prefix.
+                </p>
+            </def>
+            <def title="Descriptor form">
+                <p>
+                    The one to paste from <code>javap -s</code>. Every type in
+                    it is exact. It admits no wildcard and names one member. Its return type is
+                    part of what it names, so
+                    <code>desc:charge(Ljava/math/BigDecimal;)</code> is <code>AW1019</code>; add
+                    <code>V</code> for <code>void</code>.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            Descriptor syntax without the prefix is <code>AW1017</code>. It is reported only after
+            the source reading has failed, and it carries a corrected spelling. Use that.
+            <a href="selector-grammar.topic">The selector grammar</a> gives both forms in full.
+        </p>
+    </chapter>
+
+    <chapter title="Where inheritance stops" id="candidates">
+        <p>
+            Candidates come from the target itself, never from what it inherits. Name the class
+            that declares the member, and weave there.
+        </p>
+
+        <list>
+            <li>
+                <p>
+                    Against a target still in source, the processor reads its declared methods; a
+                    constructor is never among them, so <code>&lt;init&gt;()</code> is
+                    <code>AW1020</code>. At weave time the engine reads the class file itself, and
+                    everything it holds counts: constructors as <code>&lt;init&gt;</code>, the
+                    static initialiser as <code>&lt;clinit&gt;</code>, and the bridge and synthetic
+                    methods a compiler emitted.
+                </p>
+            </li>
+            <li>
+                <p>
+                    A bare name can therefore match a compiler-generated method alongside the one
+                    you meant. That is <code>AW1021</code>, not <code>AW1020</code> — something
+                    matched, more than one thing. <code>AW1021</code> prints what it matched;
+                    add the parameter types, or pin one with <code>desc:</code>.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Which classes a weave claims is a separate question.
+                    <a href="weaving-model.topic">The weaving model</a> settles that, and
+                    <a href="pipeline.topic">the pipeline</a> has the order.
+                </p>
+            </li>
+        </list>
+    </chapter>
+
+    <chapter title="Read twice, compared differently" id="checked-twice">
+        <p>
+            The annotation processor checks your selector, and the engine checks it again. They do
+            not compare the same things.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>What it states</td>
+                <td>At compile time</td>
+                <td>When the class is woven</td>
+            </tr>
+            <tr>
+                <td>A return type</td>
+                <td>not compared</td>
+                <td>compared, if parsed as one</td>
+            </tr>
+            <tr>
+                <td>Parameter wildcard</td>
+                <td>no match</td>
+                <td>matches any type</td>
+            </tr>
+            <tr>
+                <td>A qualified owner</td>
+                <td>must be on the classpath</td>
+                <td>must be the woven class</td>
+            </tr>
+            <tr>
+                <td>A wildcard, many hits</td>
+                <td>several needs allow set</td>
+                <td>allow is the ceiling</td>
+            </tr>
+        </table>
+
+        <p>
+            A qualified owner missing from the compile classpath is <code>AW1010</code>. Check the
+            spelling, or drop the owner when the member sits on the weave's own target. A simple
+            name is never reported that way, since resolving one needs imports no class file
+            records.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="injection-points.topic">Injection points</a>
+        </category>
+        <category ref="reference">
+            <a href="selector-grammar.topic">The selector grammar</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

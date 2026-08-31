@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="install" title="Install">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Compiled for JDK %jdk%. The plugin needs Maven %maven%.</p>
+    </tldr>
+
+    <p>
+        Add this to the pom of the module that holds your weave. <code>mvn verify</code> then
+        weaves its classes as part of the build.
+    </p>
+
+    <code-block lang="xml"><![CDATA[
+<properties>
+    <maven.compiler.release>%jdk%</maven.compiler.release>
+    <aether.weaver.version>%version%</aether.weaver.version>
+</properties>
+
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>%group%</groupId>
+            <artifactId>aether-weaver-bom</artifactId>
+            <version>${aether.weaver.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency>
+        <groupId>%group%</groupId>
+        <artifactId>aether-weaver-api</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>%group%</groupId>
+        <artifactId>aether-weaver-processor</artifactId>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>%compiler-plugin%</version>
+            <configuration>
+                <proc>full</proc>
+            </configuration>
+        </plugin>
+        <plugin>
+            <groupId>%group%</groupId>
+            <artifactId>aether-weaver-maven-plugin</artifactId>
+            <version>${aether.weaver.version}</version>
+            <executions>
+                <execution>
+                    <goals>
+                        <goal>weave</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+]]></code-block>
+
+    <chapter title="What each part is for" id="parts">
+        <deflist type="medium">
+            <def title="aether-weaver-bom">
+                <p>
+                    Imported, so the dependencies under it carry no <code>version</code>. A
+                    <code>&lt;plugin&gt;</code> takes none of that, which is why the plugin's own
+                    version is written out.
+                </p>
+            </def>
+            <def title="aether-weaver-api">
+                <p>
+                    The annotations and the selector grammar you write a weave with. Its
+                    transitive closure is empty, so it adds nothing else to your classpath.
+                    <a href="what-is-aether-weaver.topic">What Aether Weaver is</a> shows what a
+                    weave looks like.
+                </p>
+            </def>
+            <def title="aether-weaver-processor">
+                <p>
+                    Checks every weave while <code>javac</code> runs and records it. At
+                    <code>provided</code> scope it stays out of the artifact you publish.
+                </p>
+            </def>
+            <def title="aether-weaver-maven-plugin">
+                <p>
+                    Its <code>weave</code> goal binds to <code>process-classes</code> and rewrites
+                    your output directory in place. <a href="maven-goals.topic">The plugin reference</a>
+                    has the goals and their parameters.
+                </p>
+            </def>
+            <def title="proc full">
+                <p>
+                    Since JDK 21, <code>javac</code> does not run a classpath annotation processor
+                    unless asked. Without this setting the processor never runs.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <procedure title="Weave a module" id="run">
+        <step>
+            <p>Put the block above into your pom, and write a weave beside the classes it
+                changes. <a href="first-weave.topic">Your first weave</a> is three short classes.</p>
+        </step>
+        <step>
+            <p>Compile and weave. The plugin runs after <code>compile</code>, over the classes
+                javac wrote.</p>
+            <code-block lang="bash">
+mvn verify
+            </code-block>
+        </step>
+        <step>
+            <p>Read the plugin's closing line. It counts the weaves it loaded and the classes it
+                rewrote.</p>
+            <code-block lang="console">
+[INFO] Aether Weaver: 1 weave, 1 class rewritten (main).
+            </code-block>
+        </step>
+    </procedure>
+
+    <tip>
+        <p>
+            Maven resolves these artifacts from the repositories you have configured. To build
+            them yourself, clone <code>%repo%.git</code> and run <code>mvn install</code>. Set
+            <code>aether.weaver.version</code> to whatever the branch you checked out declares
+            — <a href="building-and-testing.topic">Building and testing</a> covers the branches.
+        </p>
+    </tip>
+
+    <chapter title="When that line never appears" id="silent">
+        <p>
+            The plugin finds your weaves through one file, and the processor is what writes it.
+            <a href="weave-discovery.topic">How a weave is found</a> has the rest of that path.
+        </p>
+
+        <code-block lang="mermaid">
+flowchart TB
+    S["Your sources"] --> J["javac, with proc full"]
+    J --> M["META-INF/aether/weaves.json"]
+    J --> K["Compiled classes"]
+    M --> G["The weave goal, at process-classes"]
+    K --> G
+    G --> O["Rewritten bytecode, same directory"]
+        </code-block>
+
+        <warning>
+            <p>
+                A build with the plugin and no processor stays green and weaves none of its own
+                classes. If the closing line is missing, check that <code>proc</code> is
+                <code>full</code> and that <code>aether-weaver-processor</code> is on the compile
+                classpath.
+            </p>
+        </warning>
+
+        <note>
+            <p>
+                A manifest that exists but cannot be read is <code>AW2300</code>: delete
+                <code>target/classes</code> and compile again. <a href="diagnostics.topic">Diagnostics</a>
+                explains what a code is telling you.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="The artifacts for the other drivers" id="drivers">
+        <p>
+            Three more exist, one for each of the other drivers.
+            <a href="artifacts.topic">Artefacts and modules</a> has the full list.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="what-is-aether-weaver.topic">What Aether Weaver is</a>
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="reference">
+            <a href="maven-goals.topic">The Maven plugin</a>
+        </category>
+        <category ref="external">
+            <a href="https://github.com/aether-framework/aether-weaver">Aether Weaver on GitHub</a>
+        </category>
+    </seealso>
+</topic>

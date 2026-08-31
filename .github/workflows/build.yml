@@ -1,0 +1,222 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first: CI feedback on stale commits is noise.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Batch mode, no transfer chatter, and fail on the first module that breaks.
+  MAVEN_ARGS: -B -ntp -e
+
+jobs:
+
+  # ---------------------------------------------------------------------------------------------
+  # The main gate. Runs on every supported OS because the build touches the filesystem (class file
+  # discovery, path handling in the architecture test) and those are exactly the places where a
+  # Linux-only project quietly breaks for Windows contributors.
+  # ---------------------------------------------------------------------------------------------
+  build:
+    name: Build (JDK ${{ matrix.java }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        java: [ '25' ]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      # `verify` runs the full chain: enforcer (banned dependencies, Java version), checkstyle
+      # (formatting, imports, no module-info.java), compile, and the test suite —
+      # including the architecture tests that enforce the dependency direction.
+      - name: Build and verify
+        run: mvn ${{ env.MAVEN_ARGS }} clean verify
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: surefire-reports-${{ matrix.os }}-jdk${{ matrix.java }}
+          path: '**/target/surefire-reports/**'
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------------------------
+  # The IntelliJ plugin, which the job above does not touch at all: `aether-weaver-ide` is a Gradle
+  # build that the Maven reactor deliberately does not list, so without this job its test suite runs
+  # only on the machine of whoever wrote it.
+  #
+  # Two things are checked, and the second is the one that cannot be checked any other way.
+  # `check` runs the fixture tests and compiles the sample project against the published API — real
+  # usage that nobody compiles decays into wishful usage. `verifyPlugin` runs JetBrains' Plugin
+  # Verifier against the IDE releases the plugin claims to support: `untilBuild` is unset, which
+  # promises compatibility with every future release, and this is what turns that promise from a
+  # hope into something a build can fail on. A plugin that breaks on an IDE update is worse than no
+  # plugin, and the alternative to checking is finding out from users.
+  #
+  # One OS: an IntelliJ plugin runs on the IDE's own JetBrains Runtime, and its fixture tests touch
+  # the filesystem only through the platform's own test infrastructure. The OS matrix on the Maven
+  # job exists because *that* build discovers class files by walking directories; this one does not.
+  # ---------------------------------------------------------------------------------------------
+  plugin:
+    name: IntelliJ plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # Caches the Gradle user home, which matters more here than for most builds: the IntelliJ
+      # Platform plugin downloads a full IDE distribution, and the Plugin Verifier downloads one per
+      # release it checks against.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # The plugin resolves `aether-weaver-api` as a published artifact, exactly as any other
+      # consumer does — including the sample project, which is a standalone Maven build. So the
+      # artifact has to exist in the local repository before Gradle starts.
+      #
+      # The processor rather than the API alone, and `-am` brings the API and the engine with it.
+      # ProcessorCrossCheckTest runs one corpus of wrong weaves through the real annotation processor
+      # and through the plugin's inspections and compares the codes; without the processor jar that
+      # test cannot run, and the two implementations would be free to drift again.
+      - name: Install the API and the processor into the local repository
+        run: mvn ${{ env.MAVEN_ARGS }} -pl aether-weaver-processor -am install -DskipTests
+
+      - name: Check
+        working-directory: aether-weaver-ide/aether-weaver-idea
+        run: ./gradlew --no-daemon check
+
+      - name: Verify against every supported IDE release
+        working-directory: aether-weaver-ide/aether-weaver-idea
+        run: ./gradlew --no-daemon verifyPlugin
+
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: plugin-reports
+          path: |
+            aether-weaver-ide/aether-weaver-idea/build/reports/**
+            aether-weaver-ide/aether-weaver-idea/build/test-results/**
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------------------------
+  # Reproducibility is a release contract: the same sources must produce byte-identical artifacts.
+  # It is a property of the build rather than of the platform, so checking it on one OS is enough.
+  #
+  # This catches the things that silently destroy reproducibility — a timestamp written into a
+  # manifest, iteration over a HashMap, an absolute path baked into an artifact — at the moment
+  # they are introduced rather than when a downstream consumer notices a hash mismatch.
+  # ---------------------------------------------------------------------------------------------
+  reproducible:
+    name: Reproducible build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: First build
+        run: mvn ${{ env.MAVEN_ARGS }} clean package -DskipTests
+
+      - name: Record artifact hashes
+        run: find . -path '*/target/*.jar' | sort | xargs sha256sum > /tmp/first.sha256
+
+      - name: Second build
+        run: mvn ${{ env.MAVEN_ARGS }} clean package -DskipTests
+
+      - name: Compare
+        run: |
+          find . -path '*/target/*.jar' | sort | xargs sha256sum > /tmp/second.sha256
+          if diff -u /tmp/first.sha256 /tmp/second.sha256; then
+            echo "::notice::$(wc -l < /tmp/first.sha256) artifacts are byte-identical across two clean builds"
+          else
+            echo "::error::the build is not reproducible — see the diff above"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------------------------
+  # A non-English locale with a non-UTC timezone and a non-Latin default charset.
+  #
+  # Diagnostics are formatted text, and formatted text is where locale assumptions hide:
+  # String.format with %,d, String.toUpperCase() without a Locale (the Turkish dotless-i problem),
+  # date rendering, and default-charset file reads. A developer on an English UTC machine never
+  # sees any of it.
+  # ---------------------------------------------------------------------------------------------
+  locale:
+    name: Non-default locale and timezone
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # MAVEN_OPTS configures the Maven JVM. Surefire forks a separate JVM for the tests and
+      # does NOT inherit it, so the locale has to be passed to that fork explicitly via argLine —
+      # without it this job would run the assertions under the runner's default en_US and report
+      # green while testing nothing.
+      - name: Build under tr-TR / Asia/Tokyo
+        env:
+          TZ: Asia/Tokyo
+          MAVEN_OPTS: -Duser.language=tr -Duser.country=TR
+        run: >
+          mvn ${{ env.MAVEN_ARGS }} clean verify
+          -DargLine="-Duser.language=tr -Duser.country=TR"
+
+  # ---------------------------------------------------------------------------------------------
+  # Early warning for the next JDK. Allowed to fail: an early-access build breaking is information,
+  # not a reason to block a pull request.
+  # ---------------------------------------------------------------------------------------------
+  next-jdk:
+    name: JDK 26 early access (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 26 early access
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26-ea'
+          cache: maven
+
+      - name: Build and verify
+        run: mvn ${{ env.MAVEN_ARGS }} clean verify

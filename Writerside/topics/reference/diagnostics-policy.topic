@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="diagnostics-policy" title="AW3xxx - policy and plugins">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Two unrelated conditions share this range. One is a class the engine refuses to weave.
+        The other is a <code>WeaverPlugin</code> that misbehaved. The chapters split on that, so
+        read one and skip the other. <a href="diagnostics.topic">Diagnostic codes</a> covers the
+        output line itself.
+    </p>
+
+    <chapter title="A class the engine refused" id="policy">
+
+        <p>
+            <code>AW3001</code>, <code>AW3002</code> and <code>AW3003</code> share one gate. It
+            runs per class, right before rewriting. A refused class is handed back exactly as it
+            arrived. <code>AW3010</code> and <code>AW3020</code> are not from it.
+            <code>AW3010</code> fires per classpath entry while manifests are read.
+            <code>AW3020</code> fires once a signed jar is woven.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW3001</code></td>
+                <td>The target sits under a JDK prefix</td>
+                <td>Weave a class of your own instead</td>
+            </tr>
+            <tr>
+                <td><code>AW3002</code></td>
+                <td>The target came from a signed jar</td>
+                <td>Weave before signing</td>
+            </tr>
+            <tr>
+                <td><code>AW3003</code></td>
+                <td>The target is %product% itself</td>
+                <td>No remedy; no setting reopens it</td>
+            </tr>
+            <tr>
+                <td><code>AW3010</code></td>
+                <td>A weave arrived transitively</td>
+                <td>Declare that dependency directly</td>
+            </tr>
+            <tr>
+                <td><code>AW3020</code></td>
+                <td>A signed jar was woven anyway</td>
+                <td>Nothing to do; check it was meant</td>
+            </tr>
+        </table>
+
+        <p>
+            Four of these nineteen are warnings: <code>AW3010</code>, <code>AW3020</code>,
+            <code>AW3118</code> and <code>AW3120</code>. The rest are errors, and a build stops
+            at one unless the driver says otherwise. <a href="diagnostics.topic">Diagnostic
+            codes</a> has the driver-by-driver rule.
+        </p>
+
+        <p>
+            <code>java.*</code> is refused whatever you configure. Those classes load before any
+            transformer exists. The two overrides, and what each costs, are in
+            <a href="policy-and-safety.topic">Policy and safety</a>.
+            <a href="weave-discovery.topic">How a weave is found</a> covers where a weave comes
+            from.
+        </p>
+
+        <deflist type="medium">
+            <def title="Reopening any other JDK prefix">
+                <p>
+                    Takes a hand-built policy. The key the message names reaches no driver.
+                    <code>DefaultWeavePolicy.builder().allowPackage(...)</code> is what works.
+                    <a href="configuration-keys.topic">Configuration keys</a> has the keys the drivers do
+                    read.
+                </p>
+            </def>
+            <def title="Only two places, in practice">
+                <p>
+                    <code>AW3002</code> is raised in three places, but the engine's own gate
+                    never builds a target its third can refuse. Only the weaving class loader
+                    and the <code>weave</code> goal weaving dependency jars reach a reader, both
+                    with an override. <a href="choose-a-driver.topic">Choose a driver</a>
+                    compares the three drivers.
+                </p>
+            </def>
+            <def title="Once per signed jar">
+                <p>
+                    <code>AW3020</code> fires once for every signed jar the <code>weave</code>
+                    goal considers, before any of its classes is read, and only when
+                    <code>weaveDependencies</code> is set. There is nothing to do about it beyond
+                    confirming the decision.
+                </p>
+            </def>
+            <def title="Under weave-tests">
+                <p>
+                    Your own main classes sit outside the direct set, so a weave declared there
+                    is reported as <code>AW3010</code> against your module. Neither offered
+                    remedy fits, and there is nothing to do about it: a module cannot depend on
+                    itself. <a href="maven-goals.topic">Maven goals</a> has the goal.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="While a plugin loads" id="loading">
+
+        <p>
+            No shipped driver loads a <code>WeaverPlugin</code>. Maven, the agent and the
+            weaving class loader never call <code>discoverPlugins</code> or <code>plugin</code>,
+            so <code>CorePlugin</code> is the only one any of them runs. These codes reach a
+            plugin author only through a <code>Weaver</code> built by hand.
+        </p>
+
+        <p>
+            Every candidate then passes four gates in order; the first that refuses drops that
+            plugin alone. Its numbering interleaves with the next chapter's — a code missing here
+            is there instead. <a href="loading-plugins.topic">Loading and isolating plugins</a> has the
+            order, and <a href="plugins.topic">Extending the engine</a> is the section.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW3101</code></td>
+                <td>It claims the built-in namespace</td>
+                <td>Give the plugin its own namespace</td>
+            </tr>
+            <tr>
+                <td><code>AW3111</code></td>
+                <td>Two contributors claim one name</td>
+                <td>Remove a jar, or drop one registration</td>
+            </tr>
+            <tr>
+                <td><code>AW3112</code></td>
+                <td>It needs a newer SPI level</td>
+                <td>Upgrade %product%</td>
+            </tr>
+            <tr>
+                <td><code>AW3113</code></td>
+                <td>It declared an SPI level below 1</td>
+                <td>Return <code>WeaverApi.LEVEL</code> from <code>apiLevel()</code></td>
+            </tr>
+            <tr>
+                <td><code>AW3114</code></td>
+                <td>Construction, <code>id()</code> or <code>apiLevel()</code> threw</td>
+                <td>Check the constructor and both methods</td>
+            </tr>
+            <tr>
+                <td><code>AW3119</code></td>
+                <td>The configuration refuses it</td>
+                <td>Add the namespace to allow, clear deny</td>
+            </tr>
+        </table>
+
+        <p>Three settings decide what may load, and they do not weigh equally:</p>
+
+        <list>
+            <li><p><code>aether.weaver.plugins.enabled=false</code> refuses every plugin, and
+                neither list is consulted.</p></li>
+            <li><p><code>aether.weaver.plugins.deny</code> wins over the allowlist, so a denied
+                namespace stays denied.</p></li>
+            <li><p><code>aether.weaver.plugins.allow</code> is exhaustive once it names anything;
+                empty means unconfigured.</p></li>
+        </list>
+
+        <note>
+            <p>
+                A driver has to read these three keys itself and pass a predicate to
+                <code>WeaverBuilder.permitPlugins(...)</code>, typically built with
+                <code>PluginFilter.from(enabled, allow, deny)</code>. No shipped driver does, so
+                writing any of the three today changes nothing. The <code>AW3119</code> remedy
+                names the allowlist and only the allowlist, so following it does nothing when the
+                refusal came from the other two. <a href="configuration-keys.topic">Configuration keys</a> has
+                the keys a driver could read.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="While a plugin contributes and runs" id="running">
+
+        <p>
+            A throw out of a <code>WeaverPlugin</code>'s code becomes a diagnostic, but not
+            always against the plugin that threw. <code>AW3116</code> stays narrow — a built-in
+            point is called directly, so a defect in the engine surfaces as itself.
+            <code>AW3117</code> does not: it guards the whole class rewrite. A built-in defect on
+            a class a plugin also touches is reported as <code>AW3117</code> against that plugin
+            instead. Report rather than throw is the rule behind both.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW3100</code></td>
+                <td>Its namespace failed validation</td>
+                <td>Reachable only outside plugin loading</td>
+            </tr>
+            <tr>
+                <td><code>AW3110</code></td>
+                <td>It registered outside its namespace</td>
+                <td>Name it with the plugin's namespace</td>
+            </tr>
+            <tr>
+                <td><code>AW3115</code></td>
+                <td>It threw while registering</td>
+                <td>Report through the context instead</td>
+            </tr>
+            <tr>
+                <td><code>AW3116</code></td>
+                <td>A contributed point threw</td>
+                <td>Return an empty result and report</td>
+            </tr>
+            <tr>
+                <td><code>AW3117</code></td>
+                <td>A contributed injector threw</td>
+                <td>Make emission total; nothing was written</td>
+            </tr>
+            <tr>
+                <td><code>AW3118</code></td>
+                <td>An observer threw</td>
+                <td>Check the observer; weaving went on</td>
+            </tr>
+            <tr>
+                <td><code>AW3120</code></td>
+                <td>A retired identifier was used</td>
+                <td>Use the replacement the message names</td>
+            </tr>
+            <tr>
+                <td><code>AW3121</code></td>
+                <td>An alias names nothing registered</td>
+                <td>Register the replacement, or fix it</td>
+            </tr>
+        </table>
+
+        <p>
+            <code>AW3100</code> tests a namespace inside <code>NamespacedRegistry.Builder</code>
+            itself. A plugin's own bad namespace never reaches it; <code>PluginId</code>'s
+            constructor refuses it first. This fires only for a caller building a registry by
+            hand.
+        </p>
+
+        <p>
+            An identifier belongs to whoever registered it, which is why most of these name a
+            namespace. <code>AW3120</code> and <code>AW3121</code> do not: they quote the alias
+            as written, and an alias between two unqualified identifiers names no namespace at
+            all. <a href="namespaces.topic">Namespaces and identifiers</a> has the shape.
+            <a href="injection-points.topic">Injection points</a> covers what a contributed
+            point resolves against.
+        </p>
+
+        <note>
+            <p>
+                The engine resolves every identifier through a listener that discards what it is
+                given, so no build prints <code>AW3120</code>. Check a plugin's own release notes
+                for a retired identifier instead.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+            <a href="annotations.topic">Annotations</a>
+        </category>
+        <category ref="plugins">
+            <a href="plugins.topic">Extending the engine</a>
+        </category>
+        <category ref="concepts">
+            <a href="weave-discovery.topic">How a weave is found</a>
+        </category>
+    </seealso>
+</topic>

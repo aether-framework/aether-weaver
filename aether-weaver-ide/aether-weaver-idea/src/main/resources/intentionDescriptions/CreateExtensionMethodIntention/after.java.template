@@ -1,0 +1,3 @@
+public static String asMoney(@Receiver BigDecimal self, String currency) {
+    return currency + " " + self;
+}

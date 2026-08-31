@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="build-time-weaving" title="Build-time weaving">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Needs the two dependencies from <a href="install.topic">Install</a>: the API and the
+            annotation processor.</p>
+    </tldr>
+
+    <p>
+        Bind both weaving goals and Maven rewrites your compiled classes in place. The jar it
+        packages is woven already. Your application starts with no agent and no extra flag.
+    </p>
+
+    <code-block lang="xml"><![CDATA[
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>%compiler-plugin%</version>
+            <configuration>
+                <proc>full</proc>
+            </configuration>
+        </plugin>
+        <plugin>
+            <groupId>%group%</groupId>
+            <artifactId>aether-weaver-maven-plugin</artifactId>
+            <version>%version%</version>
+            <executions>
+                <execution>
+                    <goals>
+                        <goal>weave</goal>
+                        <goal>weave-tests</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+]]></code-block>
+
+    <chapter title="Where the rewriting happens" id="lifecycle">
+        <code-block lang="mermaid">
+flowchart TB
+    A["compile"] --> B["process-classes, where weave runs"]
+    B --> C["target/classes rewritten in place"]
+    C --> D["test-compile"]
+    D --> E["process-test-classes, where weave-tests runs"]
+    E --> F["target/test-classes rewritten"]
+    F --> G["test, then package"]
+    G --> H["Jar shipping woven bytecode"]
+        </code-block>
+
+        <p>
+            Each goal applies the weaves its own directory records, and reads extension
+            declarations off the whole classpath.
+            <a href="weave-discovery.topic">How a weave is found</a> follows that record from
+            <code>javac</code> to the goal.
+        </p>
+    </chapter>
+
+    <procedure title="Weave a build and check it" id="run">
+        <step>
+            <p>Put the block above in the pom of the module whose sources declare the weave.
+                <a href="first-weave.topic">Your first weave</a> is three classes if you need
+                one to try.</p>
+        </step>
+        <step>
+            <p>Build.</p>
+            <code-block lang="bash">
+mvn verify
+            </code-block>
+        </step>
+        <step>
+            <p>The goal that found something to weave closes with a count.
+                <a href="first-weave.topic">Your first weave</a> has no test sources, so only
+                the main line prints.</p>
+            <code-block lang="console">
+[INFO] Aether Weaver: 1 weave, 1 class rewritten (main).
+            </code-block>
+        </step>
+        <step>
+            <p>Audit the packaged jar. It prints what every woven class in it records
+                about itself. That record is the proof the artefact carries the change.
+                <a href="maven-goals.topic">Maven goals</a> has the goal.</p>
+            <code-block lang="console"><![CDATA[
+$ mvn %group%:aether-weaver-maven-plugin:%version%:audit \
+      -Daether.weaver.artifact=target/app.jar
+[INFO] fixture/Target.class
+[INFO]   ← fixture.Greeting                INJECT   onGreet()V  →  greet()
+[INFO]
+[INFO] 1 class, 1 modification, fingerprint <64 hex characters>, no policy overrides
+]]></code-block>
+        </step>
+    </procedure>
+
+    <chapter title="No closing line at all" id="control">
+        <p>
+            No closing line at all means the goal found nothing to read, which is what
+            happens when <code>javac</code> ran without the processor. Check
+            <code>&lt;proc&gt;full&lt;/proc&gt;</code> and the
+            <a href="install.topic">Install</a> dependencies.
+            <a href="maven-goals.topic">Maven goals</a> covers the rest: stopping on an
+            error, skipping a run, and seeing what each injection point matched.
+        </p>
+    </chapter>
+
+    <chapter title="Your test classes" id="tests">
+        <p>
+            <code>weave-tests</code> takes only the weaves declared in the test sources. Your
+            main weaves stay on your main classes. The tests run against the woven ones.
+            <a href="testing-woven-code.topic">Testing woven code</a> covers asserting on the
+            result.
+        </p>
+
+        <warning>
+            <p>
+                Your main output is an entry on the test classpath like any other. So a
+                weave declared in your main sources draws <code>AW3010</code> here. Nothing to
+                do: no module can ask for itself by name.
+                <a href="diagnostics-policy.topic">AW3xxx</a> has the reasoning. It stays
+                quiet only where the test classes declare no weave and nothing on the test
+                classpath declares an extension.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="A target that lives in a dependency" id="dependencies">
+        <p>
+            <code>weaveDependencies</code> is off until you set it. The goal then touches no
+            artefact somebody else published. Your target is planned and never reached, and all
+            you get is a count.
+        </p>
+
+        <code-block lang="console">
+[WARNING] Aether Weaver: 1 planned target were not found in main classes (1 of 2 woven)
+        </code-block>
+
+        <p>
+            Switch it on for one run. Every resolved jar then goes through the same weaver.
+            A signed one is refused as <code>AW3002</code>. Set
+            <code>aether.weaver.allowSigned=true</code> too to weave it anyway, reported
+            as <code>AW3020</code> instead.
+        </p>
+
+        <code-block lang="bash">
+mvn verify -Daether.weaver.weaveDependencies=true
+        </code-block>
+
+        <p>
+            Changed classes land under <code>target/aether-weaver/dependencies</code>, listed by
+            <code>AW2501</code>. Add that directory ahead of the dependency jars wherever your build
+            assembles a classpath. Otherwise nothing reads the woven copies, and the jars keep
+            their published bytes either way. <a href="maven-goals.topic">Maven goals</a> has the
+            parameters, signed artefacts included.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="install.topic">Install</a>
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="guides">
+            <a href="load-time-weaving.topic">Load-time weaving</a>
+            <a href="runtime-weaving.topic">Runtime weaving</a>
+            <a href="testing-woven-code.topic">Testing woven code</a>
+            <a href="policy-and-safety.topic">Policy and safety</a>
+        </category>
+        <category ref="reference">
+            <a href="maven-goals.topic">Maven goals</a>
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+    </seealso>
+</topic>

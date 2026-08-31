@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="javadoc-policy" title="JavaDoc policy">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        Every declaration you write in the seven published modules carries a doc comment,
+        whatever its visibility. Four checks enforce that, each in a phase of its own. <a href="building-and-testing.topic#red">When it goes red</a> maps a failure
+        to its cause.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    doc["A doc comment"] --> cs["Checkstyle, validate phase: line width and imports"]
+    cs --> cov["JavadocCoverageTest, test phase: nothing left undocumented"]
+    cov --> sty["JavadocStyleTest, test phase: register, codes and links"]
+    sty --> dl["Doclint, verify phase: every reference resolves"]
+    dl --> out["Generated page"]
+    </code-block>
+
+    <chapter title="What has to carry a comment" id="scope">
+        <p>
+            Nothing you write is exempt for being invisible. A <code>private</code> field is
+            documented like a published one, and so is an <code>@Override</code> method. The
+            engine answers to the standard the api does.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Declaration</td><td>What it has to carry</td></tr>
+            <tr><td>Every type, nested ones included</td><td>a comment, <code>@since %version%</code>, <code>@author Erik Pförtner</code></td></tr>
+            <tr><td>Field, constructor and method</td><td>a comment, and neither tag</td></tr>
+            <tr><td>Enum constant, annotation element</td><td>a comment of its own</td></tr>
+            <tr><td><code>package-info.java</code></td><td>a comment nothing insists on, read like any other</td></tr>
+        </table>
+
+        <p>
+            The walk reads modifiers and return types off a line. A constructor, a
+            package-private member and an enum constant that opens a body all slip past it. You
+            still owe each of them a comment.
+        </p>
+
+        <p>
+            A member cannot predate its type. A <code>@since</code> there is true by construction,
+            and dilutes the tag where it counts. The build checks that a type has
+            the tag. It never reads the value, and it never looks for <code>@author</code>. Only
+            <code>src/main/java</code> of the published modules is walked;
+            <a href="artifacts.topic">Artefacts and modules</a> names the seven.
+        </p>
+
+    </chapter>
+
+    <chapter title="The form of one comment" id="form">
+        <p>
+            The house style is <code>build-config/reweave/STYLE.md</code>, and three worked
+            comments sit at the end of it. What it asks of yours:
+        </p>
+
+        <table style="header-row">
+            <tr><td>Element</td><td>What the house style asks for</td></tr>
+            <tr><td>The first sentence</td><td>extracted, and it stands alone in the summary</td></tr>
+            <tr><td>A method comment</td><td>third person, subject omitted: <code>Returns the site</code></td></tr>
+            <tr><td>The text of a tag</td><td>a lower-case phrase with no closing period</td></tr>
+            <tr><td>Tag order</td><td><code>@param</code>, <code>@return</code>, <code>@throws</code>, <code>@since</code>, <code>@see</code>, <code>@author</code> last</td></tr>
+            <tr><td>Markup</td><td><code>{@code}</code> and <code>{@link}</code>, never the HTML forms</td></tr>
+            <tr><td>Line width</td><td>120 columns; a line with a URL is exempt</td></tr>
+        </table>
+
+        <p>
+            The standard doclet has requirements of its own, and they are not project rules.
+            The
+            <a href="https://docs.oracle.com/en/java/javase/25/docs/specs/javadoc/doc-comment-spec.html">comment
+                specification</a> states them.
+        </p>
+    </chapter>
+
+    <chapter title="How much to write" id="depth">
+        <p>
+            Who reads the comment decides how much you write. The first entry below is meant to
+            dwarf the other two.
+        </p>
+
+        <deflist type="full">
+            <def title="The published API">
+                <p>
+                    Write a specification. The reader holds the generated page and no engine
+                    source. State every constraint as a rule. Name every failure with its
+                    <a href="diagnostics.topic">diagnostic code</a>. Say what changes once a
+                    second weave reaches the same target. Several hundred lines on one
+                    annotation is proportionate.
+                </p>
+            </def>
+            <def title="Engine internals">
+                <p>
+                    The reader has the file open, so restating behaviour costs them time. The
+                    comment earns its place by naming the constraint that forced the code.
+                </p>
+            </def>
+            <def title="Drivers and package-private helpers">
+                <p>
+                    Enough to place the class in a run. Say what it returns when it cannot
+                    answer.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Three ways a link goes red" id="links">
+        <deflist type="full">
+            <def title="A link out of the module's reach">
+                <p>
+                    A <code>{@link}</code> resolves against the module's own javadoc
+                    classpath. It reaches only what the module already depends on, and writing
+                    the target out in full changes nothing. Doclint stops <code>verify</code>
+                    with <code>reference not found</code>. Name the type in <code>{@code}</code>
+                    instead. An import would not have helped either:
+                    <a href="repository-layout.topic#architecture-tests">what refuses a
+                        change</a> rejects one that points against the arrow.
+                </p>
+            </def>
+            <def title="An import that only a link uses">
+                <p>
+                    Checkstyle counts <code>{@link Foo}</code> as a use of the <code>Foo</code>
+                    import. Delete the last link to a type and its import falls unused, and
+                    <code>validate</code> stops the build before anything compiles. Drop the
+                    import in the same change.
+                </p>
+            </def>
+            <def title="A published link to a package-private neighbour">
+                <p>
+                    Pages are generated at protected visibility. A package-private type never
+                    gets one, and doclint resolves the link from the source path all the same.
+                    The reader would meet dead text, so <code>JavadocStyleTest</code> stops the
+                    test phase. Name the type in <code>{@code}</code> here too.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Wording the style test refuses" id="register">
+        <p>
+            <code>JavadocStyleTest</code> reads every <code>.java</code> file in the
+            repository. Test sources and the
+            <a href="intellij-plugin.topic">IntelliJ IDEA plugin</a> are in scope, though the
+            reactor compiles neither. The closed list it matches against the prose
+            of a comment lives in that test and nowhere else. The table samples it. Identifiers inside
+            <code>{@code}</code> and <code>{@link}</code> are dropped first, for every rule but
+            the last one below.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Refused</td><td>What trips it</td></tr>
+            <tr><td>A decorative marker</td><td>any emoji or dingbat</td></tr>
+            <tr><td>First person</td><td>a case-blind <code>I</code>, <code>we</code>, <code>we're</code>, <code>our</code>, <code>us</code>, <code>my</code>, <code>let's</code></td></tr>
+            <tr><td>A reference to the comment</td><td><code>this comment</code>, <code>as noted above</code>, <code>see below</code></td></tr>
+            <tr><td>Work still owed</td><td><code>TODO</code>, <code>FIXME</code>, <code>XXX</code></td></tr>
+            <tr><td>The project's past</td><td><code>previously</code>, <code>formerly</code>, <code>used to be</code></td></tr>
+            <tr><td>A hedge</td><td><code>probably</code>, <code>apparently</code>, <code>somehow</code></td></tr>
+            <tr><td>A code nothing declares</td><td>an <code>AW####</code> outside <a href="diagnostics.topic">the set</a>, markup included</td></tr>
+        </table>
+
+        <p>
+            Doc comments alone are read. A <code>/**</code> inside a string literal is data.
+            The scanner steps over it, and over a text block too.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+        <category ref="contributing">
+            <a href="repository-layout.topic">Repository layout</a>
+            <a href="building-and-testing.topic">Building and testing</a>
+        </category>
+        <category ref="external">
+            <a href="%repo%">Aether Weaver on GitHub</a>
+        </category>
+    </seealso>
+</topic>

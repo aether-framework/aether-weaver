@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE instance-profile SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
+<instance-profile id="aw"
+                  name="Aether Weaver"
+                  start-page="overview.topic">
+
+    <toc-element topic="overview.topic"/>
+    <toc-element topic="getting-started.topic">
+        <toc-element topic="what-is-aether-weaver.topic"/>
+        <toc-element topic="install.topic"/>
+        <toc-element topic="first-weave.topic"/>
+        <toc-element topic="choose-a-driver.topic"/>
+    </toc-element>
+    <toc-element topic="concepts.topic">
+        <toc-element topic="weaving-model.topic"/>
+        <toc-element topic="weave-discovery.topic"/>
+        <toc-element topic="pipeline.topic"/>
+        <toc-element topic="selectors.topic"/>
+        <toc-element topic="injection-points.topic"/>
+        <toc-element topic="handlers-and-callbacks.topic">
+            <toc-element topic="locals.topic"/>
+        </toc-element>
+        <toc-element topic="weave-members.topic"/>
+        <toc-element topic="redirect-and-wrap.topic"/>
+        <toc-element topic="ordering.topic"/>
+        <toc-element topic="extension-methods.topic"/>
+        <toc-element topic="determinism.topic"/>
+    </toc-element>
+    <toc-element topic="guides.topic">
+        <toc-element topic="build-time-weaving.topic"/>
+        <toc-element topic="load-time-weaving.topic"/>
+        <toc-element topic="runtime-weaving.topic"/>
+        <toc-element topic="testing-woven-code.topic"/>
+        <toc-element topic="diagnosing-a-weave.topic"/>
+        <toc-element topic="policy-and-safety.topic"/>
+        <toc-element topic="configuration.topic"/>
+    </toc-element>
+    <toc-element topic="plugins.topic">
+        <toc-element topic="what-a-plugin-can-do.topic"/>
+        <toc-element topic="plugin-lifecycle.topic"/>
+        <toc-element topic="namespaces.topic"/>
+        <toc-element topic="reporting.topic"/>
+        <toc-element topic="loading-plugins.topic"/>
+        <toc-element topic="write-a-plugin.topic">
+            <toc-element topic="contribute-an-injection-point.topic"/>
+            <toc-element topic="contribute-an-injector.topic"/>
+        </toc-element>
+        <toc-element topic="spi.topic"/>
+    </toc-element>
+    <toc-element topic="reference.topic">
+        <toc-element topic="annotations.topic"/>
+        <toc-element topic="selector-grammar.topic"/>
+        <toc-element topic="diagnostics.topic">
+            <toc-element topic="diagnostics-declaration.topic"/>
+            <toc-element topic="diagnostics-environment.topic"/>
+            <toc-element topic="diagnostics-policy.topic"/>
+            <toc-element topic="diagnostics-verification.topic"/>
+        </toc-element>
+        <toc-element topic="configuration-keys.topic"/>
+        <toc-element topic="maven-goals.topic"/>
+        <toc-element topic="agent-options.topic"/>
+        <toc-element topic="manifest-format.topic"/>
+        <toc-element topic="artifacts.topic"/>
+    </toc-element>
+    <toc-element topic="tooling.topic">
+        <toc-element topic="intellij-plugin.topic"/>
+    </toc-element>
+    <toc-element topic="contributing.topic">
+        <toc-element topic="repository-layout.topic"/>
+        <toc-element topic="building-and-testing.topic"/>
+        <toc-element topic="javadoc-policy.topic"/>
+        <toc-element topic="release-notes.topic"/>
+    </toc-element>
+    <toc-element topic="tba.topic" hidden="true"/>
+</instance-profile>

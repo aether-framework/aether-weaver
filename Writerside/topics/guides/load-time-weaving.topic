@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="load-time-weaving" title="Load-time weaving">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Needs a module compiled with the processor from <a href="install.topic">Install</a>. The
+            agent reads the manifest that compilation wrote, never your sources.</p>
+    </tldr>
+
+    <p>
+        The agent rewrites each class as the JVM defines it. Nothing on disk changes. Every jar you
+        deploy keeps the bytes it was published with.
+    </p>
+
+    <code-block lang="bash">
+java -javaagent:lib/aether-weaver-agent-%version%.jar \
+     -cp "app.jar:lib/*" \
+     app.Main
+    </code-block>
+
+    <chapter title="The jars the flag needs" id="classpath">
+        <p>
+            That agent jar holds four classes plus <code>package-info</code>. Its manifest names one
+            of them twice: <code>Premain-Class</code> and <code>Agent-Class</code> both point to
+            <code>WeaverAgent</code>. It calls into the api directly, as well as
+            <code>aether-weaver-runtime</code> and the engine below. Declare the agent at
+            <code>runtime</code> scope. The procedure below fills <path>lib</path> with all four
+            jars; <a href="artifacts.topic">Artefacts and modules</a> has the graph.
+        </p>
+
+        <warning>
+            <p>
+                <code>-jar app.jar</code> ignores <code>-cp</code>. The agent then starts with none
+                of those jars. The JVM dies before <code>main</code> with a
+                <code>NoClassDefFoundError</code>. Three <code>java.lang.instrument ASSERTION
+                FAILED</code> lines come first. Then <code>FATAL ERROR in native method: processing
+                of -javaagent failed, processJavaStart failed</code>. It exits with status 134. Name
+                your main class on a <code>-cp</code> command line instead.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="Where the transformer goes in" id="startup">
+        <code-block lang="mermaid">
+flowchart TB
+    A["JVM starts"] --> B["premain resolves options"]
+    B --> C["Manifests searched for weaves"]
+    C --> D["Transformer installed, plan counted on one line"]
+    D --> E["Application main begins"]
+    E --> F{"Does a weave claim this class?"}
+    F -->|yes| G["Rewritten bytes defined instead"]
+    F -->|no| H["Original bytes kept"]
+    G --> I["Diagnostics collected, nothing prints them"]
+        </code-block>
+
+        <p>
+            Classes the JVM defined before <code>premain</code> returned are never revisited. Under
+            this flag those are JDK and %product% classes, never your own. Attaching to a running
+            JVM instead is <a href="runtime-weaving.topic">Weaving in a running application</a>.
+        </p>
+    </chapter>
+
+    <procedure title="Weave an application at load time" id="run">
+        <step>
+            <p>Add the agent beside the two dependencies you already declare. It brings the runtime
+                and the engine with it.</p>
+            <code-block lang="xml"><![CDATA[
+<dependency>
+    <groupId>%group%</groupId>
+    <artifactId>aether-weaver-agent</artifactId>
+    <scope>runtime</scope>
+</dependency>
+]]></code-block>
+        </step>
+        <step>
+            <p>Bind <code>copy-dependencies</code> so <path>lib</path> holds those jars before you
+                run anything.</p>
+            <code-block lang="xml"><![CDATA[
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-dependency-plugin</artifactId>
+    <executions>
+        <execution>
+            <phase>package</phase>
+            <goals><goal>copy-dependencies</goal></goals>
+            <configuration>
+                <outputDirectory>lib</outputDirectory>
+                <includeScope>runtime</includeScope>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+]]></code-block>
+        </step>
+        <step>
+            <p>Start the application with the command above. The agent's first line is your
+                confirmation. It counts the plan, and it names the entry point that installed
+                it.</p>
+            <code-block lang="console"><![CDATA[
+Aether Weaver %version% — 1 weave, 1 target, fingerprint <64 hex characters>, enabled, verification=strict, onError=fail, phase=default (premain).
+]]></code-block>
+        </step>
+        <step>
+            <p>Ask for the plan itself when a count is not enough. Add
+                <code>=explain=true</code> to the flag.</p>
+            <code-block lang="console">
+  app.Greeting  [INSTANCE, priority 0, origin: weave manifest (app.jar)]
+    → app.Target
+        INJECT   onGreet()   → greet() @HEAD   not woven yet
+            </code-block>
+        </step>
+        <step>
+            <p>Read <code>not woven yet</code> as written. The report prints while the agent
+                installs. No target of yours has loaded by then. So it is complete about the plan
+                and silent about matches. <a href="agent-options.topic#entry-points">Agent
+                options</a> compares the two entry points.</p>
+        </step>
+    </procedure>
+
+    <chapter title="When the closing line says something else" id="trouble">
+        <deflist type="full">
+            <def title="no weaves to apply">
+                <p>
+                    <code>AW2302</code> prints first, three lines above the closing line. It
+                    appears when no <path>META-INF/aether/weaves.json</path> is on the classpath.
+                    Add <code>aether-weaver-processor</code> to every module that declares a weave,
+                    and rebuild. <a href="weave-discovery.topic">How a weave is found</a> follows
+                    the file.
+                </p>
+            </def>
+            <def title="disabled by configuration">
+                <p>
+                    Something set <code>enabled=false</code>, on the flag or as a system property.
+                    <a href="configuration.topic#prove">Prove which layer decided it</a>.
+                </p>
+            </def>
+            <def title="Nothing at all">
+                <p>
+                    The flag never reached this JVM. A missing <code>-javaagent:</code> path fails
+                    loudly instead, so silence means the flag was dropped. Check whatever wrapper or
+                    start script builds the command.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="After that line the agent stops talking" id="quiet">
+        <p>
+            The diagnostic list is drained only at the four points that end installation. A weave
+            that fails once the application is running lands on that list afterwards. So does a
+            class that arrives carrying another plan's record. Nothing reads either one again.
+            <a href="agent-options.topic#output">Agent options</a> lists what that loses. It also
+            has what <code>onError=fail</code> prints before it halts the JVM.
+        </p>
+
+        <note>
+            <p>
+                Weave the same classes at build time instead when printed diagnostics matter more.
+                Running both drivers on the same classes raises a shared weave twice, as
+                <code>AW2202</code>. Matching the two plans, or dropping one driver, stops it.
+                <a href="choose-a-driver.topic#both">Running two of them</a> has the rule, and
+                <a href="build-time-weaving.topic">Build-time weaving</a> is the pom.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+            <a href="install.topic">Install</a>
+        </category>
+        <category ref="guides">
+            <a href="build-time-weaving.topic">Build-time weaving</a>
+            <a href="policy-and-safety.topic">Policy and safety</a>
+        </category>
+        <category ref="reference">
+            <a href="agent-options.topic">Agent options</a>
+            <a href="configuration-keys.topic">Configuration keys</a>
+        </category>
+    </seealso>
+</topic>

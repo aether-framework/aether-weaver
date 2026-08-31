@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+        <!ELEMENT instance-profile (toc-element|include|snippet)*>
+        <!ELEMENT toc-element  (toc-element|include|snippet)*>
+        <!ELEMENT snippet  (toc-element|include|snippet)*>
+        <!ELEMENT include EMPTY>
+        <!ATTLIST instance-profile
+                id CDATA #REQUIRED
+                name CDATA #REQUIRED
+                start-page CDATA #IMPLIED
+                is-library (true|false) "false"
+                status (release|eap|deprecated) "release">
+        <!ATTLIST toc-element
+                id ID #IMPLIED
+                topic CDATA #IMPLIED
+                hidden CDATA #IMPLIED
+                toc-title CDATA #IMPLIED
+                origin CDATA #IMPLIED
+                filter CDATA #IMPLIED
+                href CDATA #IMPLIED
+                accepts-web-file-names-ref CDATA #IMPLIED
+                accepts-web-file-names CDATA #IMPLIED
+                sort-children (ascending|descending|none) "none"
+                instance CDATA #IMPLIED
+                ref CDATA #IMPLIED
+                in CDATA #IMPLIED
+                target-for-accept-web-file-names CDATA #IMPLIED>
+        <!ATTLIST snippet
+                id ID #IMPLIED
+                filter CDATA #IMPLIED
+                instance CDATA #IMPLIED>
+        <!ATTLIST include
+                from CDATA #REQUIRED
+                element-id CDATA #REQUIRED
+                origin CDATA #IMPLIED
+                use-filter CDATA #IMPLIED
+                instance CDATA #IMPLIED>

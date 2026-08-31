@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="guides" title="Guides">
+
+    <section-starting-page>
+        <title>Guides</title>
+        <description>
+            Each page here is a single job, done end to end. Take the configuration, run
+            it, move on.
+        </description>
+
+        <spotlight>
+            <a href="build-time-weaving.topic" type="install"
+               summary="Weave the classes your build compiles, so nothing is needed at run time">Build-time weaving</a>
+            <a href="load-time-weaving.topic" type="start"
+               summary="Weave as classes load, under an agent, with no build step at all">Load-time weaving</a>
+        </spotlight>
+
+        <primary>
+            <title>Running it</title>
+            <a href="runtime-weaving.topic" type="development"
+               summary="Weave inside a running application, for the classes it loads itself">Runtime weaving</a>
+            <a href="testing-woven-code.topic" type="learn"
+               summary="Weave in memory in a JUnit test and assert on the bytes that come back">Testing woven code</a>
+        </primary>
+
+        <secondary>
+            <title>When it goes wrong, and going further</title>
+            <a href="configuration.topic" type="settings"
+               summary="Find which layer set a value, and prove it from the run's own report">Configuration</a>
+            <a href="diagnosing-a-weave.topic" type="search"
+               summary="Read the diagnostics, find which weave did it, and see the bytes that were written">Diagnosing a weave</a>
+            <a href="policy-and-safety.topic" type="support"
+               summary="What the engine refuses to touch, why, and how to reopen a class deliberately">Policy and safety</a>
+            <a href="write-a-plugin.topic" type="creative"
+               summary="Add your own behaviour to the engine through the plugin SPI">Writing a plugin</a>
+        </secondary>
+    </section-starting-page>
+</topic>

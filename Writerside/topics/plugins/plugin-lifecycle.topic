@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="plugin-lifecycle" title="The plugin lifecycle">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <tldr>
+        <p>
+            Assumes a hand-built weaver — no shipped driver loads a plugin at all.
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a> has why.
+        </p>
+    </tldr>
+
+    <p>
+        A <code>WeaverPlugin</code> is admitted, contributes once, and afterwards only hears what
+        the weaver already did. Once sorting has settled the order, each gate decides on its own.
+        A plugin that fails one is dropped with a diagnostic, and the rest still get a hearing.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Candidates sorted by namespace and class name"] --> B["Identity and namespace"]
+    B --> C["Permitted to load"]
+    C --> D["SPI generation"]
+    D --> E["Namespace claimed"]
+    E --> F["contribute is called once"]
+    F --> G["Registry frozen"]
+    G --> H["Events until the run ends"]
+    B --> X1["Dropped: AW3114 or AW3101"]
+    C --> X2["Dropped: AW3119"]
+    D --> X3["Dropped: AW3112, AW3113 or AW3114"]
+    E --> X4["Dropped: AW3111"]
+    F --> X5["Dropped: AW3115"]
+    </code-block>
+
+    <chapter title="The four gates" id="gates">
+        <p>
+            Sorting happens before the first gate, and it reads <code>id()</code> directly —
+            not through the guard the gates below use. With two or more candidates, a throw
+            there ends the whole build with no diagnostic. Classpath order otherwise decides
+            nothing; the <a href="determinism.topic">determinism guarantee</a> covers why.
+        </p>
+
+        <deflist type="full">
+            <def title="Identity and namespace">
+                <p>
+                    <code>id()</code> is asked for first, and many times afterwards. Return a
+                    constant. A throw during a gate is <code>AW3114</code>: take the work out of
+                    that method. The empty namespace belongs to the framework, and claiming it is
+                    <code>AW3101</code> — pick one of your own.
+                    <a href="namespaces.topic">Namespaces and identifiers</a> has the shape.
+                </p>
+            </def>
+            <def title="Permission">
+                <p>
+                    A predicate the caller passed in answers whether that namespace may load.
+                    Refusal is <code>AW3119</code>: change what the predicate admits, or take the
+                    jar off the classpath. Unconfigured, it permits everything.
+                    <a href="diagnostics-policy.topic">AW3xxx</a> has the settings a driver could
+                    build that predicate from.
+                </p>
+            </def>
+            <def title="SPI generation">
+                <p>
+                    <code>apiLevel()</code> answers <code>WeaverApi.LEVEL</code>, and a plugin
+                    that fails this gate never runs a line of its own contribution code.
+                    <a href="spi.topic">The plugin SPI</a> has the rule and the two codes a
+                    mismatch carries.
+                </p>
+            </def>
+            <def title="The namespace claim">
+                <p>
+                    A namespace has exactly one owner. The second plugin to claim one is
+                    <code>AW3111</code> and contributes nothing.
+                    <a href="namespaces.topic">Namespaces and identifiers</a> has the remedy, and
+                    why the loser is the same on every machine.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                The engine's own built-in plugin skips two gates, not one. It is exempt from the
+                namespace-ownership check and from permission, since the empty namespace is its
+                own. Its SPI generation and its namespace claim are still checked, so mismatched
+                engine jars are refused rather than half-loaded.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Contributing, once" id="contribute">
+        <p>
+            <code>contribute</code> runs once, on the thread building the weaver, and only after
+            every gate has passed. What it registers on the context is read off when the call
+            returns. <a href="what-a-plugin-can-do.topic">What a plugin can do</a> lists what may
+            go there.
+        </p>
+
+        <list>
+            <li><p>A throw is <code>AW3115</code>, and it costs the plugin everything. Whatever it
+                already registered goes too, along with its seat in the audience. Report through
+                the context instead of throwing.</p></li>
+            <li><p>One bad contribution is cheaper. A factory registering an identifier outside
+                its own namespace is dropped as <code>AW3110</code>, and the plugin's other
+                factories still stand. <a href="namespaces.topic">Namespaces and identifiers</a>
+                has the grammar to prefix it with.</p></li>
+            <li><p>A plugin that registers nothing still counts as a contributor. The registry
+                goes into the plan's fingerprint, which the
+                <a href="pipeline.topic">weaving pipeline</a> reads back.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="After the registry is frozen" id="events">
+        <p>
+            Four events reach <code>observe</code>. Each one reports work already finished.
+            Nothing an observer returns is read, and no event carries bytes.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Event</td><td>Arrives</td><td>Goes to</td></tr>
+            <tr><td><code>PluginsLoaded</code></td><td>once, before planning</td>
+                <td>every loaded plugin</td></tr>
+            <tr><td><code>Prepared</code></td><td>after planning, before the first class</td>
+                <td>every loaded plugin</td></tr>
+            <tr><td><code>ClassWoven</code></td><td>per class rewritten and stamped</td>
+                <td>plugins that opted in</td></tr>
+            <tr><td><code>WeavingFinished</code></td><td>when a driver ends the run</td>
+                <td>every loaded plugin</td></tr>
+        </table>
+
+        <list>
+            <li><p>The first two arrive on the thread that built the weaver.
+                <code>ClassWoven</code> arrives on the thread that wove the class, and
+                <a href="load-time-weaving.topic">load-time weaving</a> uses several at once. An
+                observer holding state needs it thread-safe.</p></li>
+            <li><p>A run does not always end: only the Maven goal calls <code>finish()</code>.
+                The agent, a weaving class loader and the testkit never do, so
+                <code>WeavingFinished</code> is not promised there.
+                <a href="choose-a-driver.topic">Choose a driver</a> compares all four.</p></li>
+            <li><p>An observer that throws is <code>AW3118</code>, a warning. The remaining
+                plugins still hear the event. Fix the observer; nothing was miswoven.</p></li>
+        </list>
+
+        <p>
+            Contributed factories are called far later too, and the two calls are not contained
+            alike. A contributed point that throws is <code>AW3116</code>. It costs everything
+            that point matched in that method — the whole declaration, since it was the only
+            point. A declaration with a <code>require</code> minimum also fails accounting, as
+            <code>AW1043</code>, and the class is left unmodified.
+        </p>
+
+        <p>
+            Emitting the bytes of a class wraps the whole rewrite instead. A throw there can cost
+            weaves that were never the plugin's.
+            <a href="diagnostics-policy.topic">AW3xxx</a> has both codes.
+        </p>
+    </chapter>
+
+    <chapter title="Which run loads a plugin at all" id="who">
+        <p>
+            Both routes into the loader belong to whoever builds the weaver. One installs an
+            instance directly. The other searches a class loader the caller names. The Maven goal,
+            the agent and the weaving class loader ask for neither. Their runs reach the registry
+            with the built-in plugin alone.
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a> states the boundary
+            behind that.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="determinism.topic">What is guaranteed to be identical</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">AW3xxx - policy and plugins</a>
+        </category>
+        <category ref="plugins">
+            <a href="plugins.topic">Extending the engine</a>
+        </category>
+    </seealso>
+</topic>

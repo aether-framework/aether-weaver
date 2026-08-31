@@ -1,0 +1,3 @@
+public class Gateway {
+    public String charge(BigDecimal amount) { ... }
+}

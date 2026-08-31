@@ -1,0 +1,41 @@
+<html>
+<body>
+Reports an <code>@Inject</code> handler whose own signature cannot fit the target method it names.
+<p>
+    Three rules, all of them decided by the annotation processor in one place and all of them
+    mistakes people make while the target is perfectly well found:
+</p>
+<ul>
+    <li><code>AW1040</code> — the parameters are not a prefix of the target's. The injected call
+        pushes the target's own arguments in order, so a handler may take the first <em>n</em> of
+        them and nothing else. A <code>Callback</code>, a <code>@Local</code> capture and a static
+        weave's leading target instance are not arguments and do not count.
+    </li>
+    <li><code>AW1041</code> — the handler does not return <code>void</code>. The injected call is a
+        statement in the middle of the target's own code, so a returned value would have nowhere to
+        go. To change what the target returns, take a <code>ReturnableCallback</code> and cancel
+        with a value.
+    </li>
+    <li><code>AW1071</code> — the <code>ReturnableCallback</code>'s type argument is not the
+        target's return type.
+    </li>
+</ul>
+<p>
+    <code>AW1040</code> comes with a fix that adjusts the parameter list to the target while keeping
+    how many arguments the handler asked for, the names it gave them, and every callback and
+    <code>@Local</code> capture.
+</p>
+<p>
+    The inspection stays silent unless the selector names exactly one method the target declares, and
+    unless every type involved resolves. A selector matching several methods is <code>AW1021</code>;
+    a handler compared against the wrong overload would be a confident, specific, false report on
+    correct code, which costs more than the report it replaces.
+</p>
+<p>
+    Not reported here: whether the handler calls <code>cancel()</code> on a <code>void</code> target
+    (<code>AW1070</code>) or reads <code>value()</code> where there is none (<code>AW1072</code>).
+    Those are statements in a method body; the processor declines them for the same reason and the
+    weave-time engine decides them from bytecode.
+</p>
+</body>
+</html>

@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------------------------
+# The branching model, enforced.
+#
+# `main` carries releases. Under Git Flow only a `release/*` or a `hotfix/*` branch merges into
+# it; everything else goes to `develop` first. That is written down in CONTRIBUTING.md, and a rule
+# that lives only in a document is a rule somebody works around by accident.
+#
+# This workflow does not run on `opened`. Retargeting owns that moment — a pull request aimed at
+# `main` by mistake is moved to `develop` rather than failed, which is a better first experience
+# than a red cross. What is left for this check is the case retargeting cannot catch: a base
+# branch changed to `main` after the fact, or a pull request pushed to or reopened while it still
+# sits there.
+# ---------------------------------------------------------------------------------------------
+name: Block main merges from non-release branches
+
+on:
+  pull_request:
+    types: [ reopened, synchronize, edited ]
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  enforce:
+    name: Base branch
+    runs-on: ubuntu-latest
+    steps:
+      # The head branch reaches the script through the environment. A branch name may contain a
+      # quote, a semicolon or a `$`, and a pull request from a fork names its own branch — so an
+      # expression pasted straight into a shell line is a command somebody else gets to write.
+      - name: Ensure the pull request comes from a release or hotfix branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          echo "Base: $BASE_REF"
+          echo "Head: $HEAD_REF"
+
+          case "$HEAD_REF" in
+            release/*|hotfix/*)
+              echo "::notice::'$HEAD_REF' may target main"
+              ;;
+            *)
+              echo "::error::A pull request to main is only accepted from release/* or hotfix/*."
+              echo "::error::Change the base branch of this pull request to develop."
+              exit 1
+              ;;
+          esac

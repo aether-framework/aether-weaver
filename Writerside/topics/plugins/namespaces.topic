@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="namespaces" title="Namespaces and identifiers">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>
+            Assumes a hand-built weaver — a namespace only matters to a plugin loaded that way.
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a> has why.
+        </p>
+    </tldr>
+
+    <p>
+        Every identifier a <code>WeaverPlugin</code> contributes is spelled
+        <code>namespace:name</code>. The namespace is yours alone, and the colon is what lets a
+        diagnostic say whose contribution failed.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Plugin owns the namespace acme"] --> B["Factory offers acme:AFTER_LOGGING"]
+    B --> C{"Prefixed with its owner?"}
+    C -->|no| D["The whole factory is dropped"]
+    C -->|yes| E["Held in the registry"]
+    E --> F["A weave names an identifier"]
+    F --> G{"Registered under that spelling?"}
+    G -->|yes| H["The contribution answers"]
+    G -->|no| I{"Retired under an alias?"}
+    I -->|yes| H
+    I -->|no| J["Resolves to nothing"]
+    </code-block>
+
+    <chapter title="What a name is made of" id="parts">
+        <deflist type="medium">
+            <def title="The namespace">
+                <p>
+                    One lowercase word your plugin declares in its <code>PluginId</code>. Where a
+                    plugin comes from at all is
+                    <a href="what-a-plugin-can-do.topic">What a plugin can do</a>.
+                </p>
+            </def>
+            <def title="The identifier">
+                <p>
+                    Your namespace, a colon, then at least one character. An injector kind
+                    allows no second colon; an injection point does — the grammar below has
+                    both.
+                </p>
+            </def>
+            <def title="The built-in namespace">
+                <p>
+                    The empty one, which is why <code>HEAD</code> carries no colon.
+                    <a href="injection-points.topic">Injection points</a> has the spellings it
+                    holds.
+                </p>
+            </def>
+            <def title="An alias">
+                <p>
+                    A retired spelling and the current one behind it. Both resolve to the same
+                    contribution, but the spelling you wrote is handed straight to the factory
+                    and folded into the plan's fingerprint, so it changes the stamp on the class
+                    even though it changes nothing about what runs.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="The grammar" id="grammar">
+        <table style="header-row">
+            <tr>
+                <td>Part</td>
+                <td>Must be</td>
+                <td>Refused</td>
+            </tr>
+            <tr>
+                <td>Namespace</td>
+                <td><code>[a-z][a-z0-9-]*</code></td>
+                <td><code>Acme</code>, <code>acme_tools</code></td>
+            </tr>
+            <tr>
+                <td><code>aether</code></td>
+                <td>reserved, never a plugin's</td>
+                <td><code>aether</code>, as a namespace or a registration</td>
+            </tr>
+            <tr>
+                <td>Empty namespace</td>
+                <td>the framework's own</td>
+                <td>any plugin that claims it</td>
+            </tr>
+            <tr>
+                <td>Identifier</td>
+                <td><code>acme:</code> plus a character</td>
+                <td><code>AFTER_LOG</code>, <code>acme:</code></td>
+            </tr>
+            <tr>
+                <td>Injector kind</td>
+                <td>one colon, text either side</td>
+                <td><code>acme:a:b</code>, <code>:trace</code></td>
+            </tr>
+        </table>
+
+        <p>
+            Nothing here is folded, trimmed or normalised. A name off the grammar is refused
+            rather than corrected. An alias applies no such check: nothing stops a plugin
+            retiring an unregistered <code>aether:</code> spelling in its favour.
+        </p>
+
+        <p>
+            A metadata key is the one thing the namespace is applied to instead of checked
+            against. <code>metadata("mode", "strict")</code> from <code>acme</code> is recorded as
+            <code>acme:mode</code>, and every key a plugin records feeds the plan's fingerprint.
+            <a href="pipeline.topic">The weaving pipeline</a> says what a fingerprint that moves
+            costs you.
+        </p>
+    </chapter>
+
+    <chapter title="Which failure you meet" id="failures">
+        <deflist type="full">
+            <def title="A namespace off the grammar">
+                <p>
+                    <code>new PluginId("Acme", ...)</code> throws
+                    <code>IllegalArgumentException</code>, so your plugin never exists to be
+                    loaded. Spell the namespace as the table above does.
+                    <code>AW3100</code> covers the same ground for a registry assembled by hand,
+                    and no loaded plugin can reach it —
+                    <a href="diagnostics-policy.topic">the policy and plugin codes</a> list where
+                    each one fires.
+                </p>
+            </def>
+            <def title="The name aether">
+                <p>
+                    The same constructor and the same exception. <code>aether</code> satisfies the
+                    pattern and is caught by the check after it, so the message you get names the
+                    reservation rather than the shape. Choose another word.
+                </p>
+            </def>
+            <def title="An identifier outside your namespace">
+                <p>
+                    Reported instead of thrown: <code>AW3110</code>, and the factory that offered
+                    it is dropped whole rather than partly registered. Prefix every identifier the
+                    factory names with your own namespace.
+                    <a href="reporting.topic">Report rather than throw</a> has the convention behind
+                    that split.
+                </p>
+            </def>
+            <def title="A plugin claiming the empty namespace">
+                <p>
+                    Refused at a load gate as <code>AW3101</code>, before it is asked to
+                    contribute anything; give it a namespace of its own.
+                    <a href="plugin-lifecycle.topic">The plugin lifecycle</a> has the order the gates
+                    run in.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Two plugins, one namespace" id="collision">
+        <p>
+            A namespace has exactly one owner per weaver. The second claim is
+            <code>AW3111</code>, quoting both identities and both classes. That plugin
+            contributes nothing — drop one of the two jars, or ask an author to rename.
+        </p>
+
+        <p>
+            Which of the two loses never varies with the classpath. Candidates are sorted by
+            namespace, then by implementation class name, before the first gate sees any of
+            them. Two sharing both keep the order they arrived in.
+            <a href="determinism.topic">Determinism</a> covers why that matters beyond this page.
+        </p>
+    </chapter>
+
+    <chapter title="An alias is checked less than a registration" id="aliases">
+        <p>
+            The registry checks a registered identifier against the namespace that registered it.
+            It checks neither half of an alias against a namespace. Three rules apply instead:
+        </p>
+
+        <list>
+            <li><p>Declaring the same deprecated spelling twice with different replacements is
+                refused as <code>AW3111</code> as soon as it is declared, keeping the later
+                one.</p></li>
+            <li><p>Once the registry is built, the replacement must be registered. Otherwise
+                <code>AW3121</code>, listing what was available — register it, or correct the
+                alias.</p></li>
+            <li><p>At the same point, the retired spelling must not also be registered.
+                Otherwise <code>AW3111</code>; an identifier is current or retired, and you
+                drop whichever of the two you did not mean.</p></li>
+        </list>
+
+        <p>
+            So an alias may retire an unqualified spelling that no namespace owns, and the
+            diagnostics it produces name no plugin. A lookup consults the registered identifiers
+            first, which is why a retiring alias can never take a built-in spelling away from
+            the framework.
+        </p>
+
+        <note>
+            <p>
+                Resolving through an alias reports <code>AW3120</code> to the listener the lookup
+                was made with, and the weaver makes both of its lookups with one that discards.
+                A retired spelling therefore weaves silently. Read a plugin's own release notes to
+                learn that a spelling was retired; there is nothing to change in the build to make
+                the warning appear.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">Policy and plugin diagnostics</a>
+            <a href="annotations.topic">Annotations</a>
+        </category>
+        <category ref="concepts">
+            <a href="injection-points.topic">Injection points</a>
+            <a href="determinism.topic">Determinism</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+    </seealso>
+</topic>

@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="weave-members" title="Weave members">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        A field or a method you write on a weave is a declaration. It takes one of four shapes.
+        The shape decides what the merge does with its name.
+    </p>
+
+    <table style="header-row">
+        <tr>
+            <td>Shape</td>
+            <td>What the target ends up with</td>
+            <td>The weave's class file</td>
+        </tr>
+        <tr>
+            <td>Merged (no annotation)</td>
+            <td>a copy of the member</td>
+            <td>read</td>
+        </tr>
+        <tr>
+            <td>Shadowed (<code>@Shadow</code>)</td>
+            <td>nothing new</td>
+            <td>not read</td>
+        </tr>
+        <tr>
+            <td>Accessor (<code>@Accessor</code>)</td>
+            <td>a public getter or setter</td>
+            <td>not read</td>
+        </tr>
+        <tr>
+            <td>Invoker (<code>@Invoker</code>)</td>
+            <td>a public forwarding method</td>
+            <td>not read</td>
+        </tr>
+    </table>
+
+    <p>
+        A merged member's body is read from the weave's class file. So is a handler's. A
+        shadowed method compiles with a body too, but it is never read. The target's own
+        version runs instead. A weave of nothing but shadows, accessors and invokers needs
+        no class file of its own. A weave that also declares a handler always does.
+    </p>
+
+    <chapter title="Which shape a member takes" id="shape">
+        <p>
+            The first annotation that fits wins, in this order. Which shape a member takes is
+            never inferred from its name or its body — only the annotations decide.
+        </p>
+
+        <code-block lang="mermaid">
+flowchart TB
+    M["A field or method you wrote"] --> H{"Carries @Inject, @Redirect or @Wrap?"}
+    H -->|yes| HA["Handler, described by its injection"]
+    H -->|no| A{"Carries @Accessor or @Invoker?"}
+    A -->|yes| G["Generated onto the target"]
+    A -->|no| S{"Carries @Shadow?"}
+    S -->|yes| SH["Shadowed, bound to what the target has"]
+    S -->|no| ME["Merged, copied in as it stands"]
+        </code-block>
+
+        <p>
+            A handler leaves this page here. What one may take and return is in
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>. <code>@Local</code>
+            marks a parameter rather than a member, and <a href="locals.topic">Locals</a> covers
+            it. A field never takes that route. Only <code>@Shadow</code> and
+            <code>@Unique</code> apply to a field, so it goes straight to the shadow-or-merge
+            decision.
+        </p>
+    </chapter>
+
+    <chapter title="What each shape asks of the target" id="requires">
+        <deflist type="full">
+            <def title="Merged">
+                <p>
+                    Nothing, until the target declares the same name. That is <code>AW1080</code>.
+                    Declare the member <code>@Unique</code> to have it renamed, or rename it
+                    yourself. A field collides on its name alone. A method collides on its name and
+                    descriptor together, so an overload of the target's own is not a collision.
+                    Merging an instance field into a record or an enum has its own limits, and
+                    <a href="diagnostics.topic">Diagnostics</a> has the range they sit in.
+                </p>
+            </def>
+            <def title="Shadowed">
+                <p>
+                    The member, declared by the target itself. An inherited one does not count:
+                    resolving the hierarchy would mean loading classes from inside class loading.
+                    A missing field is <code>AW1030</code> and a missing method
+                    <code>AW1020</code>. Check the name, or the target's version. A field whose
+                    type differs is <code>AW1031</code> — the same code an accessor's or setter's
+                    wrong shape gets, below. The comparison is by erasure and exact, so write the
+                    target's own type. Nothing of the declaration is copied — a shadowed method
+                    compiles with a body, but it is never read.
+                </p>
+            </def>
+            <def title="Accessor">
+                <p>
+                    A field it declares. Named by <code>@Accessor("…")</code>, or, left unnamed,
+                    by the method's own name with a <code>get</code>, <code>set</code> or
+                    <code>is</code> prefix stripped. The declaration has to be shaped like one
+                    access of that field: a getter takes nothing and returns the field's type, a
+                    setter takes one parameter of that type and returns <code>void</code>.
+                    Anything else is <code>AW1031</code>, the same code a shadowed field's type
+                    mismatch gets above. A setter for a <code>final</code> field is
+                    <code>AW1097</code>. An accessor cannot mark itself mutable, so write
+                    <code>@Shadow(mutable = true)</code> instead of the setter — it drops the flag
+                    deliberately and reports <code>AW1033</code>, which needs nothing done.
+                </p>
+            </def>
+            <def title="Invoker">
+                <p>
+                    A method it declares. Named by <code>@Invoker("…")</code>, or, left unnamed,
+                    by the declaration's own name with a <code>call</code> or <code>invoke</code>
+                    prefix stripped. It must match the target's descriptor exactly: same
+                    parameters, same return type — the same call, made from inside the class.
+                    Anything else is <code>AW1020</code>. The message lists the signatures the
+                    target does have under that name, so copy one. A <code>private</code> target
+                    method stays private, called with <code>invokespecial</code>, and no override
+                    in a subclass intercepts it.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                Both generated methods are emitted <code>public</code>. A name and descriptor the
+                target already declares is <code>AW1095</code>. Rename the declaration: a generated
+                member cannot be <code>@Unique</code>, because your own code reaches it by the name
+                you gave it.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Mangling, and the name a member keeps" id="mangling">
+        <p>
+            <code>@Unique</code> says you do not care what a merged member ends up called. Nothing
+            changes unless the target already declares that name. Then the copy takes three parts:
+            the declared name, <code>$aw$</code>, and eight hexadecimal digits. The digits are the
+            head of a SHA-256 digest of the weave's binary name. So <code>counter</code> can become
+            <code>counter$aw$1a2b3c4d</code>.
+        </p>
+
+        <list>
+            <li><p>The digest is of the weave class name alone. So the suffix holds across builds,
+                and across every member of that weave.</p></li>
+            <li><p>References inside the weave's copied bodies follow the new name. The mangled
+                copy keeps the visibility you declared: a public member is still public. Only the
+                name changed, and no source you wrote can spell the new one. So a member other
+                code is meant to call wants a name of its own.</p></li>
+            <li><p>A rename is said once, as <code>AW1094</code>, informational: it shows up in
+                stack traces of the woven class. Nothing needs doing, and
+                <code>@Unique(silent = true)</code> stops the message.</p></li>
+        </list>
+
+        <p>
+            Nothing is renamed without a collision, and the collision is with a member the target
+            declares — not with another weave's member. Two weaves merging one plain name into a
+            target that declares neither both keep it. Neither collides with the target, so
+            neither is mangled. Nothing is even diagnosed if both are <code>@Unique</code>, which
+            does not resolve this one: give the members different names yourself.
+        </p>
+    </chapter>
+
+    <chapter title="In a static weave" id="static">
+        <p>
+            A static weave stays where it is. No member of it is merged or generated.
+        </p>
+
+        <deflist type="medium">
+            <def title="A plain field or method">
+                <p>
+                    Stays yours. It is an ordinary member of the weave class, and the target never
+                    sees it. Only the weave's injections change anything.
+                </p>
+            </def>
+            <def title="@Shadow and @Unique">
+                <p>
+                    <code>AW1090</code> and <code>AW1091</code>, both errors: there is no merge for
+                    either to describe. Declare the weave <code>@Weave(kind = Kind.INSTANCE)</code>,
+                    or take what you need through the handler's own parameters —
+                    <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>.
+                </p>
+            </def>
+            <def title="@Accessor and @Invoker">
+                <p>
+                    The engine generates a method only for a weave it dissolves. A static
+                    weave's declaration is never emitted. It is still checked at compile time,
+                    though, against the rules an instance weave's would get: <code>AW1030</code>,
+                    <code>AW1020</code> or <code>AW1097</code> for the same mistake.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>
+            <a href="locals.topic">Locals</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">The annotation reference</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

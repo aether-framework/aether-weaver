@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="concepts" title="Core concepts">
+
+    <section-starting-page>
+        <title>Core concepts</title>
+        <description>
+            The machinery: what a weave declares, what the engine does with it, and where
+            each rule comes from. Read one of these when something surprised you.
+        </description>
+
+        <spotlight>
+            <a href="weaving-model.topic" type="idea"
+               summary="What a weave declares, what the engine does with it, and where the boundary between them runs">The weaving model</a>
+            <a href="pipeline.topic" type="mixed"
+               summary="The gates a class passes on its way through, and what each one refuses">The weaving pipeline</a>
+        </spotlight>
+
+        <primary>
+            <title>Choosing what to change</title>
+            <a href="weave-discovery.topic" type="learn"
+               summary="Where the weave list comes from: the manifest, and what each driver reads">How a weave is found</a>
+            <a href="selectors.topic" type="search"
+               summary="How a weave says which classes and members it means">Selectors</a>
+            <a href="injection-points.topic" type="cross-platform"
+               summary="Where inside a method your code can run, and how each point is found">Injection points</a>
+            <a href="handlers-and-callbacks.topic" type="account"
+               summary="What a handler may take, what it may return, and what happens to the target">Handlers and callbacks</a>
+            <a href="locals.topic" type="cross-platform"
+               summary="Reading a local variable of the target method, and the rules that make it safe">Locals</a>
+        </primary>
+
+        <secondary>
+            <title>Behaviour that is easy to get wrong</title>
+            <a href="weave-members.topic" type="library"
+               summary="Fields and methods a weave adds, shadows or borrows from its target">Weave members</a>
+            <a href="redirect-and-wrap.topic" type="tools"
+               summary="Replacing a call the target makes, and taking one over entirely">Redirect and Wrap</a>
+            <a href="ordering.topic" type="mixed"
+               summary="What decides the order two weaves apply in, when both claim one class">Ordering</a>
+            <a href="extension-methods.topic" type="development"
+               summary="Adding a method to a class from outside it, and where that stops working">Extension methods</a>
+            <a href="determinism.topic" type="learn"
+               summary="Why the same inputs give the same bytes, and what would break that">Determinism</a>
+        </secondary>
+    </section-starting-page>
+</topic>

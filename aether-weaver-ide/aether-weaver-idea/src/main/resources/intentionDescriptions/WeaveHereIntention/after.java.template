@@ -1,0 +1,4 @@
+@Inject(method = "charge(BigDecimal)",
+        at = @At(value = Point.INVOKE, target = "Ledger.flush()", ordinal = 0))
+private void onFlush(BigDecimal amount) {
+}

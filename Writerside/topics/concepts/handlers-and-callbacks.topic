@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="handlers-and-callbacks" title="Handlers and callbacks">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        A handler is a method of your weave that the target calls. The engine emits that call and
+        supplies every argument. So the target method decides what you may write. A callback, or a
+        wrap's <code>Operation</code>, is the one argument the engine makes up itself.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Target reaches a matched position"] --> B["Callback constructed, where declared"]
+    B --> C["Your handler runs"]
+    C --> D["Mutable captures written back"]
+    D --> E{"Cancelled?"}
+    E -->|no| F["Body carries on unchanged"]
+    E -->|yes| G["Target returns, with value() where there is one"]
+    </code-block>
+
+    <chapter title="What a handler takes and returns" id="signature">
+        <p>An <code>@Inject</code> handler's parameters are read in four bands, in this order;
+            each may be empty. A <code>@Redirect</code> handler is read the same way but is never
+            given a callback. A <code>@Wrap</code> handler follows narrower rules of its own,
+            below.</p>
+
+        <table style="header-row">
+            <tr>
+                <td>Band</td>
+                <td>Parameters</td>
+                <td>What supplies them</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>Leading values</td>
+                <td>the <code>@Result</code> capture, or the operands</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>Target arguments</td>
+                <td>the target's own, from its first</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>One callback, on an <code>@Inject</code></td>
+                <td>built by the engine at that position</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><code>@Local</code></td>
+                <td>slots of the target's frame</td>
+            </tr>
+        </table>
+
+        <list>
+            <li>
+                <p>
+                    Band 2 is a prefix: types are compared position by position, erased, and a
+                    supertype does not fit. Taking fewer than the target has is normal. Taking a
+                    later argument without an earlier one is <code>AW1040</code>: drop what does
+                    not correspond, or capture it as a <a href="locals.topic">local</a>. Band 1 is
+                    looser on a <code>@Redirect</code> handler: its operand types need only agree,
+                    or both be non-primitive.
+                </p>
+            </li>
+            <li>
+                <p>
+                    A callback is recognised at one place only: the last parameter in front of the
+                    captures. The compiler does not check the position — it accepts a callback
+                    type wherever it sits. A misplaced one compiles, then fails when the engine
+                    weaves it, as <code>AW1040</code>. Move it behind the target arguments.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Band 4 is also fixed: an <code>@Local</code> capture not among the trailing
+                    positions is <code>AW1040</code>. Move it to the end of the parameter list.
+                    <a href="locals.topic">Locals</a> covers what each one captures.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <code>@Result</code> is read on the first parameter, and only on an
+                    <code>@Inject</code> handler. A <code>@Redirect</code> or <code>@Wrap</code>
+                    handler parses it and ignores it. The engine looks at the instruction
+                    immediately before the matched position: it must be a call that returns a
+                    value. <code>INVOKE_AFTER</code> always lands there, and so do
+                    <code>RETURN</code> and <code>TAIL</code> when the method returns that call's
+                    result directly. Anything else is <code>AW1104</code>: point it at such a
+                    call, or drop the annotation. <a href="injection-points.topic">Injection
+                    points</a> has the nine.
+                </p>
+            </li>
+        </list>
+
+        <table style="header-row">
+            <tr>
+                <td>Declaration</td>
+                <td>Returns</td>
+                <td>Anything else</td>
+            </tr>
+            <tr>
+                <td><code>@Inject</code></td>
+                <td><code>void</code></td>
+                <td><code>AW1041</code>: declare it <code>void</code></td>
+            </tr>
+            <tr>
+                <td><code>@Redirect</code></td>
+                <td>what the operation produced</td>
+                <td><code>AW1040</code>: return that type</td>
+            </tr>
+            <tr>
+                <td><code>@Wrap</code></td>
+                <td>what the operation produced</td>
+                <td><code>AW1040</code>: return that type</td>
+            </tr>
+        </table>
+
+        <p>
+            A <code>@Wrap</code> handler also takes a trailing <code>Operation&lt;R&gt;</code>
+            parameter, <code>R</code> the operation's result type boxed. Missing it is
+            <code>AW1063</code>; a parameter behind it is <code>AW1062</code>. Nothing comes before
+            it but the operation's own operands — no target prefix, no callback, no
+            <code>@Local</code>.
+        </p>
+
+        <p>
+            An injected call is a statement inside somebody else's method. A returned value would
+            have nowhere to go. To change what the target returns, cancel with one. The other two
+            stand in for an operation; <a href="redirect-and-wrap.topic">redirects and wraps</a> has them.
+        </p>
+    </chapter>
+
+    <chapter title="The two callbacks" id="callbacks">
+        <p>The target's return type decides which one you declare. Neither stands in for the
+            other.</p>
+
+        <deflist type="medium">
+            <def title="Callback">
+                <p>
+                    For a target returning <code>void</code>. Its <code>cancel()</code> takes
+                    nothing, because there is nothing to hand back. A value-returning target is
+                    <code>AW1070</code>: declare the returnable form.
+                </p>
+            </def>
+            <def title="ReturnableCallback&lt;T&gt;">
+                <p>
+                    For a target that returns a value. <code>T</code> is that return type, boxed:
+                    <code>ReturnableCallback&lt;Integer&gt;</code> for an <code>int</code>. A
+                    <code>void</code> target, or another <code>T</code>, is <code>AW1071</code>.
+                    Write the boxed type, or a plain callback for <code>void</code>.
+                </p>
+            </def>
+            <def title="value()">
+                <p>
+                    What the target is about to return. It is filled in only where the matched
+                    instruction is one of the target's own returns. So a handler calling it away
+                    from <code>RETURN</code> or <code>TAIL</code> is <code>AW1072</code>: move the
+                    injection to one of those, or drop the call.
+                </p>
+            </def>
+            <def title="Neither">
+                <p>
+                    A handler that declares no callback observes and stops nothing. One that takes
+                    a callback costs an object at every execution. Take one where the handler can
+                    end the target.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What cancelling does" id="cancel">
+        <p>
+            <code>cancel()</code> sets a flag and returns. The rest of your handler still runs. The
+            engine reads the flag once, after the handler returns.
+        </p>
+
+        <list>
+            <li>
+                <p>
+                    The target returns at the matched position. Its own code below that point does
+                    not run. In a constructor, <code>HEAD</code> sits right after the delegating
+                    <code>super()</code> or <code>this()</code> call, not before it —
+                    <a href="injection-points.topic">injection points</a> has where it lands.
+                </p>
+            </li>
+            <li>
+                <p>
+                    The value returned is <code>value()</code> as it stands, cast to the target's
+                    return type. A primitive is unboxed. Another type fails there with a
+                    <code>ClassCastException</code>, and a <code>null</code> for a primitive with a
+                    <code>NullPointerException</code>. Supply the target's own type.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Mutable captures are written back first. A handler that writes a
+                    <a href="locals.topic">local</a> and cancels gets both.
+                </p>
+            </li>
+        </list>
+
+        <note>
+            <p>
+                A callback belongs to one call. It is built at that position and read once. Nothing
+                reads it again, so one kept in a field and cancelled later changes nothing.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="How the weave's kind decides staticness and access" id="kind-access">
+        <p>
+            A dissolving weave's handler becomes a method of the target. The call stays inside that
+            class. A static weave never moves, so its handler is called across classes, under
+            ordinary access rules. <a href="weaving-model.topic">The weaving model</a> says which
+            weaves dissolve.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>The handler</td>
+                <td>Dissolving weave</td>
+                <td>Static weave</td>
+            </tr>
+            <tr>
+                <td>An instance method</td>
+                <td>invoked on the target</td>
+                <td><code>AW1005</code>: declare it static</td>
+            </tr>
+            <tr>
+                <td><code>private</code></td>
+                <td><code>invokespecial</code></td>
+                <td><code>AW1042</code>: make it and its class public</td>
+            </tr>
+        </table>
+
+        <list>
+            <li>
+                <p>
+                    An instance handler needs a receiver. A <code>static</code> target method has
+                    none, and that is <code>AW1005</code> too: declare the handler static.
+                </p>
+            </li>
+            <li>
+                <p>
+                    A <code>@Wrap</code> handler is static in every weave, dissolving or not. A
+                    non-static one is <code>AW1005</code> whatever the kind. Declare it static, and
+                    keep any state it needs in a static field.
+                </p>
+            </li>
+            <li>
+                <p>
+                    A <code>private</code> handler that is also <code>static</code> is reached
+                    with <code>invokestatic</code>, not <code>invokespecial</code>: staticness is
+                    checked first, so it wins.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <code>AW1042</code> comes from the annotation processor, not the engine. Skip
+                    the processor, and an inaccessible handler compiles clean. It fails only at run
+                    time, with a plain <code>IllegalAccessError</code> on the call's first
+                    execution. The same check also fires for a non-public handler, or a non-public
+                    weave class, in a different package from the target — not private alone.
+                </p>
+            </li>
+        </list>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="injection-points.topic">Injection points</a>
+            <a href="selectors.topic">Selectors</a>
+            <a href="locals.topic">Locals</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">The annotation reference</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

@@ -1,0 +1,26 @@
+<html>
+<body>
+Creates the extension method a call names, in an extension class for the receiver's type.
+<p>
+    An extension is written where the receiver is not: the call reads <code>amount.asMoney("€")</code>
+    and the declaration is a static method, in another class, whose first parameter carries
+    <code>@Receiver</code>. Writing that by hand from the call site means naming the receiver's type,
+    the parameter list and the holder before anything compiles.
+</p>
+<p>
+    The declaration is generated from the call itself — the receiver's type, the arguments' types,
+    and the name as written — into an existing extension class for that receiver where there is one,
+    and into a new one where there is not.
+</p>
+<p>
+    Offered on an unresolved call whose receiver has a type the framework can extend. A receiver that
+    is a primitive, a type variable or a parameterised type is refused: those are
+    <code>AW1304</code>, <code>AW1310</code> and <code>AW1311</code>, and generating one would be
+    generating the diagnostic.
+</p>
+<!-- tooltip end -->
+<pre><code>amount.asMoney("EUR")</code></pre>
+generates
+<pre><code>public static String asMoney(@Receiver BigDecimal self, String currency) { ... }</code></pre>
+</body>
+</html>

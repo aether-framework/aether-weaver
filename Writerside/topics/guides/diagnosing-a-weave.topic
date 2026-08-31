@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="diagnosing-a-weave" title="Diagnosing a weave">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Needs a driver already weaving your classes —
+            <a href="choose-a-driver.topic">Choose a driver</a>.</p>
+    </tldr>
+
+    <p>
+        Two settings make a run account for itself. <code>explain</code> prints every
+        declaration beside what it matched. <code>dump</code> writes the bytes on both sides.
+    </p>
+
+    <code-block lang="bash">
+mvn process-classes -Daether.weaver.explain=true -Daether.weaver.dump=target/dump
+    </code-block>
+
+    <code-block lang="console"><![CDATA[
+[INFO] Aether Weaver %version% — plan <16 hex characters>
+[INFO]
+[INFO] Weaves (1):
+[INFO]
+[INFO]   fixture.Audit  [INSTANCE, priority 0, origin: the module's own classes (fixture.Audit)]
+[INFO]     → fixture.Target
+[INFO]         INJECT   onGreet()                         → greet() @HEAD                         1 site  @3
+[INFO]
+[INFO] Execution order at fixture.Target.greet() @HEAD:
+[INFO]   1. fixture.Audit#onGreet             (priority 0)
+[INFO]
+[INFO] Targets: 1   Injections: 1   Merges: 0   Warnings: 0   Errors: 0
+[INFO] plugins: none
+]]></code-block>
+
+    <chapter title="When each instrument can answer" id="moments">
+        <code-block lang="mermaid">
+flowchart TB
+    A["Plan built, before any class arrives"] --> B["Agent prints its report here"]
+    A --> C["Each class offered to the weaver"]
+    C --> D{"New bytes returned?"}
+    D -->|no| E["Diagnostics only, nothing written"]
+    D -->|yes| F["Flight Recorder event committed"]
+    D -->|yes| G["Dump writes before, after and diff, if configured"]
+    C --> H["Run ends"]
+    H --> I["Maven prints its report here"]
+        </code-block>
+
+        <p>
+            The agent renders while it installs. Under <code>premain</code> no application class
+            has loaded yet, so every row reads <code>not woven yet</code>. Under
+            <code>agentmain</code>, already-loaded targets are retransformed first, so their rows
+            carry sites. Maven renders after weaving, so its rows carry sites too.
+            <a href="agent-options.topic#entry-points">Agent options</a> compares the entry
+            points.
+        </p>
+    </chapter>
+
+    <chapter title="What each switch gives you" id="switches">
+        <table style="header-row">
+            <tr><td>Switch</td><td>What it gives you</td><td>Where</td></tr>
+            <tr><td><code>explain=true</code></td>
+                <td>Every declaration with what it matched</td><td>Maven, agent</td></tr>
+            <tr><td><code>dump=&lt;dir&gt;</code></td>
+                <td>Both byte forms and a <code>javap</code> diff</td>
+                <td>Agent, loader, Maven</td></tr>
+            <tr><td>Flight Recorder</td>
+                <td>One event per class woven (testkit: two)</td>
+                <td>All drivers</td></tr>
+        </table>
+
+        <p>
+            The spelling differs per driver. Here it is a Maven property, elsewhere an agent
+            argument. <a href="configuration-keys.topic">Configuration keys</a> has both.
+            <a href="maven-goals.topic">Maven goals</a> lists the four a goal takes.
+        </p>
+    </chapter>
+
+    <procedure title="Find out why a handler did not run" id="why">
+        <step>
+            <p>Rebuild with the report switched on.</p>
+            <code-block lang="bash">
+mvn process-classes -Daether.weaver.explain=true
+            </code-block>
+        </step>
+        <step>
+            <p>Find your declaration under <code>Weaves</code>. Its last column is the answer.</p>
+            <list>
+                <li><p><code>1 site  @3</code> — it matched, and the call is in the bytes.</p></li>
+                <li><p><code>no site</code> — the point was resolved and found nothing.</p></li>
+                <li><p><code>not woven yet</code> — nothing had been offered when this
+                    printed.</p></li>
+            </list>
+        </step>
+        <step>
+            <p><code>no site</code> puts the cause in the errors below the report. Widen the
+                selector the first error names. The second only counts the shortfall.</p>
+            <code-block lang="console">
+[ERROR] AW1043 no invocation matched INVOKE target=Gateway.send in greet()
+    the method contains no invocation at all
+  remedy: check the target against the listing above; a name-only selector such as '#send' matches any owner, and a slice narrows where the search runs
+            </code-block>
+        </step>
+        <step>
+            <p>Fix the selector and rebuild. The column then names a count and the indices it
+                matched. <a href="selector-grammar.topic">The selector grammar</a> has it.</p>
+        </step>
+        <step>
+            <p>Confirm it in the bytes. Add <code>-Daether.weaver.dump=target/dump</code>. Read
+                the diff written beside the two class files.</p>
+            <code-block lang="console"><![CDATA[
+@@ -8,6 +8,8 @@
+
+    public java.lang.String greet();
+      Code:
++          0: aload_0
++          1: invokevirtual #7                  // Method onGreet:()V
+           0: ldc           #7                  // String hello
+           2: areturn
+
+]]></code-block>
+        </step>
+    </procedure>
+
+    <chapter title="Where a dump will not help" id="no-dump">
+        <warning>
+            <p>
+                A dump is written only after weaving handed back new bytes. A policy refusal or
+                an escaped exception leaves nothing to write, so the directory stays empty. A
+                verifier refusal does too under the default <code>strict</code>. On the agent or
+                the class loader, <code>-Daether.weaver.verification=report</code> dumps the
+                refused class against itself instead, and the diff reads
+                <code>no difference</code>. Maven does not read this key. Read the diagnostic
+                instead.
+                <a href="diagnostics.topic">Diagnostic codes</a> places a code by its range.
+            </p>
+        </warning>
+
+        <p>
+            Silence is worse than a code. A <code>group</code> naming no declared group loses
+            only the group's own accounting. The point itself still raises
+            <code>AW1043</code> on its own, group or not.
+            <a href="diagnostics-declaration.topic#points">AW1xxx</a> has the exact split. A
+            class loader that <code>create</code> built keeps its report to itself.
+            <a href="runtime-weaving.topic#report">Runtime weaving</a> is the way out.
+        </p>
+    </chapter>
+
+    <chapter title="Recording every class a run changes" id="jfr">
+        <p>
+            Flight Recorder needs no setting from you. It reaches whichever JVM does the
+            weaving. That is the application under the agent, and Maven's own through
+            <code>MAVEN_OPTS</code>.
+        </p>
+
+        <code-block lang="bash">
+java -XX:StartFlightRecording=filename=weave.jfr -javaagent:lib/agent.jar -cp "app.jar:lib/*" app.Main
+jfr print --events de.splatgames.aether.weaver.ClassWoven weave.jfr
+        </code-block>
+
+        <code-block lang="console"><![CDATA[
+de.splatgames.aether.weaver.ClassWoven {
+  startTime = 16:36:01.609 (2026-08-30)
+  wovenClass = "fixture.Target"
+  modifications = 1
+  fingerprint = "<64 hex characters>"
+  weavingTime = 40.9 ms
+  eventThread = "main" (javaThreadId = 3)
+}
+]]></code-block>
+
+        <note>
+            <p>
+                A runtime without the <code>jdk.jfr</code> module records nothing. It says
+                nothing about that either. Use <code>explain</code> there.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="guides">
+            <a href="configuration.topic">Configuration</a>
+            <a href="runtime-weaving.topic">Runtime weaving</a>
+            <a href="testing-woven-code.topic">Testing woven code</a>
+            <a href="policy-and-safety.topic">Policy and safety</a>
+        </category>
+        <category ref="reference">
+            <a href="configuration-keys.topic">Configuration keys</a>
+            <a href="agent-options.topic">Agent options</a>
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+    </seealso>
+</topic>

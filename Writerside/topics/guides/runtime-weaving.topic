@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="runtime-weaving" title="Runtime weaving">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Needs the API and the processor from <a href="install.topic">Install</a>. Keep the roots
+            you weave off your application classpath.</p>
+    </tldr>
+
+    <p>
+        Your own code builds the loader, hands it the roots and closes it. This is how a plugin
+        host loads jars it did not compile against, not how you write a <code>WeaverPlugin</code>
+        itself. No agent, no flag, and nothing on disk is rewritten.
+    </p>
+
+    <code-block lang="java" src="Launcher.java"/>
+
+    <p>
+        <code>ConfigParser.ofSystemProperties</code> reads <code>aether.weaver.*</code> properties
+        into that config, so the deflist below sets each key with <code>-D</code> on the command
+        line.
+    </p>
+
+    <chapter title="What happens per class" id="delegation">
+        <code-block lang="mermaid">
+flowchart TB
+    A["loadClass on your weaving loader"] --> B{"Can the parent reach it?"}
+    B -->|yes| C["Parent defines it, unwoven, silently"]
+    B -->|no| D["Bytes read from the roots you gave"]
+    D --> E["Weaver rewrites them"]
+    E --> F["Defined here, woven"]
+        </code-block>
+
+        <p>
+            Only what this loader defines itself is rewritten. Behind it sits the engine every
+            driver shares, which <a href="pipeline.topic">The weaving pipeline</a> walks through.
+        </p>
+
+        <warning>
+            <p>
+                Delegation itself reports nothing. Your target runs unchanged and no diagnostic
+                points at it, so a root whose classes the parent can already reach — without a
+                manifest of its own — looks exactly like a weave that matched nothing. Give the
+                loader roots nothing above it can see.
+            </p>
+        </warning>
+    </chapter>
+
+    <procedure title="Run it and check it" id="run">
+        <step>
+            <p>Compile the target and the weave into a directory of their own, with the API and
+                the processor on the path. The processor writes the manifest the loader finds them
+                through, and <a href="weave-discovery.topic">How a weave is found</a> follows it.
+                <a href="first-weave.topic">Your first weave</a> is these two classes.</p>
+            <code-block lang="bash"><![CDATA[
+javac -proc:full -cp "lib/*" \
+      -d plugins src/fixture/Target.java src/fixture/Audit.java
+]]></code-block>
+        </step>
+        <step>
+            <p>Add <code>aether-weaver-runtime</code> to <code>lib</code>. It brings the engine
+                and the API with it, and the launcher needs nothing else.
+                <a href="artifacts.topic">Artefacts and modules</a> has the coordinates.</p>
+        </step>
+        <step>
+            <p>Run, with <code>plugins</code> left out of that classpath.</p>
+            <code-block lang="bash"><![CDATA[
+java -cp "classes:lib/*" launcher.Launcher
+]]></code-block>
+        </step>
+        <step>
+            <p>Three lines, and the middle one is the proof.</p>
+            <code-block lang="console"><![CDATA[
+WeavingClassLoader[roots=1, fingerprint=<64 hex characters>]
+woven
+hello
+]]></code-block>
+            <p><code>hello</code> is what <code>Target.greet()</code> returns on its own.
+                <code>woven</code> comes from the handler, so a load that reached an unwoven class
+                prints <code>hello</code> by itself.</p>
+        </step>
+    </procedure>
+
+    <chapter title="When a class loads unwoven anyway" id="unwoven">
+        <deflist type="full">
+            <def title="Its bytes came from a signed jar">
+                <p>
+                    Reported as <code>AW3002</code>, and the original bytes are defined. Sign after
+                    weaving, or set <code>-Daether.weaver.policy.allowSigned=true</code> and accept
+                    a signature that no longer describes what runs.
+                    <a href="diagnostics-policy.topic">AW3xxx</a> has the gate.
+                </p>
+            </def>
+            <def title="Weaving it threw">
+                <p>
+                    Reported as <code>AW4090</code> for a <code>RuntimeException</code> or a
+                    <code>LinkageError</code>; the load then fails with
+                    <code>ClassNotFoundException</code>. Any other <code>Error</code> propagates
+                    unchanged. Set <code>-Daether.weaver.onError=report</code> to define the
+                    original bytes and carry on instead.
+                    <a href="configuration-keys.topic">Configuration keys</a> has both values.
+                </p>
+            </def>
+            <def title="The JVM was started with an AOT cache flag">
+                <p>
+                    Reported as <code>AW2401</code>, once when you construct the loader rather than
+                    once per class. Weave at build time instead, and the two stop competing:
+                    <a href="build-time-weaving.topic">Build-time weaving</a> binds the goals,
+                    <a href="diagnostics-environment.topic">AW2xxx</a> names the three flags.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            A class the roots already carry woven, by this same plan, is skipped: nothing runs
+            twice. A second, different plan weaves it again and reports <code>AW2202</code>.
+            <a href="choose-a-driver.topic#both">Running two of them</a> has the three cases.
+        </p>
+    </chapter>
+
+    <chapter title="Keeping the report for yourself" id="report">
+        <p>
+            <code>create</code> builds the weaver and keeps it to itself. An explain report it
+            built reaches nobody. Build the weaver yourself and pass it to the public constructor.
+            The report is then yours to print.
+        </p>
+
+        <code-block lang="java" src="Explained.java"/>
+
+        <p>
+            That constructor reads no manifest, so what you hand it is exactly what it weaves.
+            <code>Explained.java</code> above discovers no <code>WeaverPlugin</code> and skips
+            extensions. Only the Maven plugin gives the engine either, and
+            <a href="extension-methods.topic">Extension methods</a> says why.
+            <a href="diagnosing-a-weave.topic">Diagnosing a weave</a> reads a report line by line.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="guides">
+            <a href="build-time-weaving.topic">Build-time weaving</a>
+            <a href="load-time-weaving.topic">Load-time weaving</a>
+        </category>
+        <category ref="reference">
+            <a href="configuration-keys.topic">Configuration keys</a>
+            <a href="artifacts.topic">Artefacts and modules</a>
+        </category>
+    </seealso>
+</topic>

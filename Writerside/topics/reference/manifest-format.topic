@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="manifest-format" title="The weave manifest">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        A module that declares a weave or an extension ships one JSON document. It sits at
+        <path>META-INF/aether/weaves.json</path>. Below is a whole one, holding a weave with a
+        shadowed field, one injector, and one extension holder.
+        <a href="weave-discovery.topic">How a weave is found</a> covers who writes it.
+    </p>
+
+    <code-block lang="json" src="weaves.json"/>
+
+    <chapter title="The root object" id="root">
+        <p>Four keys, in this order.</p>
+
+        <table style="header-row">
+            <tr><td>Key</td><td>Absent means</td><td>Read back by</td></tr>
+            <tr><td><code>version</code></td><td><code>1</code>, and a higher one is refused</td>
+                <td>Before any entry</td></tr>
+            <tr><td><code>generator</code></td><td>the text <code>unknown</code></td>
+                <td>Nothing</td></tr>
+            <tr><td><code>weaves</code></td><td>an empty array</td>
+                <td>A driver, per class named</td></tr>
+            <tr><td><code>extensions</code></td><td>an empty array</td>
+                <td>The engine, and <code>stubs</code></td></tr>
+        </table>
+
+        <p>
+            A higher version is refused whole, as <code>AW2301</code>. Rebuild that artefact
+            against this release, or upgrade %product%.
+        </p>
+    </chapter>
+
+    <chapter title="A weave entry" id="weave">
+        <p>
+            Nine keys, and only <code>class</code> decides anything. A reader takes the class name
+            and nothing else. <a href="weaving-model.topic">The weaving model</a> lists what
+            the parser then finds on the class. Four of the other eight — <code>kind</code>,
+            <code>priority</code>, <code>targets</code> and <code>injectors</code> — are read back
+            only by the <a href="tooling.topic">IntelliJ IDEA plugin</a>, which lists a
+            dependency's weaves. The remaining four are read by nothing.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Key</td><td>Absent means</td><td>Read back by</td></tr>
+            <tr><td><code>class</code></td><td>the entry is dropped</td><td>Every reader</td></tr>
+            <tr><td><code>kind</code></td><td><code>INSTANCE</code></td><td>IntelliJ IDEA</td></tr>
+            <tr><td><code>priority</code></td><td><code>0</code></td><td>IntelliJ IDEA</td></tr>
+            <tr><td><code>require</code></td><td><code>REQUIRED</code></td><td>Nothing</td></tr>
+            <tr><td><code>phase</code></td><td><code>DEFAULT</code></td><td>Nothing</td></tr>
+            <tr><td><code>tags</code></td><td>an empty array</td><td>Nothing</td></tr>
+            <tr><td><code>targets</code></td><td>an empty array</td><td>IntelliJ IDEA</td></tr>
+            <tr><td><code>members</code></td><td>an empty array</td><td>Nothing</td></tr>
+            <tr><td><code>injectors</code></td><td>an empty array</td><td>Two of its keys</td></tr>
+        </table>
+
+        <p>
+            An entry naming no class is dropped on its own, as <code>AW2300</code>. Rebuild the
+            artefact holding it. <code>kind</code>, <code>require</code> and <code>phase</code>
+            carry a constant's name as free text. Nothing checks them against the enumeration.
+            <a href="ordering.topic">Ordering</a> covers what <code>priority</code> and
+            <code>phase</code> mean.
+        </p>
+    </chapter>
+
+    <chapter title="Members" id="members">
+        <p>
+            A member is a field or method that is not a handler. A handler becomes an injector
+            instead, so one method never appears twice.
+            <a href="weave-members.topic">Weave members</a> covers the four dispositions.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Key</td><td>Absent means</td><td>Read back by</td></tr>
+            <tr><td><code>disposition</code></td><td><code>MERGE</code></td><td>Nothing</td></tr>
+            <tr><td><code>kind</code></td><td><code>FIELD</code></td><td>Nothing</td></tr>
+            <tr><td><code>name</code></td><td>reading throws</td><td>Nothing</td></tr>
+            <tr><td><code>descriptor</code></td><td>the empty string</td><td>Nothing</td></tr>
+            <tr><td><code>targetName</code></td><td>the value of <code>name</code></td>
+                <td>Nothing</td></tr>
+            <tr><td><code>unique</code></td><td><code>false</code></td><td>Nothing</td></tr>
+        </table>
+
+        <p>
+            A member's <code>targetName</code> differs from its <code>name</code> wherever
+            <code>@Shadow</code>, <code>@Accessor</code> or <code>@Invoker</code> writes a
+            non-blank value. It also differs where an unnamed accessor strips a
+            <code>get</code>, <code>set</code> or <code>is</code> prefix, or an unnamed invoker
+            strips <code>call</code> or <code>invoke</code>. A prefix counts only when followed by
+            an upper-case letter, then lower-cased: <code>getLedger</code> yields
+            <code>ledger</code>, but <code>setup</code> stays <code>setup</code>.
+        </p>
+    </chapter>
+
+    <chapter title="Injectors and points" id="injectors">
+        <p>
+            One injector is one handler declaration. Its points are the places inside the target
+            method. <a href="annotations.topic">Annotations</a> has the declarations these come
+            from.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Key</td><td>Absent means</td><td>Read back by</td></tr>
+            <tr><td><code>kind</code></td><td><code>INJECT</code></td><td>Nothing</td></tr>
+            <tr><td><code>id</code></td><td>the text <code>unnamed</code></td><td>Nothing</td></tr>
+            <tr><td><code>handler</code></td><td>the injector is dropped</td>
+                <td>IntelliJ IDEA</td></tr>
+            <tr><td><code>method</code></td><td>the injector is dropped</td>
+                <td>IntelliJ IDEA</td></tr>
+            <tr><td><code>points</code></td><td>an empty array</td><td>Nothing</td></tr>
+            <tr><td><code>require</code></td><td><code>0</code></td><td>Nothing</td></tr>
+            <tr><td><code>allow</code></td><td><code>0</code>, no upper bound</td>
+                <td>Nothing</td></tr>
+            <tr><td><code>group</code></td><td>the empty string</td><td>Nothing</td></tr>
+        </table>
+
+        <p>
+            A handler is a method name with its descriptor straight after it. That names one
+            overload exactly. <code>method</code> is the target selector. It is canonical only
+            where the descriptor form names its owning class and every part resolves. The source
+            form, which never names one, is never canonical.
+            <a href="selector-grammar.topic">The selector grammar</a> has both forms.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Key</td><td>Absent means</td><td>Read back by</td></tr>
+            <tr><td><code>point</code></td><td><code>HEAD</code>, and blank throws</td>
+                <td>Nothing</td></tr>
+            <tr><td><code>target</code></td><td>the empty string</td><td>Nothing</td></tr>
+            <tr><td><code>ordinal</code></td><td><code>-1</code>, every match</td>
+                <td>Nothing</td></tr>
+            <tr><td><code>shift</code></td><td><code>NONE</code></td><td>Nothing</td></tr>
+            <tr><td><code>by</code></td><td><code>0</code></td><td>Nothing</td></tr>
+            <tr><td><code>access</code></td><td><code>ANY</code></td><td>Nothing</td></tr>
+            <tr><td><code>slice</code></td><td>the empty string</td><td>Nothing</td></tr>
+        </table>
+
+        <p>
+            A point's <code>target</code> is stored exactly as written. Nothing canonicalises it.
+            <a href="injection-points.topic">Injection points</a> has the identifiers
+            <code>point</code> may hold.
+        </p>
+    </chapter>
+
+    <chapter title="An extension entry" id="extensions">
+        <p>
+            Extensions live in their own array. No weave entry mentions one. Every key of an
+            extension is read back. The last four are written only where they differ from the
+            default beside them. <a href="extension-methods.topic">Extension methods</a> explains
+            the three shapes of call.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Key</td><td>Absent means</td><td>Read back by</td></tr>
+            <tr><td><code>class</code></td><td>the entry is dropped</td>
+                <td>Every reader</td></tr>
+            <tr><td><code>receiver</code></td><td>the entry is dropped</td>
+                <td>Every reader</td></tr>
+            <tr><td><code>name</code></td><td>the entry is dropped</td><td>Every reader</td></tr>
+            <tr><td><code>descriptor</code></td><td>the entry is dropped</td>
+                <td>Every reader</td></tr>
+            <tr><td><code>kind</code></td><td><code>instance</code></td>
+                <td>The engine and IntelliJ IDEA</td></tr>
+            <tr><td><code>require</code></td><td><code>REQUIRED</code></td>
+                <td>The <code>stubs</code> goal</td></tr>
+            <tr><td><code>nulls</code></td><td><code>UNCHECKED</code></td><td>The engine</td></tr>
+            <tr><td><code>scope</code></td><td><code>PUBLIC</code></td>
+                <td>The <code>stubs</code> goal</td></tr>
+        </table>
+
+        <p>
+            Here <code>kind</code> holds a lower-case token. A weave's enumerated keys hold a
+            constant's name in capitals. The descriptor is the call site's, so an instance
+            extension leaves its receiver out.
+            <a href="extension-methods.topic">Extension methods</a> covers what <code>require</code>,
+            <code>nulls</code> and <code>scope</code> each do.
+        </p>
+
+        <note>
+            <p>
+                Merging matches an extension by its holder class alone. Split one holder across two
+                manifests and half of it is lost. Keep a holder's declarations in one module.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="The JSON this reads" id="json">
+        <p>
+            A manifest arrives from whatever is on the classpath. So the parser accepts more than
+            the writer ever emits.
+        </p>
+
+        <deflist type="medium">
+            <def title="Accepted, though never written">
+                <p>
+                    A JSON <code>null</code>, a leading zero, and a duplicate key with the last one
+                    winning. The escapes for a solidus, a backspace and a form feed are read too.
+                </p>
+            </def>
+            <def title="Ignored without a word">
+                <p>
+                    An unknown key, at any level. A key of the wrong JSON type reads as absent, and
+                    so does a <code>null</code>. An array element of the wrong shape is dropped. So
+                    is a non-string in <code>tags</code> or <code>targets</code>.
+                </p>
+            </def>
+            <def title="Refused">
+                <p>
+                    Comments, a trailing comma, a single-quoted string and a byte-order mark. So
+                    are a fraction, an exponent, and any non-whitespace after the closing brace.
+                </p>
+            </def>
+            <def title="Bounded">
+                <p>
+                    Nesting stops at 64 objects and arrays. The sample above reaches seven. A
+                    number outside <code>long</code> range is refused as <code>AW2300</code>; one
+                    within <code>long</code> range but outside <code>int</code> range is truncated
+                    rather than reported.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            Keys are written in a fixed order, and nothing hash-ordered is iterated. One manifest
+            renders to the same bytes on every machine.
+            <a href="determinism.topic">Determinism</a> covers what that buys you.
+        </p>
+    </chapter>
+
+    <chapter title="What damage costs" id="damage">
+        <p>What survives depends on what is wrong.</p>
+
+        <table style="header-row">
+            <tr><td>What is wrong</td><td>What survives</td></tr>
+            <tr><td>Not a JSON object at all</td>
+                <td>Nothing. <code>AW2300</code>; rebuild it</td></tr>
+            <tr><td>A <code>version</code> above <code>1</code></td>
+                <td>Nothing. <code>AW2301</code>; rebuild it</td></tr>
+            <tr><td>A weave entry with no <code>class</code></td>
+                <td>Every other entry</td></tr>
+            <tr><td>An injector with no <code>handler</code></td>
+                <td>Its weave's other injectors</td></tr>
+            <tr><td>An extension missing a key</td>
+                <td>Every other entry</td></tr>
+            <tr><td>An unknown extension <code>kind</code></td>
+                <td>Every other entry</td></tr>
+            <tr><td>An unknown extension policy</td>
+                <td>That entry, at its default</td></tr>
+            <tr><td>A blank <code>name</code> or <code>point</code></td>
+                <td>Nothing, and no later one</td></tr>
+        </table>
+
+        <p>
+            The last row has no code behind it. A <code>version</code> below zero behaves the same
+            way. Reading throws <code>IllegalArgumentException</code>. In the reactor nothing
+            catches it and discovery stops there; IntelliJ IDEA catches it per manifest instead,
+            dropping only that library's listing. Rebuild that artefact.
+            <a href="diagnostics-environment.topic">AW2xxx</a> has what each code means.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="weave-discovery.topic">How a weave is found</a>
+            <a href="extension-methods.topic">Extension methods</a>
+            <a href="weave-members.topic">Weave members</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">Annotations</a>
+            <a href="maven-goals.topic">Maven goals</a>
+            <a href="diagnostics-environment.topic">AW2xxx</a>
+        </category>
+    </seealso>
+</topic>

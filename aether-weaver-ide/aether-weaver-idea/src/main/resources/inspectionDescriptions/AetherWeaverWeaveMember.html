@@ -1,0 +1,33 @@
+<html>
+<body>
+Reports what a weave's member gets wrong about the target it will end up in.
+<ul>
+    <li><code>AW1031</code> — a <code>@Shadow</code>'s type is not the one the target gave the
+        member. A shadow is a promise about something that already exists, so its type is not a
+        choice.
+    </li>
+    <li><code>AW1042</code> — a static weave's handler that the emitted call could not reach. The
+        class would verify and load; <code>IllegalAccessError</code> arrives at the first execution
+        of the injected call. Comes with a <b>quick fix</b>.
+    </li>
+    <li><code>AW1080</code> — a merged member the target already declares.</li>
+    <li><code>AW1095</code> — a generated <code>@Accessor</code> or <code>@Invoker</code> whose
+        signature the target already declares.
+    </li>
+</ul>
+<p>
+    A <code>@Unique</code> member is deliberately exempt from the collision checks. It <em>may</em>
+    collide: the framework renames it to <code>name$aw$&lt;digest&gt;</code> and reports
+    <code>AW1094</code>, which is information rather than a fault. Everything else merged cannot be
+    renamed, because the weave's own code refers to it by name — so overwriting the target's member
+    is not an option, and would replace working code with an uninitialised copy.
+</p>
+<p>
+    Not reported here: <code>AW1060</code>, two <code>@Redirect</code>s on one call site. Deciding it
+    means knowing which bytecode operations each <code>@At</code> actually matched. Two redirects
+    naming the same method and the same target look identical in source and can still land on
+    different sites once ordinals and slices are applied, so a source-level approximation would
+    report correct weaves.
+</p>
+</body>
+</html>

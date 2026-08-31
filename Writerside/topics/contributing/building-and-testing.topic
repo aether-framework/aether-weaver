@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="building-and-testing" title="Building and testing">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Needs JDK %jdk% and Maven %maven%. The enforcer stops the build on anything older.</p>
+    </tldr>
+
+    <p>
+        One command builds the Maven modules and runs every check in the reactor.
+    </p>
+
+    <procedure title="Build everything" id="all">
+        <step>
+            <p>Run it from the repository root.</p>
+            <code-block lang="bash">
+mvn -B clean verify
+            </code-block>
+        </step>
+        <step>
+            <p>A green run ends with a reactor summary, ten modules and one verdict.</p>
+            <code-block lang="console">
+[INFO] BUILD SUCCESS
+            </code-block>
+        </step>
+    </procedure>
+
+    <tip>
+        <p>
+            Add <code>-o</code> to hold Maven offline. Nothing in the reactor needs the network
+            once your local repository has the build's plugins. On a first clone it fails.
+        </p>
+    </tip>
+
+    <chapter title="What verify runs" id="what">
+        <code-block lang="mermaid">
+flowchart TB
+    subgraph v["validate"]
+        A["Enforcer"] --> B["Checkstyle"]
+    end
+    subgraph t["test"]
+        C["Surefire, each module's unit suite"] --> D["Architecture tests, over import lines and doc comments"]
+    end
+    subgraph f["verify"]
+        E["Javadoc, resolving every link"]
+    end
+    v --> t --> f
+        </code-block>
+
+        <p>
+            A doc comment answers to both ends: the tests decide whether it exists, the javadoc
+            goal whether its links resolve.
+        </p>
+    </chapter>
+
+    <chapter title="Run less than all of it" id="narrow">
+        <table style="header-row">
+            <tr>
+                <td>What you changed</td>
+                <td>What to run</td>
+            </tr>
+            <tr>
+                <td>Code in one module</td>
+                <td><code>mvn -B -o -pl aether-weaver-engine -am test</code></td>
+            </tr>
+            <tr>
+                <td>Imports or formatting</td>
+                <td><code>mvn -B -o validate</code></td>
+            </tr>
+            <tr>
+                <td>A doc comment</td>
+                <td><code>mvn -B -o verify</code></td>
+            </tr>
+            <tr>
+                <td>A page of this site</td>
+                <td><code>python3 build-config/docsite/check-docs.py --build</code></td>
+            </tr>
+            <tr>
+                <td>Anything, before you push</td>
+                <td><code>mvn -B -o clean verify</code></td>
+            </tr>
+        </table>
+
+        <p>
+            <code>-am</code> builds what the module you named depends on. Leave it off and Maven
+            takes those modules from your local repository. That is whatever you last installed.
+            <a href="artifacts.topic#graph">What depends on what</a> has the direction the arrows
+            point in.
+        </p>
+    </chapter>
+
+    <procedure title="Build the IntelliJ IDEA plugin" id="ide">
+        <p>
+            <code>aether-weaver-ide</code> is a Gradle build. Its doc comments are still checked
+            by <code>verify</code>.
+            <a href="repository-layout.topic">Repository layout</a> has what working on it costs.
+        </p>
+        <step>
+            <p>Install the artefacts it resolves from your local repository.</p>
+            <code-block lang="bash">
+mvn -B -o -pl aether-weaver-processor -am install -DskipTests
+            </code-block>
+        </step>
+        <step>
+            <p>Run the checks that need no running IDE.</p>
+            <code-block lang="bash">
+cd aether-weaver-ide/aether-weaver-idea
+./gradlew checkstyleMain checkstyleTest checkstyleSample javadoc compileSample
+            </code-block>
+            <note>
+                <p>
+                    The IntelliJ distribution sits on the compile classpath. On a cold cache this
+                    step downloads a full IDE.
+                </p>
+            </note>
+        </step>
+        <step>
+            <p>Gradle prints the verdict once the tasks finish.</p>
+            <code-block lang="console">
+BUILD SUCCESSFUL in 1s
+11 actionable tasks: 1 executed, 10 up-to-date
+            </code-block>
+            <p>
+                Above it, an incubating problems report and a deprecation warning about
+                Gradle 10. Below it, an offer of the configuration cache. All three are
+                expected.
+            </p>
+        </step>
+    </procedure>
+
+    <chapter title="Two Gradle tasks that go further" id="gradle-extra">
+        <deflist type="medium">
+            <def title="./gradlew check">
+                <p>
+                    Starts the platform in-process for the fixture tests. It also runs
+                    <code>checkSampleVersion</code>, the one failure step 2 skips. The sample pins
+                    its own <code>aether-weaver</code> version, and this catches it drifting.
+                </p>
+            </def>
+            <def title="./gradlew verifyPlugin">
+                <p>
+                    Runs JetBrains' Plugin Verifier against the releases <code>recommended()</code>
+                    resolves, downloading each. The plugin sets no upper build. It claims more
+                    than any run covers.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What CI adds" id="ci">
+        <p>
+            A green local build is most of the gate, not all of it.
+            <path>.github/workflows/build.yml</path> runs five jobs.
+        </p>
+
+        <list>
+            <li><p>The same <code>verify</code>, on Ubuntu, Windows and macOS. Class files are
+                discovered by walking directories, and separators differ.</p></li>
+            <li><p>Two clean packages, compared jar by jar. A timestamp or a
+                <code>HashMap</code> iteration destroys reproducibility silently.</p></li>
+            <li><p>One <code>verify</code> under <code>tr-TR</code> and <code>Asia/Tokyo</code>.
+                Diagnostics are formatted text, and formatting is locale-sensitive.</p></li>
+            <li><p>One run on the next JDK, as an early-access build. It is allowed to fail.</p></li>
+            <li><p>The Gradle build, with both tasks above. Skipping those two locally is
+                safe.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="When it goes red" id="red">
+        <deflist type="full">
+            <def title="Checkstyle violations, before anything compiles">
+                <p>
+                    A line over 120 characters, a star import, an unused import, or a tab.
+                    The plugin reads the same file, so a rule holding here holds there.
+                    <a href="repository-layout.topic">Repository layout</a> has the rules.
+                </p>
+            </def>
+            <def title="ASM, Javassist, Byte Buddy and cglib are banned">
+                <p>
+                    The enforcer found one on a classpath, and it counts test scope. Take the
+                    dependency out and use <code>java.lang.classfile</code>.
+                    <a href="artifacts.topic">Artefacts and modules</a> has the one exclusion.
+                </p>
+            </def>
+            <def title="A test in the architecture package failed">
+                <p>
+                    Your change crossed a module boundary, or left a declaration undocumented.
+                    The usual cause is an import added only to satisfy a <code>{@link}</code>.
+                    <a href="repository-layout.topic">Repository layout</a> covers the first, and
+                    the <a href="javadoc-policy.topic">JavaDoc policy</a> the second.
+                </p>
+            </def>
+            <def title="The javadoc goal failed at verify">
+                <p>
+                    Doclint resolved a reference to nothing, or found HTML it could not parse.
+                    Correct the name, or drop the tag. Doclint reports as a warning, and the goal
+                    fails on warnings.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="reference">
+            <a href="artifacts.topic">Artefacts and modules</a>
+        </category>
+        <category ref="contributing">
+            <a href="repository-layout.topic">Repository layout</a>
+        </category>
+        <category ref="external">
+            <a href="%repo%">Aether Weaver on GitHub</a>
+        </category>
+    </seealso>
+</topic>

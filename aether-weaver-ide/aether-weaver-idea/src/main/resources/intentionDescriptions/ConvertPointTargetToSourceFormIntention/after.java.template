@@ -1,0 +1,1 @@
+@Inject(method = "charge", at = @At(value = Point.INVOKE, target = "com.acme.Ledger.flush():void"))

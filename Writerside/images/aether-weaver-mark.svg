@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img"
+     aria-label="Aether Weaver">
+    <rect width="64" height="64" rx="14" fill="#7A5CFF"/>
+    <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 50 L32 15 L50 50" stroke-width="4.4"/>
+        <path d="M22 35 H42" stroke-width="4.4"/>
+        <path d="M14 50 L50 15" stroke-width="4.4" stroke-opacity="0.45"/>
+    </g>
+</svg>

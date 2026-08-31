@@ -1,0 +1,59 @@
+# ---------------------------------------------------------------------------------------------
+# Dependency review.
+#
+# Runs on pull requests only, and compares the dependency graph before and after. It catches two
+# things a human reviewer reliably misses in a pom diff: a transitive dependency with a known
+# vulnerability, and a licence that does not fit this project.
+#
+# It is deliberately strict about bytecode libraries. The enforcer already bans ASM, Javassist,
+# Byte Buddy and cglib as direct or transitive dependencies, so this is a second net rather than
+# the first — but it names the offender in the pull request conversation, which the enforcer's
+# build failure does not.
+# ---------------------------------------------------------------------------------------------
+name: Dependency review
+
+on:
+  pull_request:
+
+concurrency:
+  group: dependency-review-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure
+          # The project ships MIT and inherits nothing at runtime. A copyleft licence arriving
+          # through a dependency is a decision, not an accident, and should be visible here.
+          #
+          # JMH is exempted by name. It is GPLv2 with the Classpath Exception, it is a `test`
+          # dependency of the benchmark suite only, and nothing it touches is distributed — so it
+          # would fail this check every time for a reason that is already understood.
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-2.1, LGPL-3.0
+          allow-dependencies-licenses: >-
+            pkg:maven/org.openjdk.jmh/jmh-core,
+            pkg:maven/org.openjdk.jmh/jmh-generator-annprocess
+          # All seven coordinates the enforcer excludes, legacy spellings included — otherwise
+          # this net is smaller than the one it is meant to back up.
+          deny-groups: >-
+            pkg:maven/org.ow2.asm/,
+            pkg:maven/asm/,
+            pkg:maven/org.javassist/,
+            pkg:maven/javassist/,
+            pkg:maven/net.bytebuddy/,
+            pkg:maven/cglib/,
+            pkg:maven/cglib-nodep/
+          show-openssf-scorecard: true

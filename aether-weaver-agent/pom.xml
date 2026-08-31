@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.splatgames.aether.weaver</groupId>
+        <artifactId>aether-weaver-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>aether-weaver-agent</artifactId>
+    <packaging>jar</packaging>
+
+    <name>aether-weaver-agent</name>
+    <description>Java agent: premain, agentmain and the ClassFileTransformer driver.</description>
+
+    <properties>
+        <automatic.module.name>de.splatgames.aether.weaver.agent</automatic.module.name>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-runtime</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <!--
+                              The JVM reads these before any of this project's code exists, so they
+                              are the one place a typo cannot be caught by the compiler. Both entry
+                              points name the same class: -javaagent uses Premain-Class, a dynamic
+                              attach uses Agent-Class, and having one without the other produces a
+                              jar that works exactly one of the two ways with no explanation.
+                            -->
+                            <Premain-Class>de.splatgames.aether.weaver.agent.WeaverAgent</Premain-Class>
+                            <Agent-Class>de.splatgames.aether.weaver.agent.WeaverAgent</Agent-Class>
+                            <Can-Retransform-Classes>true</Can-Retransform-Classes>
+                            <Can-Redefine-Classes>true</Can-Redefine-Classes>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

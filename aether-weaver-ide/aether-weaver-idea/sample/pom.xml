@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A sample project for trying the IntelliJ plugin by hand.
+
+  Deliberately standalone: no parent, and the reactor does not list it. It is not part of the
+  framework's build — it is a stand-in for a *user's* project, and it must resolve the API the way a
+  user's project does, from the repository rather than from a sibling module. The plugin is verified
+  against what is published, not against the tree it happens to sit in.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.acme</groupId>
+    <artifactId>payments-sample</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <name>Aether Weaver IDE Sample</name>
+    <description>What a project using Aether Weaver looks like, for trying the IDE plugin.</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+        <!-- Kept in step with gradle.properties by the plugin build's `checkSampleVersion` task. -->
+        <aether.weaver.version>0.1.0-SNAPSHOT</aether.weaver.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-api</artifactId>
+            <version>${aether.weaver.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.0</version>
+                <configuration>
+                    <!--
+                      The annotation processor is intentionally absent. This project exists to be
+                      read by the IDE, not woven: pulling the processor in would make opening it
+                      depend on a build step that has nothing to do with what is being tried.
+
+                      One consequence is visible and deliberate. src/test/java/.../AmountsInUse.java
+                      calls extension methods on java.math.BigDecimal, and javac cannot resolve those
+                      without a compile-time stub — which needs the processor and the weaver plugin.
+                      The two goals and the one compiler argument that make it compile are in that
+                      file's header and in README.md; everything the sample is here to show about it
+                      holds in the IDE with no build step at all.
+                    -->
+                    <proc>none</proc>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

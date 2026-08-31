@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="configuration-keys" title="Configuration keys">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Thirteen keys, each written with <code>aether.weaver.</code> in front of it. The
+        load-time agent and the weaving class loader read them. The Maven plugin reads none, and
+        its parameters are in <a href="maven-goals.topic">Maven goals</a>.
+    </p>
+
+    <chapter title="The keys" id="keys">
+        <table style="header-row">
+            <tr>
+                <td>Key</td>
+                <td>Takes</td>
+                <td>Default</td>
+            </tr>
+            <tr>
+                <td><code>enabled</code></td>
+                <td><code>true</code> or <code>false</code></td>
+                <td><code>true</code></td>
+            </tr>
+            <tr>
+                <td><code>verification</code></td>
+                <td><code>strict</code>, <code>report</code>, <code>off</code></td>
+                <td><code>strict</code></td>
+            </tr>
+            <tr>
+                <td><code>onError</code></td>
+                <td><code>fail</code> or <code>report</code></td>
+                <td><code>fail</code></td>
+            </tr>
+            <tr>
+                <td><code>phase</code></td>
+                <td><code>early</code> or <code>default</code></td>
+                <td><code>default</code></td>
+            </tr>
+            <tr>
+                <td><code>dump</code></td>
+                <td>a directory, or <code>off</code></td>
+                <td><code>off</code></td>
+            </tr>
+            <tr>
+                <td><code>explain</code></td>
+                <td><code>true</code> or <code>false</code></td>
+                <td><code>false</code></td>
+            </tr>
+            <tr>
+                <td><code>tags.include</code></td>
+                <td>tags, comma-separated</td>
+                <td>every weave</td>
+            </tr>
+            <tr>
+                <td><code>tags.exclude</code></td>
+                <td>tags, comma-separated</td>
+                <td>none excluded</td>
+            </tr>
+            <tr>
+                <td><code>policy.allowSigned</code></td>
+                <td><code>true</code> or <code>false</code></td>
+                <td><code>false</code></td>
+            </tr>
+            <tr>
+                <td><code>policy.allowPackage</code></td>
+                <td>packages, comma-separated</td>
+                <td>none named</td>
+            </tr>
+            <tr>
+                <td><code>weave[name].enabled</code></td>
+                <td><code>true</code> or <code>false</code></td>
+                <td>the tag filter</td>
+            </tr>
+            <tr>
+                <td><code>weave[name].priority</code></td>
+                <td>an integer</td>
+                <td>unset</td>
+            </tr>
+            <tr>
+                <td><code>injector[name].enabled</code></td>
+                <td><code>true</code> or <code>false</code></td>
+                <td><code>true</code></td>
+            </tr>
+        </table>
+
+        <p>
+            Every value is trimmed first. A name out of a list is matched without regard to
+            case. What <code>strict</code>, <code>report</code> and <code>off</code> cost you is in
+            <a href="diagnostics-verification.topic">AW4xxx</a>.
+        </p>
+
+        <p>
+            In a bracketed key, <code>name</code> is the weave class's binary name or the
+            injection's name. It becomes a map key verbatim and is checked against nothing. A
+            misspelt one applies to nothing, and draws no diagnostic to tell you so.
+        </p>
+    </chapter>
+
+    <chapter title="Where you set one" id="sources">
+        <table style="header-row">
+            <tr>
+                <td>Where</td>
+                <td>You write</td>
+                <td>Read by</td>
+            </tr>
+            <tr>
+                <td>System property</td>
+                <td><code>-Daether.weaver.explain=true</code></td>
+                <td>the agent</td>
+            </tr>
+            <tr>
+                <td>Agent argument</td>
+                <td><code>explain=true</code>, prefix implied</td>
+                <td>the agent</td>
+            </tr>
+            <tr>
+                <td>A <code>Properties</code></td>
+                <td><code>aether.weaver.explain=true</code></td>
+                <td>your own code</td>
+            </tr>
+        </table>
+
+        <p>
+            The agent reads the system properties first and its arguments second. An argument to
+            this run therefore beats a property set for the machine.
+            <a href="agent-options.topic">Agent options</a> has the argument string and its
+            commas. <a href="configuration.topic#prove">Configuration</a> proves which layer
+            decided a key.
+        </p>
+
+        <p>
+            No file is opened for you. A properties layer exists only where your own code hands
+            the parser a <code>Properties</code>. Your code then passes the result to the weaving
+            class loader, which <a href="runtime-weaving.topic">Weaving in a running application</a> covers.
+        </p>
+
+        <warning>
+            <p>
+                The Maven plugin declares seven <code>aether.weaver.*</code> parameters of its own:
+                <code>skip</code>, <code>failOnError</code>, <code>explain</code>, <code>dump</code>,
+                <code>weaveDependencies</code>, <code>allowSigned</code> and <code>artifact</code>.
+                Set <code>skip</code>, <code>failOnError</code>, <code>weaveDependencies</code> or
+                <code>allowSigned</code> on a JVM instead, and the agent answers
+                <code>AW2310</code>. The runtime key for signed classes is
+                <code>policy.allowSigned</code>.
+                <code>explain</code> and <code>dump</code> are spelled the same as two runtime keys
+                and configure the agent normally when set on a JVM. <code>artifact</code> is
+                plugin-only and has no runtime counterpart at all.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="Keys that change nothing" id="inert">
+        <p>Four settings parse, layer and resolve, and then no shipped code reads them back.</p>
+
+        <deflist type="full">
+            <def title="weave[name].priority">
+                <p>
+                    The value resolves, and nothing asks for it. What a handler's position is
+                    decided by is in <a href="ordering.topic">Ordering</a>.
+                </p>
+            </def>
+            <def title="injector[name].enabled">
+                <p>
+                    Resolves, and nothing consults it. Switch the whole weave off with
+                    <code>weave[name].enabled</code>, which
+                    <a href="weave-discovery.topic">How a weave is found</a> covers.
+                </p>
+            </def>
+            <def title="phase">
+                <p>
+                    Carried, and reported in the run's summary line and again in the explain
+                    report. Acted on nowhere: no driver selects weaves by phase.
+                </p>
+            </def>
+            <def title="policy.allowPackage">
+                <p>
+                    Reopens no package, because no shipped driver builds a policy out of the
+                    names. It still counts as a relaxation, so the agent's banner reads
+                    <code>POLICY RELAXED</code> for a run that reopened nothing.
+                    <a href="diagnostics-policy.topic">AW3xxx</a> has what does reopen one.
+                </p>
+            </def>
+            <def title="plugins.enabled, plugins.allow, plugins.deny">
+                <p>
+                    The parser knows no such family, so each is answered with
+                    <code>AW2310</code> — drop the key. A driver would have to read the three
+                    itself, and none does. <a href="diagnostics-policy.topic">AW3xxx</a> has what
+                    they would have meant.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What each driver acts on" id="drivers">
+        <deflist type="medium">
+            <def title="enabled">
+                <p>
+                    The agent installs no transformer when this is <code>false</code>. The weaving
+                    class loader never reads it and goes on weaving, so exclude that driver's
+                    weaves by tag instead.
+                </p>
+            </def>
+            <def title="policy.allowSigned">
+                <p>
+                    Only the weaving class loader reads it. Without it a class from a signed
+                    artefact is <code>AW3002</code> and gets defined unwoven; set the key, or
+                    weave the classes before they are signed.
+                </p>
+            </def>
+            <def title="explain">
+                <p>
+                    The agent prints the report as it installs, with the resolved configuration
+                    attached. A class loader built by <code>create(...)</code> builds the same
+                    plan, but shows it nowhere and attaches no configuration. One built from the
+                    public constructor takes a weaver its caller already built, and never reads
+                    this key at all. <a href="diagnosing-a-weave.topic">Diagnosing a weave</a> reads one.
+                </p>
+            </def>
+            <def title="Everything else that is read">
+                <p>
+                    <code>verification</code>, <code>onError</code>, <code>dump</code>, both tag
+                    keys and <code>weave[name].enabled</code> reach both drivers.
+                    <a href="choose-a-driver.topic">Choose a driver</a> compares the three.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="How two sources combine" id="layers">
+        <p>
+            A scalar is taken from the higher layer, and only where that layer said something.
+            Two components merge by a different rule.
+            <a href="configuration.topic#prove">Configuration</a> shows which rule your run
+            applied.
+        </p>
+
+        <deflist type="medium">
+            <def title="A weave or injection override">
+                <p>
+                    Merged per name and per component. A higher layer setting only a priority
+                    leaves an <code>enabled</code> below it standing.
+                </p>
+            </def>
+            <def title="A relaxed policy">
+                <p>
+                    <code>allowSigned</code> and the package names add up, and no layer above can
+                    withdraw them. Remove the key that granted the relaxation.
+                </p>
+            </def>
+            <def title="The tag filter (not an exception)">
+                <p>
+                    Naming either tag key still replaces the whole filter from above. It only
+                    looks like two values overridden separately; it is one.
+                </p>
+            </def>
+            <def title="dump=off (not an exception)">
+                <p>
+                    Records nothing rather than a value, so a directory named lower down survives
+                    it. The setting has no other way to say "off".
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="A value it cannot read" id="bad-values">
+        <p>
+            No value is ever coerced. <code>enabled=ture</code> is answered with
+            <code>AW2310</code>, not read as an off. The setting falls to the layer below.
+            A misspelt key draws a suggestion naming the nearest known key. A value the parser
+            cannot read, as here, does not.
+            <a href="diagnostics-environment.topic">AW2xxx</a> has the five ways to earn that
+            code.
+        </p>
+
+        <note>
+            <p>
+                A <code>dump</code> value that names no valid path is the exception: it throws out
+                of the parser rather than reporting <code>AW2310</code>. Under the agent nothing
+                catches it, so the JVM ends before the application's own <code>main</code> runs.
+                Give a path this platform accepts.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="weave-discovery.topic">How a weave is found</a>
+            <a href="ordering.topic">Ordering</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-environment.topic">AW2xxx</a>
+            <a href="diagnostics-policy.topic">AW3xxx</a>
+        </category>
+    </seealso>
+</topic>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="policy-and-safety" title="Policy and safety">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Maven, the agent and <code>WeavingClassLoader.create</code> all run the standard policy.
+            Only a <code>Weaver</code> you build yourself takes another.</p>
+    </tldr>
+
+    <p>
+        The gate runs once per class the plan matched, before any bytes are written. A refusal
+        hands the class back unchanged, under every driver. Under the agent and
+        <code>WeavingClassLoader</code>, the JVM goes on with those bytes. Under Maven, an
+        error-severity refusal stops the build unless <code>failOnError</code> is cleared.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Weave plan names this class"] --> B["Bytes parsed"]
+    B --> C{"Policy gate decides"}
+    C -->|allow| D["Injections and merges applied"]
+    D --> E["New bytes, stamped"]
+    C -->|deny| F["One diagnostic, carrying the reason"]
+    F --> G["Class handed back unchanged"]
+    </code-block>
+
+    <chapter title="What the standard policy refuses" id="refuses">
+        <p>
+            Before any byte is written, it refuses a class of %product% itself, <code>java.*</code>,
+            and any other JDK prefix not explicitly reopened. It also refuses a class file below
+            version 50, and a class from a signed jar. Only the last two have a remedy that stays
+            inside this policy: a newer <code>javac</code> release, or one of the overrides below.
+            <a href="diagnostics-policy.topic">AW3xxx</a> has every code and what to do about it.
+            <a href="pipeline.topic">The weaving pipeline</a> has the gates around this one.
+        </p>
+    </chapter>
+
+    <chapter title="The setting the message names does nothing" id="inert">
+        <p>
+            <code>AW3001</code> asks you for
+            <code>aether.weaver.policy.allowPackage</code>. Only the agent parses that key on its
+            own. A hand-built launcher sees it only where it resolves system properties itself,
+            the way <a href="runtime-weaving.topic">Weaving in a running application</a> does.
+            Either way nothing reads the package list back, so writing the key gets the class
+            refused again. The run below builds its loader with
+            <code>WeavingClassLoader.create</code>, which prints no banner of its own.
+        </p>
+
+        <code-block lang="console"><![CDATA[
+$ java -cp "classes:lib/*" -Daether.weaver.policy.allowPackage=javax.legacy launcher.Standard
+AW3001 javax.legacy.Target is in javax.*, which is not woven by default. Reopen exactly the package you need with aether.weaver.policy.allowPackage=javax.legacy
+    1 modification were planned for it
+hello
+]]></code-block>
+
+        <warning>
+            <p>
+                Remove the key. A log claiming a relaxation nobody got is worse than silence.
+                <a href="configuration-keys.topic">Configuration keys</a> lists the other three
+                settings nothing reads.
+            </p>
+        </warning>
+    </chapter>
+
+    <procedure title="Reopen one JDK package" id="reopen">
+        <step>
+            <p>Build the policy and hand it to the weaver. <code>allowPackage</code> takes one
+                package, never a wildcard, and it matches that package exactly rather than the
+                subtree under it. <code>java</code> throws <code>IllegalArgumentException</code>
+                where you wrote it.</p>
+            <code-block lang="java" src="Policed.java"/>
+        </step>
+        <step>
+            <p><a href="first-weave.topic">Your first weave</a> has <code>Target</code> and
+                <code>Audit</code>, both under <code>package fixture;</code>. Copy them, change
+                <code>Target</code>'s package to <code>javax.legacy</code>, add
+                <code>import javax.legacy.Target;</code> to <code>Audit</code>, then compile both
+                into the roots and keep those roots off your own classpath.
+                <a href="runtime-weaving.topic">Weaving in a running application</a> has why.</p>
+            <code-block lang="bash"><![CDATA[
+javac -proc:full -cp "lib/*" -d plugins \
+      src/javax/legacy/Target.java src/fixture/Audit.java
+java -cp "classes:lib/*" launcher.Policed
+]]></code-block>
+        </step>
+        <step>
+            <p>The handler's own line is the proof.</p>
+            <code-block lang="console">
+woven
+hello
+            </code-block>
+            <p><code>hello</code> is what the target returns unaided, so a run still being refused
+                prints that alone.</p>
+        </step>
+    </procedure>
+
+    <chapter title="Signed jars, and the two overrides" id="signed">
+        <deflist type="full">
+            <def title="The weaving class loader">
+                <p>
+                    It reads <code>config.policy().allowSigned()</code> off the
+                    <code>WeaverConfig</code> it was built with. The <code>-D</code> flag reaches
+                    it only where your launcher resolved system properties into that config, as
+                    <a href="runtime-weaving.topic">Weaving in a running application</a> does.
+                    Resolved and set, the class is woven silently. Left unset,
+                    <code>AW3002</code> is reported and the original bytes are defined.
+                    This driver is the only one that reads the signed override at all.
+                </p>
+            </def>
+            <def title="The weave goal">
+                <p>
+                    Its <code>allowSigned</code> parameter is spelled without <code>policy</code>
+                    and is a different setting. It acts only where <code>weaveDependencies</code>
+                    is on, and turns the refusal into <code>AW3020</code>, once per signed jar.
+                    Check that the trade was meant. <a href="maven-goals.topic">Maven goals</a>
+                    has both parameters.
+                </p>
+            </def>
+            <def title="The agent">
+                <p>
+                    No gate at all. It is handed a <code>ProtectionDomain</code> it never reads, so
+                    a class from a signed jar is woven and nothing says so. Weave at build time
+                    wherever a signature has to keep describing what runs
+                    (<a href="build-time-weaving.topic">Build-time weaving</a>).
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Two rules that never fire here" id="unreachable">
+        <p>
+            The gate's target is built from the parsed class file alone. Signedness and declared
+            weave class both come through <code>false</code>. The two rules reading them refuse
+            nothing.
+        </p>
+
+        <list>
+            <li><p><code>AW3002</code> still reaches you, from the weaving class loader and the
+                <code>weave</code> goal — not the agent, which has no gate at all. Set whichever
+                of the two overrides that driver reads.</p></li>
+            <li><p><code>AW1087</code> still reaches you, from <code>javac</code> and from plan
+                building. Name a target that is not itself a weave;
+                <a href="diagnostics-declaration.topic">AW1xxx</a> has the rule.</p></li>
+        </list>
+
+        <tip>
+            <p>
+                Refusing more than the default is the same call. Compose with
+                <code>DefaultWeavePolicy.standard().and(yours)</code>. Composition only narrows, so
+                a policy someone hands you cannot reopen anything.
+            </p>
+        </tip>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="guides">
+            <a href="configuration.topic">Configuration</a>
+            <a href="runtime-weaving.topic">Weaving in a running application</a>
+            <a href="build-time-weaving.topic">Build-time weaving</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">AW3xxx</a>
+            <a href="configuration-keys.topic">Configuration keys</a>
+        </category>
+    </seealso>
+</topic>

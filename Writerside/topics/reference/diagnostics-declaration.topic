@@ -1,0 +1,1052 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="diagnostics-declaration" title="AW1xxx - declarations and injection">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Every code here comes out of a weave declaration, except <code>AW1300</code>–<code>AW1316</code>,
+        which come from an <code>@Extension</code> method instead. The tens digit says which
+        part of it the report is about.
+    </p>
+
+    <table style="header-row">
+        <tr>
+            <td>Codes</td>
+            <td>What the report is about</td>
+        </tr>
+        <tr>
+            <td><a href="#weave-class"><code>AW1001–AW1004</code></a></td>
+            <td>The weave class and its targets</td>
+        </tr>
+        <tr>
+            <td><a href="#handler"><code>AW1005</code></a></td>
+            <td>The handler and the weave's own kind</td>
+        </tr>
+        <tr>
+            <td><a href="#weave-class"><code>AW1006–AW1009</code></a></td>
+            <td>The weave class and its targets</td>
+        </tr>
+        <tr>
+            <td><a href="#selector"><code>AW1010–AW1025</code></a></td>
+            <td>The selector and the method</td>
+        </tr>
+        <tr>
+            <td><a href="#points"><code>AW1026–AW1027</code></a></td>
+            <td>A position inside a constructor</td>
+        </tr>
+        <tr>
+            <td><a href="#members"><code>AW1030–AW1034</code></a></td>
+            <td>A <code>@Shadow</code> of the target's member</td>
+        </tr>
+        <tr>
+            <td><a href="#handler"><code>AW1040–AW1042</code></a></td>
+            <td>The handler and the weave's own kind</td>
+        </tr>
+        <tr>
+            <td><a href="#points"><code>AW1043–AW1044</code></a></td>
+            <td>How many positions matched</td>
+        </tr>
+        <tr>
+            <td><a href="#handler"><code>AW1050–AW1054</code></a></td>
+            <td>A <code>@Local</code> capture</td>
+        </tr>
+        <tr>
+            <td><a href="#redirect"><code>AW1060–AW1063</code></a></td>
+            <td><code>@Redirect</code> and <code>@Wrap</code></td>
+        </tr>
+        <tr>
+            <td><a href="#handler"><code>AW1070–AW1072</code></a></td>
+            <td>The <code>Callback</code> parameter</td>
+        </tr>
+        <tr>
+            <td><a href="#members"><code>AW1080</code></a></td>
+            <td>Members merged onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#weave-class"><code>AW1081–AW1082</code></a></td>
+            <td>What travels onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#members"><code>AW1083</code></a></td>
+            <td>Members merged onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#weave-class"><code>AW1084</code></a></td>
+            <td>What travels onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#weave-class"><code>AW1087</code></a></td>
+            <td>What travels onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#members"><code>AW1088–AW1095</code></a></td>
+            <td>Members merged onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#weave-class"><code>AW1096</code></a></td>
+            <td>What travels onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#members"><code>AW1097</code></a></td>
+            <td>Members merged onto the target</td>
+        </tr>
+        <tr>
+            <td><a href="#points"><code>AW1101–AW1131</code></a></td>
+            <td>The point, in the target's code</td>
+        </tr>
+        <tr>
+            <td><a href="#points"><code>AW1200</code></a></td>
+            <td>A target javac could not read</td>
+        </tr>
+        <tr>
+            <td><a href="#extensions"><code>AW1300–AW1316</code></a></td>
+            <td>An <code>@Extension</code> method</td>
+        </tr>
+    </table>
+
+    <p>
+        Seventy-five of the 94 are errors, twelve are warnings and seven are info. Severity
+        rates the condition. It does not say how much of your class still gets woven.
+        <a href="#points">Where the point lands</a> has the codes where the two part company.
+    </p>
+
+    <chapter title="The weave class and its targets" id="weave-class">
+
+        <p>
+            The class's own shape, read before any target method is. Both javac and the weaver
+            check most of it. A fault here usually stops javac first.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW1001</code></td>
+                <td><code>@Weave</code> names no target</td>
+                <td>Name it: <code>@Weave(X.class)</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1002</code></td>
+                <td>Both <code>value</code> and <code>targets</code> are set</td>
+                <td>Keep one, and delete the other</td>
+            </tr>
+            <tr>
+                <td><code>AW1004</code></td>
+                <td>A <code>targets</code> name resolved nowhere</td>
+                <td>Check it; a nested name uses <code>$</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1006</code></td>
+                <td>The weave has a superclass</td>
+                <td>Extend <code>Object</code>; shadow the rest</td>
+            </tr>
+            <tr>
+                <td><code>AW1007</code></td>
+                <td>The weave class is generic</td>
+                <td>Remove the type parameters</td>
+            </tr>
+            <tr>
+                <td><code>AW1008</code></td>
+                <td>The weave class is not final</td>
+                <td>Declare it final</td>
+            </tr>
+            <tr>
+                <td><code>AW1009</code></td>
+                <td>A target is named as a string</td>
+                <td>Write the class literal instead</td>
+            </tr>
+            <tr>
+                <td><code>AW1081</code></td>
+                <td>The weave declares a constructor</td>
+                <td>Initialise it from an <code>@Inject</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1082</code></td>
+                <td>There is a static initialiser</td>
+                <td>Remove the static initialiser</td>
+            </tr>
+            <tr>
+                <td><code>AW1084</code></td>
+                <td>The weave implements an interface</td>
+                <td>Declare it to implement nothing</td>
+            </tr>
+            <tr>
+                <td><code>AW1087</code></td>
+                <td>A target is itself a weave class</td>
+                <td>Target what that weave targets</td>
+            </tr>
+            <tr>
+                <td><code>AW1096</code></td>
+                <td>The weave's own bytes are missing</td>
+                <td>Give the weaver a source for them</td>
+            </tr>
+        </table>
+
+        <deflist type="medium">
+            <def title="A target that is absent on purpose">
+                <p>
+                    <code>AW1004</code> stays quiet at compile time when the declaration sets
+                    <code>require = Require.OPTIONAL</code>, which is how you name a class
+                    present at run time and not before it. The engine asks something else
+                    entirely: whether the string is a usable binary class name at all.
+                    <a href="annotations.topic">Annotations</a> has the element.
+                </p>
+            </def>
+            <def title="Two shapes that cannot be merged">
+                <p>
+                    Neither a static initialiser nor an implemented interface travels onto the
+                    target, and neither report offers a remedy of its own. Take the initialiser
+                    out, and declare the weave to implement nothing.
+                    <a href="weave-members.topic">Weave members</a> covers what does travel.
+                </p>
+            </def>
+            <def title="Where the weave's own bytes come from">
+                <p>
+                    <code>AW1096</code> reaches a weave that merges a member, or that declares
+                    a handler of its own on an instance weave, when the driver's class source
+                    cannot hand its class file back. Maven wires the project's own output
+                    directory in for you, so this usually means a hand-built
+                    <code>ClassSource</code>; give it a byte source for the weave class with
+                    <code>WeaverBuilder.weaveBytes(…)</code>. A <code>Kind.STATIC</code> weave,
+                    and one whose only members are <code>@Accessor</code> or
+                    <code>@Invoker</code>, never needs it.
+                </p>
+            </def>
+            <def title="Three numbers nothing reports">
+                <p>
+                    <code>AW1003</code>, <code>AW1085</code> and <code>AW1086</code> are held
+                    against reuse so that a later condition cannot take the number. No build
+                    produces one and none of them has a remedy.
+                    <a href="diagnostics.topic">Diagnostic codes</a> lists the other two.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="The selector and the method it finds" id="selector">
+
+        <p>
+            The <code>method</code> string is parsed, then resolved against the target's
+            declared methods. A parse failure carries an offset internally. The message
+            reaching the build is the bare phrase — no caret, no offset printed with it.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW1010</code></td>
+                <td>The selector's owner is unknown</td>
+                <td>Check the name, or drop it</td>
+            </tr>
+            <tr>
+                <td><code>AW1015</code></td>
+                <td>The selector text does not parse</td>
+                <td>Read the message; it names the fault</td>
+            </tr>
+            <tr>
+                <td><code>AW1016</code></td>
+                <td>Type arguments were dropped</td>
+                <td>Delete them; erasure wins</td>
+            </tr>
+            <tr>
+                <td><code>AW1017</code></td>
+                <td>A descriptor with no <code>desc:</code> prefix</td>
+                <td>Use the text it suggests</td>
+            </tr>
+            <tr>
+                <td><code>AW1018</code></td>
+                <td>The descriptor form is malformed</td>
+                <td>Write an exact JVM descriptor</td>
+            </tr>
+            <tr>
+                <td><code>AW1019</code></td>
+                <td>A descriptor has no return type</td>
+                <td>Add it; <code>V</code> is void</td>
+            </tr>
+            <tr>
+                <td><code>AW1020</code></td>
+                <td>No method of the target matched</td>
+                <td>Name the class that declares it</td>
+            </tr>
+            <tr>
+                <td><code>AW1021</code></td>
+                <td>Several overloads matched</td>
+                <td>Add the parameter types</td>
+            </tr>
+            <tr>
+                <td><code>AW1022</code></td>
+                <td>A wildcard matched several</td>
+                <td>Set <code>allow</code> to the number meant</td>
+            </tr>
+            <tr>
+                <td><code>AW1023</code></td>
+                <td>The target method is abstract</td>
+                <td>Name an implementing method</td>
+            </tr>
+            <tr>
+                <td><code>AW1024</code></td>
+                <td>The target method is synthetic</td>
+                <td>Name the method the author wrote</td>
+            </tr>
+            <tr>
+                <td><code>AW1025</code></td>
+                <td>The target method is native</td>
+                <td>Inject into its caller instead</td>
+            </tr>
+        </table>
+
+        <deflist type="medium">
+            <def title="An inherited method is not a declared one">
+                <p>
+                    This is what <code>AW1020</code> is usually saying. Name the class that
+                    declares the method, and match its erased parameter types exactly.
+                    <a href="selectors.topic">Selectors</a> covers matching and
+                    <a href="selector-grammar.topic">The selector grammar</a> the syntax.
+                </p>
+            </def>
+            <def title="A constructor selector reads as generic">
+                <p>
+                    The test for type arguments is the character <code>&lt;</code>, so
+                    <code>method = "&lt;init&gt;()"</code> is reported as
+                    <code>AW1016</code>. Change nothing. At compile time the same selector also
+                    reports <code>AW1020</code>, because a constructor is not among the declared
+                    methods there; the engine resolves it.
+                </p>
+            </def>
+            <def title="allow does not reach the engine">
+                <p>
+                    <code>AW1022</code> is javac's alone, and <code>allow</code> answers it. The
+                    engine reports <code>AW1021</code> for the same wildcard whatever
+                    <code>allow</code> says. Add the parameter types, or pin one overload with
+                    the <code>desc:</code> form.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="The handler" id="handler">
+
+        <p>
+            A handler's parameters are read in three bands. The target's own arguments first,
+            then a <code>Callback</code>, then the <code>@Local</code> captures. Anything out of
+            that order fails before the types are compared.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW1005</code></td>
+                <td>The handler is not static enough</td>
+                <td>Declare the handler static</td>
+            </tr>
+            <tr>
+                <td><code>AW1040</code></td>
+                <td>The parameters are not a prefix</td>
+                <td>Take the target's first arguments</td>
+            </tr>
+            <tr>
+                <td><code>AW1041</code></td>
+                <td>The handler returns a value</td>
+                <td>Return void; use the <code>Callback</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1042</code></td>
+                <td>The handler cannot be called</td>
+                <td>Make it and its class public</td>
+            </tr>
+            <tr>
+                <td><code>AW1050</code></td>
+                <td>A <code>@Local</code> bound to nothing</td>
+                <td>Pick one from the listing</td>
+            </tr>
+            <tr>
+                <td><code>AW1051</code></td>
+                <td>Two live locals fit the type</td>
+                <td>Add <code>name</code> or <code>ordinal</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1052</code></td>
+                <td>The target has no variable table</td>
+                <td>Recompile the target with <code>-g</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1053</code></td>
+                <td><code>mutable = true</code> on a plain type</td>
+                <td>Declare it <code>LocalRef&lt;T&gt;</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1054</code></td>
+                <td>A <code>LocalRef</code> without <code>mutable</code></td>
+                <td>Add <code>mutable</code>, or the plain type</td>
+            </tr>
+            <tr>
+                <td><code>AW1070</code></td>
+                <td>A plain <code>Callback</code> on a value</td>
+                <td>Declare a <code>ReturnableCallback</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1071</code></td>
+                <td>The callback's type is wrong</td>
+                <td>Match the target's return type</td>
+            </tr>
+            <tr>
+                <td><code>AW1072</code></td>
+                <td><code>value()</code> where no value exists</td>
+                <td>Move it to a value-bearing point</td>
+            </tr>
+        </table>
+
+        <note>
+            <p>
+                Two of the sites reporting <code>AW1005</code> ask you to declare the handler
+                static and take the target as its first parameter. That compiles, and then
+                refuses to weave as <code>AW1040</code>. A handler's parameters are matched
+                against the target method's own arguments; the receiver is never one of them.
+                Declare the weave <code>@Weave(kind = Kind.INSTANCE)</code> where the handler
+                needs the instance — except a <code>@Wrap</code> handler, which
+                <code>AW1005</code> refuses non-static in a weave of any kind.
+            </p>
+        </note>
+
+        <deflist type="medium">
+            <def title="Four sites report the one code">
+                <p>
+                    A static weave with a non-static handler is one of four.
+                    <code>AW1005</code> also reaches a non-static <code>@Inject</code> or
+                    <code>@Redirect</code> handler that the target does not own; any
+                    non-static <code>@Wrap</code> handler, in a weave of any kind, with no
+                    <code>Kind.INSTANCE</code> exemption; and a merged instance handler on a
+                    static target method. Declaring the handler static answers all four.
+                </p>
+            </def>
+            <def title="Codes that reach you at one stage only">
+                <p>
+                    <code>AW1042</code> is javac's: the engine never checks access, so a weave
+                    compiled elsewhere throws <code>IllegalAccessError</code> at the first call
+                    instead. <code>AW1070</code> is the engine's, so a plain
+                    <code>Callback</code> on a value-returning target compiles clean. Rule both
+                    out by hand. <a href="handlers-and-callbacks.topic">Handlers and
+                    callbacks</a> has the bands.
+                </p>
+            </def>
+            <def title="A capture with no name to bind to">
+                <p>
+                    Without a <code>LocalVariableTable</code> only <code>@Local(index = n)</code>
+                    resolves, and <code>AW1052</code> refuses every other strategy rather than
+                    guess a slot. Recompile the target with <code>-g</code>, or read the slot out
+                    of its bytecode. <a href="locals.topic">Locals</a> compares the four.
+                </p>
+            </def>
+            <def title="A void target has no return type to match">
+                <p>
+                    javac reports <code>AW1071</code> when a <code>ReturnableCallback&lt;T&gt;</code>'s
+                    type argument does not match the target's boxed return type, and there the
+                    remedy fits: declare the matching <code>T</code>. The engine reports the same
+                    code for a <code>ReturnableCallback</code> on a <b>void</b> target, which has
+                    no return type to match — there the fix is to declare a plain
+                    <code>Callback</code> instead.
+                </p>
+            </def>
+            <def title="Five branches, one code">
+                <p>
+                    <code>AW1050</code> covers five misses: an <code>index</code> whose slot
+                    holds another type; a <code>name</code> not live at the site; an
+                    <code>ordinal</code> past the candidates of its type; no live local of the
+                    captured type at all; and a named variable whose declared type does not
+                    match — where the fix is not another local, but declaring the parameter
+                    with that variable's own type. The listing the message carries is live
+                    locals of the type asked for, so the last case will not appear in it.
+                </p>
+            </def>
+            <def title="One code, three parameter shapes">
+                <p>
+                    <code>AW1040</code> also reaches a <code>@Local</code> capture declared
+                    before the trailing band — move it to the end, after the target's own
+                    arguments and any <code>Callback</code> — and a <code>@Redirect</code> or
+                    <code>@Wrap</code> handler whose parameters do not open with the operation's
+                    own inputs. <a href="redirect-and-wrap.topic">Redirect and Wrap</a> has that
+                    shape.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Redirect and wrap" id="redirect">
+
+        <p>
+            Both need an operation to take over. That is a call, a field access or an
+            instantiation. A point that names a position instead is refused, and nothing is
+            emitted for it.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW1060</code></td>
+                <td>Two declarations claim one call</td>
+                <td>Make both <code>@Wrap</code>, or narrow one</td>
+            </tr>
+            <tr>
+                <td><code>AW1061</code></td>
+                <td>The point is a position, usually</td>
+                <td>Point it at a call, field or <code>new</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1062</code></td>
+                <td><code>Operation</code> is not last</td>
+                <td>Move it to the end</td>
+            </tr>
+            <tr>
+                <td><code>AW1063</code></td>
+                <td>The handler takes no <code>Operation</code></td>
+                <td>Add a trailing <code>Operation</code></td>
+            </tr>
+        </table>
+
+        <deflist type="medium">
+            <def title="Both of the wrap codes at once">
+                <p>
+                    A wrap handler with no <code>Operation</code> anywhere reports
+                    <code>AW1062</code> and <code>AW1063</code> together from the engine, and
+                    <code>AW1063</code> alone from javac. Add the trailing <code>Operation&lt;R&gt;</code> and both go.
+                    <a href="redirect-and-wrap.topic">Redirect and Wrap</a> has the handler's
+                    shape.
+                </p>
+            </def>
+            <def title="One shape that is not yours to fix">
+                <p>
+                    <code>AW1061</code> also covers an instantiation whose constructor call the
+                    engine could not locate. Its remedy asks you to report the class file rather
+                    than work around it, and that is the right move: send it to the
+                    <a href="%issues%">issue tracker</a>.
+                </p>
+            </def>
+            <def title="One call site, written two ways">
+                <p>
+                    <code>AW1060</code> keys a site on the text you wrote, so two declarations
+                    naming one call in different words are not seen as sharing it and neither is
+                    reported. Spell the target the same way in both so the collision is caught,
+                    then make both <code>@Wrap</code> or narrow one — <code>priority</code> only
+                    orders who writes first; it does not stop both from firing.
+                    <a href="ordering.topic">Ordering</a> covers the tie.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Members on the target" id="members">
+
+        <p>
+            <code>@Shadow</code> promises a member the target already has. Every other member
+            is added to it. Both kinds are checked by javac and again while merging.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW1030</code></td>
+                <td>The target has no such field</td>
+                <td>Check the name, and the version</td>
+            </tr>
+            <tr>
+                <td><code>AW1031</code></td>
+                <td>The shadowed type is wrong</td>
+                <td>Declare the target's own type</td>
+            </tr>
+            <tr>
+                <td><code>AW1032</code></td>
+                <td>A <code>@Shadow</code> field has a value</td>
+                <td>Delete it; the target's wins</td>
+            </tr>
+            <tr>
+                <td><code>AW1033</code></td>
+                <td><code>mutable</code> clears the target's <code>final</code></td>
+                <td>Drop it if the weave only reads</td>
+            </tr>
+            <tr>
+                <td><code>AW1034</code></td>
+                <td>Another weave adds that member</td>
+                <td>Raise that weave's priority</td>
+            </tr>
+            <tr>
+                <td><code>AW1080</code></td>
+                <td>A merged member already exists</td>
+                <td>Mark them all <code>@Unique</code>, or rename</td>
+            </tr>
+            <tr>
+                <td><code>AW1083</code></td>
+                <td>A merge overrides a reserved name</td>
+                <td>Check that it is meant</td>
+            </tr>
+            <tr>
+                <td><code>AW1088</code></td>
+                <td>An instance field into a record</td>
+                <td>Declare it static, or drop it</td>
+            </tr>
+            <tr>
+                <td><code>AW1089</code></td>
+                <td>An instance field into an enum</td>
+                <td>Write it from an <code>@Inject</code> at <code>HEAD</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1090</code></td>
+                <td><code>@Shadow</code> in a static weave (below)</td>
+                <td>Declare <code>kind = Kind.INSTANCE</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1091</code></td>
+                <td><code>@Unique</code> in a static weave</td>
+                <td>Delete it, or use <code>Kind.INSTANCE</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1092</code></td>
+                <td>The target is anonymous or local</td>
+                <td>Target the class enclosing it</td>
+            </tr>
+            <tr>
+                <td><code>AW1093</code></td>
+                <td>A merged field has a value</td>
+                <td>Set it from an <code>@Inject</code> at <code>HEAD</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1094</code></td>
+                <td>A <code>@Unique</code> member was renamed</td>
+                <td>Nothing; <code>silent = true</code> quiets it</td>
+            </tr>
+            <tr>
+                <td><code>AW1095</code></td>
+                <td>A generated member already exists</td>
+                <td>Rename the accessor or invoker</td>
+            </tr>
+            <tr>
+                <td><code>AW1097</code></td>
+                <td>An accessor writes a <code>final</code> field</td>
+                <td>Use <code>@Shadow(mutable = true)</code></td>
+            </tr>
+        </table>
+
+        <deflist type="medium">
+            <def title="A static weave generates nothing">
+                <p>
+                    The catalogue text under <code>AW1090</code> sends a static weave to
+                    <code>@Accessor</code> or <code>@Invoker</code>. The merge stage skips every
+                    weave that is not <code>Kind.INSTANCE</code> first, so neither is ever
+                    generated onto the target and nothing says so. Declare the weave
+                    <code>@Weave(kind = Kind.INSTANCE)</code>.
+                    <a href="weave-members.topic">Weave members</a> has the two kinds.
+                </p>
+            </def>
+            <def title="The two stages do not agree on constant">
+                <p>
+                    <code>AW1032</code> and <code>AW1093</code> read a field's initialiser.
+                    javac reads any JLS constant variable, static or not. The engine reads only
+                    the class file's <code>ConstantValue</code> attribute, which the compiler
+                    writes for a <code>static final</code> field alone. An instance
+                    <code>final int x = 5</code> is <code>AW1093</code> at compile time and
+                    <code>AW1081</code> at weave time, because there it compiled into the
+                    constructor instead. Assign such a field from a handler either way.
+                </p>
+            </def>
+            <def title="Marking some of them @Unique does not help">
+                <p>
+                    <code>AW1080</code> is excused only where every claimant on the name carries
+                    <code>@Unique</code>. A mangled member and a plainly named one still collide
+                    on the plain name, so mark all of them or rename all but one.
+                    <a href="determinism.topic">Determinism</a> covers the mangled spelling.
+                </p>
+            </def>
+            <def title="Four signatures, not one">
+                <p>
+                    <code>AW1083</code> matches the whole erased signature against four:
+                    <code>toString()</code>, <code>equals(Object)</code>,
+                    <code>hashCode()</code> and <code>main(String[])</code>. Nothing else
+                    triggers it.
+                </p>
+            </def>
+            <def title="A mis-shaped accessor, not a mismatch">
+                <p>
+                    Besides a <code>@Shadow</code> of the wrong type, <code>AW1031</code> reaches
+                    a generated <code>@Accessor</code> whose descriptor is neither a getter nor a
+                    setter of the field it names. Nothing there is shadowed; declare it to take
+                    nothing and return the field's type, or take the field's type and return
+                    void.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Where the point lands" id="points">
+
+        <p>
+            An <code>@At</code> is resolved against the target's own instructions. Five stages
+            run in order: the slice, the search, the ordinal, the shift, then a safety check.
+            Any of them can refuse.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW1026</code></td>
+                <td><code>this</code> does not exist yet</td>
+                <td>Declare the handler static</td>
+            </tr>
+            <tr>
+                <td><code>AW1027</code></td>
+                <td>Constructors chained with <code>this()</code></td>
+                <td>Attach to the one calling super</td>
+            </tr>
+            <tr>
+                <td><code>AW1043</code></td>
+                <td>Fewer matches than required; below</td>
+                <td>Read the listing; widen it</td>
+            </tr>
+            <tr>
+                <td><code>AW1044</code></td>
+                <td>More matched than <code>allow</code> permits</td>
+                <td>Add an ordinal or a slice</td>
+            </tr>
+            <tr>
+                <td><code>AW1101</code></td>
+                <td>No point has that identifier</td>
+                <td>Check it; nine are built in</td>
+            </tr>
+            <tr>
+                <td><code>AW1102</code></td>
+                <td>No shift is allowed here (below)</td>
+                <td>Remove the shift</td>
+            </tr>
+            <tr>
+                <td><code>AW1103</code></td>
+                <td>The call is behind an <code>invokedynamic</code></td>
+                <td>Inject into the method behind it</td>
+            </tr>
+            <tr>
+                <td><code>AW1104</code></td>
+                <td>No value is produced before it</td>
+                <td>Drop <code>@Result</code>, or move the point</td>
+            </tr>
+            <tr>
+                <td><code>AW1105</code></td>
+                <td>Site inside a <code>new</code> window; below</td>
+                <td>Move it after that constructor</td>
+            </tr>
+            <tr>
+                <td><code>AW1110</code></td>
+                <td>The ordinal is past the matches</td>
+                <td>Count from zero in the slice</td>
+            </tr>
+            <tr>
+                <td><code>AW1111</code></td>
+                <td>The shift leaves the slice</td>
+                <td>Widen the slice, or drop it</td>
+            </tr>
+            <tr>
+                <td><code>AW1112</code></td>
+                <td><code>shift = BY</code> moves a long way</td>
+                <td>Use a slice, or another point</td>
+            </tr>
+            <tr>
+                <td><code>AW1120</code></td>
+                <td>The slice's <code>from</code> did not resolve</td>
+                <td>Check what that bound names</td>
+            </tr>
+            <tr>
+                <td><code>AW1121</code></td>
+                <td>The slice's <code>to</code> did not resolve</td>
+                <td>Check what that bound names</td>
+            </tr>
+            <tr>
+                <td><code>AW1122</code></td>
+                <td>The slice ends before it begins</td>
+                <td>Make <code>to</code> land at or after <code>from</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1130</code></td>
+                <td>In unreachable code; below</td>
+                <td>Narrow it, slice or ordinal</td>
+            </tr>
+            <tr>
+                <td><code>AW1131</code></td>
+                <td>A catch block was cut around it</td>
+                <td>Nothing; catch in the handler</td>
+            </tr>
+            <tr>
+                <td><code>AW1200</code></td>
+                <td>javac could not read it; below</td>
+                <td>Nothing; the weaver checks it</td>
+            </tr>
+        </table>
+
+        <warning>
+            <p>
+                An injection whose <code>group</code> names no declared
+                <a href="annotations.topic">@Group</a> loses the group's own accounting: the
+                declaration's <code>require</code> and <code>allow</code> and the group's bounds
+                are never checked, so a shortfall there produces no <code>AW1043</code> and no
+                <code>AW1044</code>. The point itself still reports on its own — an
+                <code>@At</code> that matched nothing still raises <code>AW1043</code>, group or
+                not. Check the name against the weave's own <code>@Group</code> declarations.
+            </p>
+        </warning>
+
+        <deflist type="medium">
+            <def title="Six ways to match too few">
+                <p>
+                    <code>AW1043</code> covers all six. Read the listing in the message first.
+                </p>
+                <list>
+                    <li><p>No <code>@At</code> at all. Add one.</p></li>
+                    <li><p>A point that requires a <code>target</code> and was given none. Name
+                        what to match.</p></li>
+                    <li><p>A point that forbids one and was given a <code>target</code>. Remove
+                        it.</p></li>
+                    <li><p>A point that searched the body and found nothing. Widen the selector
+                        or the slice.</p></li>
+                    <li><p>Fewer matches than <code>require</code>. Lower it, or correct the
+                        target.</p></li>
+                    <li><p>A <code>@Group</code> total outside its bounds. Check whether the
+                        target changed.</p></li>
+                </list>
+            </def>
+            <def title="A warning that also drops the site">
+                <p>
+                    <code>AW1105</code> is an error and drops the one site, leaving the
+                    declaration's other sites woven. <code>AW1130</code> is only a warning and
+                    drops its site the same way. <code>AW1104</code> is an error and abandons
+                    the whole declaration. Severity alone does not say how much still wove; each
+                    detail names the element by its index rather than a count.
+                </p>
+            </def>
+            <def title="What @Result asks for">
+                <p>
+                    The summary names <code>INVOKE_AFTER</code>, and nothing checks the point.
+                    The condition is positional: the instruction immediately before the site has
+                    to be a call that returns a value. Drop <code>@Result</code>, or move the
+                    point after such a call. <a href="injection-points.topic">Injection
+                    points</a> has the nine.
+                </p>
+            </def>
+            <def title="Three sites, and only one asks the point">
+                <p>
+                    Among the nine built-in points, only <code>Point.HEAD</code> refuses a
+                    shift on its own account; every other one takes it. <code>@Redirect</code>
+                    and <code>@Wrap</code> refuse a shift at any point at all, because there is
+                    no instruction after an operation they took over to shift onto.
+                    <a href="injection-points.topic">Injection points</a> covers the nine.
+                </p>
+            </def>
+            <def title="A point no shipped driver can add">
+                <p>
+                    The remedy for <code>AW1101</code> asks for the contributing plugin on the
+                    classpath. No shipped driver loads a <code>WeaverPlugin</code>, and javac
+                    resolves against the nine built-in points alone. Use one of them.
+                    <a href="plugins.topic">Extending the engine</a> covers what a plugin may
+                    contribute.
+                </p>
+            </def>
+            <def title="Slice bounds, and one refusal with no code">
+                <p>
+                    <code>AW1120</code> and <code>AW1121</code> come from two branches: a bound
+                    that matched nothing, which explains itself rather than saying what to
+                    change, and a bound naming an unregistered point, which carries no remedy at
+                    all. Check the bound's point and its target. A bound whose ordinal is past
+                    its own matches refuses silently, and the <code>@At</code> then contributes
+                    nothing.
+                </p>
+            </def>
+            <def title="Why no point code arrived">
+                <p>
+                    <code>AW1200</code> says javac could not read the target's class file,
+                    usually because it is compiled in the same round as the weave. Every point
+                    check for that target is skipped, and the weaver runs all of them later.
+                    Nothing needs doing.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Extension methods" id="extensions">
+        <secondary-label ref="experimental"/>
+
+        <p>
+            Sixteen of these seventeen are reported by javac. <code>AW1308</code> is also
+            reported by the Maven plugin, off the extension index it alone builds;
+            <code>AW1309</code> is reported there and nowhere else.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>What happened</td>
+                <td>What to do</td>
+            </tr>
+            <tr>
+                <td><code>AW1300</code></td>
+                <td>The holder class is not final</td>
+                <td>Declare it final</td>
+            </tr>
+            <tr>
+                <td><code>AW1301</code></td>
+                <td>A public method is not static</td>
+                <td>Declare it static, or private</td>
+            </tr>
+            <tr>
+                <td><code>AW1302</code></td>
+                <td>Nothing names a receiver</td>
+                <td>Mark a parameter <code>@Receiver</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1303</code></td>
+                <td><code>@Receiver</code> is on a later parameter</td>
+                <td>Move it to the front</td>
+            </tr>
+            <tr>
+                <td><code>AW1304</code></td>
+                <td>The receiver is not a class type</td>
+                <td>Name a class or an interface</td>
+            </tr>
+            <tr>
+                <td><code>AW1305</code></td>
+                <td>The receiver has that member</td>
+                <td>Rename the extension</td>
+            </tr>
+            <tr>
+                <td><code>AW1306</code></td>
+                <td>The holder class is generic</td>
+                <td>Remove the type parameters</td>
+            </tr>
+            <tr>
+                <td><code>AW1307</code></td>
+                <td>The holder has a supertype</td>
+                <td>Make it a plain final class</td>
+            </tr>
+            <tr>
+                <td><code>AW1308</code></td>
+                <td>Two extensions make one call</td>
+                <td>Rename one of them</td>
+            </tr>
+            <tr>
+                <td><code>AW1309</code></td>
+                <td>The receiver declares it for real</td>
+                <td>Delete it, or rename it</td>
+            </tr>
+            <tr>
+                <td><code>AW1310</code></td>
+                <td>The method is generic</td>
+                <td>Use the erased type</td>
+            </tr>
+            <tr>
+                <td><code>AW1311</code></td>
+                <td>The receiver is parameterised</td>
+                <td>Name the raw type</td>
+            </tr>
+            <tr>
+                <td><code>AW1312</code></td>
+                <td>The receiver is <code>Object</code></td>
+                <td>Name the narrowest type</td>
+            </tr>
+            <tr>
+                <td><code>AW1313</code></td>
+                <td>Two <code>@Receiver</code> declarations</td>
+                <td>Keep one of the two</td>
+            </tr>
+            <tr>
+                <td><code>AW1314</code></td>
+                <td>A <code>@Receiver</code> field is not constant</td>
+                <td>Declare it public static final</td>
+            </tr>
+            <tr>
+                <td><code>AW1315</code></td>
+                <td><code>nulls</code> with no receiver value</td>
+                <td>Remove <code>nulls</code></td>
+            </tr>
+            <tr>
+                <td><code>AW1316</code></td>
+                <td>The first parameter is not it</td>
+                <td>Take the receiver first</td>
+            </tr>
+        </table>
+
+        <deflist type="medium">
+            <def title="Two remedies you cannot carry out">
+                <p>
+                    <code>AW1300</code> asks for <code>final</code>, and an <code>@Extension</code>
+                    interface can never be one. <code>AW1307</code> asks the holder to extend
+                    <code>Object</code> and implement nothing, which no enum, record or
+                    annotation type can do. Make the holder a plain final class.
+                    <a href="extension-methods.topic">Extension methods</a> has the shape.
+                </p>
+            </def>
+            <def title="nulls is read exactly as written">
+                <p>
+                    Only the elements your source wrote are read back, so
+                    <code>AW1315</code> fires on a value that equals the element's own default.
+                    Remove <code>nulls</code>, or mark a parameter <code>@Receiver</code> to
+                    contribute an instance method instead.
+                </p>
+            </def>
+            <def title="Where a duplicate is found, and where it is not">
+                <p>
+                    The agent and the testkit build no extension index, so
+                    <code>AW1308</code> and <code>AW1309</code> reach you from Maven or not at
+                    all — and only when the index is built, at <code>generate-sources</code>
+                    for <code>stubs</code> and at <code>process-classes</code> for
+                    <code>weave</code>, before either weaves a class. <code>stubs</code> prints
+                    the code and the message without the remedy and never fails on it;
+                    <code>weave</code> fails on the same declaration later.
+                    <a href="maven-goals.topic">Maven goals</a> has all four.
+                </p>
+            </def>
+            <def title="A collision inside somebody else's jar">
+                <p>
+                    Both weave-time codes read manifests off the classpath, so the declaration
+                    they name may belong to a dependency. Rename it in the module that declares
+                    it and rebuild that module. <a href="manifest-format.topic">The weave manifest</a> has
+                    the entry.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="injection-points.topic">Injection points</a>
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>
+            <a href="extension-methods.topic">Extension methods</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+            <a href="annotations.topic">Annotations</a>
+            <a href="diagnostics-environment.topic">AW2xxx</a>
+        </category>
+        <category ref="guides">
+            <a href="diagnosing-a-weave.topic">Diagnosing a weave</a>
+        </category>
+    </seealso>
+</topic>

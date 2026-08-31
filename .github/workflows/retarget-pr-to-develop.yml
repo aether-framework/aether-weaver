@@ -1,0 +1,59 @@
+# ---------------------------------------------------------------------------------------------
+# Aiming at `main` is the commonest first-contribution mistake, because GitHub offers the default
+# branch as the base. This moves such a pull request to `develop` and says why, rather than
+# failing a check on somebody who has done nothing wrong.
+#
+# `pull_request_target` rather than `pull_request`, and the reason matters: on `pull_request` a
+# fork's token is read-only, so the retarget would silently do nothing for exactly the
+# contributors it exists to help. `pull_request_target` runs in the base repository's context with
+# a writable token — which is only safe because this job **checks out nothing and executes no code
+# from the pull request**. It reads a number and calls the API. Never add a checkout step here.
+# ---------------------------------------------------------------------------------------------
+name: Retarget pull requests from main to develop
+
+on:
+  pull_request_target:
+    types: [ opened ]
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  retarget:
+    name: Retarget to develop
+    runs-on: ubuntu-latest
+    # A release or a hotfix belongs on main. Everything else does not.
+    if: >-
+      !startsWith(github.event.pull_request.head.ref, 'release/') &&
+      !startsWith(github.event.pull_request.head.ref, 'hotfix/')
+
+    steps:
+      - name: Move the base branch to develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          echo "::notice::#$PR targets main from '$HEAD_REF' — retargeting to develop"
+          gh pr edit "$PR" --repo "$REPO" --base develop
+
+      - name: Say why
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr comment "$PR" --repo "$REPO" --body '🔀 **This pull request was moved from `main` to `develop`.**
+
+          `develop` is the integration branch for every feature and fix here. Only `release/*` and
+          `hotfix/*` branches go to `main` directly, because that is the branch releases are cut
+          from.
+
+          Nothing is wrong with your change and you need do nothing — GitHub offers `main` as the
+          base by default, which is why this happens. If you did mean to open a release pull
+          request, set the base back to `main` yourself.
+
+          The branching model is in [CONTRIBUTING.md](https://github.com/aether-framework/aether-weaver/blob/main/CONTRIBUTING.md#-branching).'

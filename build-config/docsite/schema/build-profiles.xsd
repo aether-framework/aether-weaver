@@ -1,0 +1,1233 @@
+<!--suppress XmlDefaultAttributeValue -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="1.0">
+    <!-- Type definitions -->
+    <xs:complexType name="productStatus">
+        <xs:choice>
+            <xs:element name="eap"/>
+            <xs:element name="release"/>
+            <xs:element name="deprecated"/>
+        </xs:choice>
+    </xs:complexType>
+
+    <!-- Element definitions -->
+    <xs:element name="sitemap">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the settings for the generated sitemap.
+                    For example:</p>
+                <pre><code>&lt;sitemap priority="0.35" change-frequency="monthly"/&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:attribute name="priority" type="xs:double" use="optional">
+                <xs:annotation>
+                    <xs:documentation>
+                        <p>
+                            Specify the importance of pages for search engines
+                            as a decimal value from 0 to 1,
+                            where 0.5 is a medium priority setting,
+                            0 is least important,
+                            and 1 is most important.</p>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="change-frequency" use="optional">
+                <xs:annotation>
+                    <xs:documentation>
+                        <p>
+                            Specify the expected frequency of changes
+                            to help search engines with crawling prioritization:
+                            <code>daily</code>, <code>weekly</code>, <code>monthly</code>, or <code>yearly</code>.</p>
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="daily"/>
+                        <xs:enumeration value="weekly"/>
+                        <xs:enumeration value="monthly"/>
+                        <xs:enumeration value="yearly"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="buildprofiles">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    This is the root element with settings applicable to all instances.</p>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:sequence>
+                <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element ref="sitemap" minOccurs="0" maxOccurs="1"/>
+                    <xs:element ref="variables" minOccurs="0" maxOccurs="1"/>
+                    <xs:element ref="build-profile" minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element ref="footer" minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element ref="shortcuts" minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element ref="icons" minOccurs="0" maxOccurs="1"/>
+                    <xs:element ref="property-bundles" minOccurs="0" maxOccurs="1"/>
+                    <xs:element ref="llms-txt" minOccurs="0" maxOccurs="1"/>
+                </xs:choice>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="variables">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify various variables that control the output.</p>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:all>
+                <xs:element name="web-root" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify the URL of your documentation website.
+                                For example, set <code>https://mycompany.com/help</code>
+                                if you are going to publish the produced help website at this URL.
+                                This will ensure that the builder produces correct metadata for HTML pages
+                                (such as canonical and OG URLs)
+                                and correct URLs for pages in the search index.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="download-page" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify the URL where the header button should link to,
+                                such as the product download page on your website.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="search-scope" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the search scope.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="versions-switcher" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="feedbackRequireEmail" type="xs:boolean" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify whether the feedback form should require an email.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="showDownloadButton" type="xs:boolean" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify whether you want to show a button in the header with a link.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="feedback-url" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify the URL where the feedback form should lead to.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="ignore-problems" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="algolia-index" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="algolia-id" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="versions-comparison" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify a URL to the version comparison matrix.
+                                This URL opens
+                                when the reader clicks the <code>&lt;available-only-for&gt;</code> label.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="algolia-api-key" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="algolia-show-logo" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="generate-sitemap-url-prefix" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify the prefix for the URL added to the <code>&lt;loc&gt;</code> element
+                                in the generated sitemap.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="external-links-in-new-tab" type="xs:boolean" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify whether to open external links in a new tab.
+                                By default, external links open in a new tab
+                                if this variable is not defined or set to true.
+                                Set to false to open external links in the current tab.
+                                Internal links are not affected.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="feedback-widget" type="xs:boolean" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify whether you want to have the feedback widget on your documentation website.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="webmaster" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify the main support email
+                                that will be used for the "Contact us" link in the footer.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="feedback-support" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify the main support link for the feedback widget.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="search-scopes-provider" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the URL for the Algolia search endpoint.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="search-endpoint" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the URL for a custom search endpoint.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="og-twitter" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="og-image" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="property-cleanup" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify a regular expression for symbols to remove from property values.
+                                For example, to remove an ellipsis at the end:
+                                <code>&lt;property-cleanup&gt;\.{3}$&lt;/property-cleanup&gt;</code>.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="images-prefix-override" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Override the web path for images
+                            if you produce a separate artifact with images
+                            and store them elsewhere, not publish them with your main help website.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="noindex-content" minOccurs="0"/>
+                <xs:element ref="header-logo" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="color-preset" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="primary-color" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="content-max-width" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="resizable-sidebar" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="sidebar-width" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="link-color" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="link-color-dark" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="product-web-url" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="enable-contribution" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="contribute-url" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="locale-code" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the locale to use for capitalization transformation in titles
+                            and for lowercasing topic file names
+                            to produce the resulting HTML file names.
+                            By default, Writerside uses the root locale
+                            whose language, country, and variant are empty strings.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="download-title" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the title of the button in the header.
+                            By default, the title is <code>Get %instance%</code>,
+                            where <code>%instance%</code> is the name of the current instance.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="generate-canonicals" type="xs:boolean" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Add the canonical element to the <code>head</code> section of every HTML page.
+                            It will point to the configured web root of your help website.
+                            For example, if the web root is specified as <code>https://my.product.site/help</code>,
+                            Writerside will generate the following:
+                            <br/><br/>
+                            <code>&lt;link rel="canonical" href="https://my.product.site/help"/&gt;</code>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="max-search-hits-to-display" type="xs:integer" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the maximum number of search results to return.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="custom-favicons" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="index-page-url-prefix" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the URL prefix to use for redirects.
+                            By default, redirects point to other HTML files in the same directory,
+                            but if you want redirects to some other location,
+                            specify it in this variable.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="max-search-results" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the maximum number of search results to return.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="custom-video-cover" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="write-help-state-file" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="analytics-head-script-file" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="analytics-body-html-file" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="include-in-head" type="xs:string" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify a file with HTML code to add into the <code>head</code> element on every page.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="include-before-body" type="xs:string" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify a file with HTML code to add before the <code>body</code> element on every page.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="include-after-body" type="xs:string" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify a file with HTML code to add after the <code>body</code> element on every page.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="offline-docs" type="xs:boolean" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Produce a self-contained help website
+                                that can be used in an isolated environment with no internet access.
+                                Setting <code>&lt;offline-docs&gt;true&lt;/offline-docs&gt;</code>
+                                bundles resources such as the frontend application,
+                                styles, fonts, and favicons into the produced output.</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="code-soft-wrap" type="xs:boolean" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Controls whether text in code blocks should wrap when it exceeds the width of the container.
+                                When enabled, long lines in code blocks will automatically wrap to the next line.
+                                When disabled, horizontal scrollbars will appear for code blocks with long lines.</p>
+                            <p>Soft wraps make code more readable but may affect the perception of line structure.</p>
+                            <p>Example:</p>
+                            <pre><code>
+&lt;code-soft-wrap&gt;true&lt;/code-soft-wrap&gt;
+                            </code></pre>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="custom-css" type="xs:string" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            <p>
+                                Specify a file with custom css configuration
+                                to add into the <code>head</code> element on every page.
+                                File is expected to be in "static" folder under a folder
+                                for build configuration files ("cfg" by default)</p>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="versions-switcher" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the link to the <code>help-versions.json</code> file
+                    that lists all published versions of your documentation.
+                    The help website uses this file to render the version switcher component.</p>
+
+                <pre><code>
+&lt;versions-switcher&gt;https://my.documentation.com/help-versions.json&lt;/versions-switcher&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="custom-favicons" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify a list of custom favicons ordered by size
+                    (16x16, 32x32, 96x96, 300x300, 500x500).</p>
+                <p>Example:</p>
+                <pre><code>
+&lt;custom-favicons&gt;icon16.svg,icon32.svg,icon96.svg,icon300.svg,icon500.svg&lt;/custom-favicons&gt;
+                </code></pre>
+                <p>
+                    You need to specify at least one icon with the smallest size.
+                    You can also reference it via a URL.</p>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="color-preset" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the intensity of the primary accent color:</p>
+                <ul>
+                    <li>
+                        <code>soft</code>: Minimal contrasting touch of the primary accent color.</li>
+                    <li>
+                        <code>contrast</code> (default): Default look with moderate contrast and intensity.</li>
+                    <li>
+                        <code>vivid</code>: Most contrasting usage of the primary accent color.</li>
+                </ul>
+
+                <p>Example:</p>
+                <pre><code>&lt;color-preset&gt;vivid&lt;/color-preset&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="ignore-problems" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>Specify errors and warnings to ignore in build and preview.</p>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="primary-color" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the accent color for various UI components,
+                    such as the focused item in the table of contents,
+                    the active tab, or a button.</p>
+
+                <p>Use hex codes (e.g. #307FFF) or color names from the list:</p>
+
+                <ul>
+                    <li>frozen (default)</li>
+                    <li>strawberry</li>
+                    <li>dracula</li>
+                    <li>iris</li>
+                    <li>aqua</li>
+                    <li>halloween</li>
+                    <li>ruby</li>
+                    <li>blueberry</li>
+                    <li>emerald</li>
+                    <li>metallic</li>
+                    <li>purple</li>
+                    <li>forest</li>
+                    <li>deep-ocean</li>
+                </ul>
+
+                <p>Example:</p>
+                <pre><code>&lt;primary-color&gt;#307FFF&lt;/primary-color&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="link-color" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the link color.</p>
+
+                <p>Use hex codes (e.g. #307FFF) or color names from the list:</p>
+
+                <ul>
+                    <li>frozen</li>
+                    <li>strawberry</li>
+                    <li>dracula</li>
+                    <li>iris</li>
+                    <li>aqua</li>
+                    <li>halloween</li>
+                    <li>ruby</li>
+                    <li>blueberry</li>
+                    <li>emerald</li>
+                    <li>metallic</li>
+                    <li>purple</li>
+                    <li>forest</li>
+                    <li>deep-ocean</li>
+                </ul>
+
+                <p>Example:</p>
+                <pre><code>&lt;link-color&gt;#307FFF&lt;/link-color&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="link-color-dark" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the link color for dark theme. If not specified, uses the same color as light theme.</p>
+
+                <p>Use hex codes (e.g. #307FFF) or color names from the list:</p>
+
+                <ul>
+                    <li>frozen</li>
+                    <li>strawberry</li>
+                    <li>dracula</li>
+                    <li>iris</li>
+                    <li>aqua</li>
+                    <li>halloween</li>
+                    <li>ruby</li>
+                    <li>blueberry</li>
+                    <li>emerald</li>
+                    <li>metallic</li>
+                    <li>purple</li>
+                    <li>forest</li>
+                    <li>deep-ocean</li>
+                </ul>
+
+                <p>Example:</p>
+                <pre><code>&lt;link-color-dark&gt;#90C695&lt;/link-color-dark&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="content-max-width" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the maximum width (in pixels) for article content.</p>
+
+                <p>Example:</p>
+                <pre><code>&lt;content-max-width&gt;500&lt;/content-max-width&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="resizable-sidebar" type="xs:boolean">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Set to <code>true</code> to enable manual resizing for the Table of Content panel.</p>
+
+                <p>Example:</p>
+                <pre><code>&lt;resizable-sidebar&gt;true&lt;/resizable-sidebar&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="sidebar-width" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the default width (in pixels) for the Table of Content panel.</p>
+
+                <p>Example:</p>
+                <pre><code>&lt;sidebar-width&gt;200&lt;/sidebar-width&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="og-twitter" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify a Twitter handle displayed in the link snippet
+                    when sharing links to help pages.</p>
+
+                <pre><code>&lt;og-twitter&gt;@onwriterside&lt;/og-twitter&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="og-image" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the URL to an image displayed in the link snippet when
+                    sharing links to help pages.</p>
+
+                <pre><code>&lt;og-image&gt;https://example.com/sample.jpg&lt;/og-image&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="enable-contribution" type="xs:boolean">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Set to <code>true</code> to enable the <b>Edit page</b> option
+                    that points to the documentation source where users can contribute.</p>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="contribute-url" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the link to the documentation source where users can contribute,
+                    for example, a public GitHub repository.
+                    It must point to the documentation folder where the 'topics' folder is located.</p>
+
+                <p>If the link points to GitHub, the corresponding icon will be displayed.</p>
+
+                <p>Example:</p>
+                <pre><code>
+&lt;contribute-url&gt;https://github.com/JetBrains/intellij-sdk-docs/edit/main/&lt;/contribute-url&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="algolia-api-key" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>Specify the Algolia Search API key.</p>
+
+                <p>Example:</p>
+
+                <pre><code>&lt;algolia-api-key&gt;123456789&lt;/algolia-api-key&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="algolia-index" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>Specify the Algolia Index name.</p>
+
+                <p>Example:</p>
+
+                <pre><code>&lt;algolia-index&gt;prod_INDEX_NAME&lt;/algolia-index&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="algolia-id" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>Specify the Algolia Application ID.</p>
+
+                <p>Example:</p>
+                <pre><code>&lt;algolia-id&gt;ABC123DEF4&lt;/algolia-id&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="algolia-show-logo" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>Specify "true" to display the Algolia logo in the search results, as required by certain plans.</p>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="noindex-content">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Set to <code>false</code> to enable indexing of content by external search engines.
+                    By default, Writerside produces content that is not indexed by search engines.</p>
+
+                <p>Example:</p>
+
+                <pre><code>&lt;noindex-content&gt;false&lt;/noindex-content&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:simpleContent>
+                <xs:extension base="xs:boolean">
+                    <xs:attribute name="status" type="productStatus" use="optional">
+                        <xs:annotation>
+                            <xs:documentation>
+                                <p>
+                                    Specify the status of the instance for which you want to enable indexing.</p>
+
+                                <p>For example, if you want to enable indexing only for release docs:</p>
+
+                                <pre><code>&lt;noindex-content status="release"&gt;false&lt;/noindex-content&gt;</code></pre>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                </xs:extension>
+            </xs:simpleContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="product-web-url" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the URL for clicks on the logo in the header.
+                    Usually, it should link to the main page of your help website
+                    or to your main product page.</p>
+
+                <pre><code>&lt;product-web-url&gt;https://example.com/help/&lt;/product-web-url&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="write-help-state-file" type="xs:boolean">
+        <xs:annotation>
+            <xs:documentation>
+                Produce the <code>current.help.state</code> file
+                that contains the status configured for the produced instance,
+                such as <code>release</code>, <code>eap</code>, or <code>deprecated</code>.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="custom-video-cover" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the name of an image from the designated images folder
+                    to be displayed as the video cover for embedded videos.</p>
+                <p>
+                    To show different covers depending on the selected help theme (light or dark),
+                    add the image for the dark theme with the same file name
+                    and the <code>_dark.png</code> suffix.</p>
+                <pre><code>&lt;custom-video-cover&gt;video_preview_image.png&lt;/custom-video-cover&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="analytics-head-script-file" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the name of the file that contains a Google analytics <code>&lt;script&gt;</code>
+                    to install the Google tag into a help website.
+                    The script file must be placed in the <code>cfg/</code> folder.
+                    This code will be inserted after the <code>&lt;head&gt;</code> tag opening.
+                </p>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="analytics-body-html-file" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the name of the file that contains a Google analytics <code>&lt;noscript&gt;</code>
+                    to install the Google tag into a help website.
+                    The script file must be placed in the <code>cfg/</code> folder.
+                    This code will be inserted after the <code>&lt;body&gt;</code> tag opening.
+                </p>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="header-logo" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                <p>
+                    Specify the name of a file from the designated images folder
+                    to be displayed in the website header.</p>
+
+                <p>Logo image requirements:</p>
+
+                <ul>
+                    <li>
+                        SVG or PNG format.
+                        We recommend using SVG for better quality on Retina and 4K displays.</li>
+                    <li>
+                        Height-to-width aspect ratio between 1.2 and 0.24.
+                        We recommend using square images.</li>
+                    <li>
+                        Image height more than 48px.</li>
+                </ul>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="shortcuts">
+        <xs:annotation>
+            <xs:documentation>
+                Specify the settings for shortcuts.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:element ref="src" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="layout" minOccurs="0" maxOccurs="1"/>
+            </xs:sequence>
+            <xs:attribute name="instance" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Specify different shortcut settings for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="icons">
+        <xs:annotation>
+            <xs:documentation>
+                Specify the locations of directories with icons.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="shared-src" type="xs:string" minOccurs="0" maxOccurs="1">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Specify the location of shared icons.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element ref="local-src" minOccurs="0" maxOccurs="1"/>
+            </xs:sequence>
+            <xs:attribute name="instance" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Specify different icon settings for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="property-file">
+        <xs:annotation>
+            <xs:documentation>
+                Specify the location of the file with property declarations.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="true">
+            <xs:attribute name="instance" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Specify different property files for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="property-folder">
+        <xs:annotation>
+            <xs:documentation>
+                Specify the location of the directory with property files.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="true">
+            <xs:attribute name="instance" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Specify different property directories for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="property-bundles">
+        <xs:annotation>
+            <xs:documentation>
+                Specify the settings for property bundles.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element ref="property-file" minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element ref="property-folder" minOccurs="0" maxOccurs="unbounded"/>
+                </xs:choice>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="layout">
+        <xs:annotation>
+            <xs:documentation>
+                Specify the set of keymap layouts used in your help website.
+                For example:
+
+                <pre><code>
+&lt;layout name="Windows" display-name="Windows"/&gt;
+&lt;layout name="macOS" display-name="macOS"/&gt;
+&lt;layout name="GNOME" display-name="Linux"/&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:attribute name="name" type="xs:string" use="required">
+                <xs:annotation>
+                    <xs:documentation>
+                        Specify the name of the layout used in the keymap declaration file.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="display-name" type="xs:string" use="required">
+                <xs:annotation>
+                    <xs:documentation>
+                        Specify the name of the layout as it should be displayed in the shortcuts switcher.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="instance" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation>
+                        Specify different keymap layouts for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="footer">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                <p>
+                    Specify the info you want to display in the webhelp footer,
+                    such as links to social media, a contact email address,
+                    links to other resources, and ICP information.</p>
+                <pre><code>
+&lt;footer&gt;
+    &lt;social type="facebook" href="https://example.com"&gt;Product page on Facebook&lt;/social&gt;
+    &lt;social type="rss" href="https://example.com">Product RSS feed&lt;/social&gt;
+    &lt;social type="email" href="mail@example.com">Send us an email&lt;/social&gt;
+    &lt;link href="https://example.com">Custom link 1&lt;/link&gt;
+    &lt;link href="https://example.com">Custom link 2&lt;/link&gt;
+    &lt;link href="https://example.com">Custom link 3&lt;/link&gt;
+&lt;/footer&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:sequence maxOccurs="unbounded" minOccurs="0">
+                <xs:element ref="notice" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="icp" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="copyright" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="social" minOccurs="0"/>
+                <xs:element ref="link" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="build-profile">
+        <xs:annotation>
+            <xs:documentation>
+                This is the root element for settings related to specific instances.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="variables" maxOccurs="1" minOccurs="0"/>
+                <xs:element ref="footer" minOccurs="0" maxOccurs="1"/>
+                <xs:element ref="sitemap" maxOccurs="1" minOccurs="0"/>
+                <xs:element ref="llms-txt" minOccurs="0" maxOccurs="1"/>
+            </xs:sequence>
+            <xs:attribute name="instance" type="xs:string" use="required">
+                <xs:annotation>
+                    <xs:documentation>
+                        Specify different build settings for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="notice">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                <p>Represents a message that highlights references or provides contextual details, such as:</p>
+                <ul>
+                    <li>General informational messages</li>
+                    <li>Service or system notices</li>
+                    <li>Attributions or acknowledgments</li>
+                </ul>
+                <p>Example:</p>
+                <pre><code>
+&lt;notice&gt;Important notice&lt;/notice&gt;
+                </code></pre>
+                <p>If an external reference is needed, use the <code>href</code> attribute to link to an official page.</p>
+                <pre><code>
+&lt;notice href="https://example.com/notice"&gt;View details&lt;/notice&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="true">
+            <xs:attribute name="href" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation>
+                        <p>Specifies an optional URL associated with the notice.</p>
+                        <p>When provided, the notice text can serve as a clickable link pointing to an external source.</p>
+                        <p>Example:</p>
+                        <pre><code>
+&lt;notice href="https://example.com/notice"&gt;View details&lt;/notice&gt;
+                        </code></pre>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="icon" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation>
+                        <p>Specifies an optional icon source for the notice.</p>
+                        <p>The icon, if provided, will be displayed alongside the notice text to visually distinguish the message.</p>
+                        <p>Example:</p>
+                        <pre><code>
+&lt;notice icon="icon.svg"&gt;Notice with icon&lt;/notice&gt;
+                        </code></pre>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="icp" type="xs:string">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                <p>Specify the information about the Internet Content Provider (ICP) license.
+                    This is a legal requirement for websites hosted on servers or targeting users in Mainland China.</p>
+                <p>The ICP registration number will be displayed in the website's footer, a link to
+                    the Ministry of Industry and Information Technology (MIIT) page will be automatically added.</p>
+                <p>Example:</p>
+                <pre><code>
+&lt;icp&gt;ICP No. XXXXXXXX&lt;/icp&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="copyright" type="xs:string">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                <p>Specify the copyright information.</p>
+                <p>For example:</p>
+                <pre><code>&lt;copyright&gt;2000 JetBrains s.r.o.&lt;/copyright&gt;</code></pre>
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="social">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                <p>
+                    Specify links to social media accounts, an RSS feed, a blog, or a contact email address.
+                    They will be displayed with the corresponding icons.</p>
+                <p>
+                    Use the <code>type</code> attribute to specify the resource type,
+                    and the <code>href</code> attribute to specify the link.</p>
+                <p>
+                    For example:</p>
+                <pre><code>
+&lt;social type="blog" href="https://blog.jetbrains.com/writerside/"&gt;Writerside Blog&lt;/social&gt;
+&lt;social type="twitter" href="https://x.com/onwriterside"&gt;Writerside on X&lt;/social&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:simpleContent>
+                <xs:extension base="xs:string">
+                    <xs:attribute name="type" use="required">
+                        <xs:annotation>
+                            <xs:documentation>
+                                <p>
+                                    Supported <code>type</code> attribute values:</p>
+                                <ul>
+                                    <li>facebook</li>
+                                    <li>twitter</li>
+                                    <li>linkedin</li>
+                                    <li>slack</li>
+                                    <li>discord</li>
+                                    <li>stackoverflow</li>
+                                    <li>youtube</li>
+                                    <li>instagram</li>
+                                    <li>telegram</li>
+                                    <li>reddit</li>
+                                    <li>mastodon</li>
+                                    <li>github</li>
+                                    <li>gitlab</li>
+                                    <li>bitbucket</li>
+                                    <li>weibo</li>
+                                    <li>wechat</li>
+                                    <li>bluesky</li>
+                                    <li>googleapp</li>
+                                    <li>apple</li>
+                                    <li>blog</li>
+                                    <li>rss</li>
+                                    <li>bilibili</li>
+                                    <li>email</li>
+                                    <li>bugtracker</li>
+                                    <li>location</li>
+                                </ul>
+                            </xs:documentation>
+                        </xs:annotation>
+                        <xs:simpleType>
+                            <xs:restriction base="xs:string">
+                                <xs:enumeration value="facebook"/>
+                                <xs:enumeration value="twitter"/>
+                                <xs:enumeration value="linkedin"/>
+                                <xs:enumeration value="slack"/>
+                                <xs:enumeration value="discord"/>
+                                <xs:enumeration value="stackoverflow"/>
+                                <xs:enumeration value="youtube"/>
+                                <xs:enumeration value="instagram"/>
+                                <xs:enumeration value="telegram"/>
+                                <xs:enumeration value="reddit"/>
+                                <xs:enumeration value="mastodon"/>
+                                <xs:enumeration value="github"/>
+                                <xs:enumeration value="gitlab"/>
+                                <xs:enumeration value="bitbucket"/>
+                                <xs:enumeration value="weibo"/>
+                                <xs:enumeration value="wechat"/>
+                                <xs:enumeration value="bluesky"/>
+                                <xs:enumeration value="googleapp"/>
+                                <xs:enumeration value="apple"/>
+                                <xs:enumeration value="blog"/>
+                                <xs:enumeration value="rss"/>
+                                <xs:enumeration value="bilibili"/>
+                                <xs:enumeration value="email"/>
+                                <xs:enumeration value="bugtracker"/>
+                                <xs:enumeration value="location"/>
+                            </xs:restriction>
+                        </xs:simpleType>
+                    </xs:attribute>
+                    <xs:attribute name="href" type="xs:string" use="required">
+                        <xs:annotation>
+                            <xs:documentation>
+                                Specify the social media link URL.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                </xs:extension>
+            </xs:simpleContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="link">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                <p>
+                    Specify links to other resources, such as the support portal or issue tracker.
+                    Use <code>href</code> attribute to specify the resource URL.
+                </p>
+                <p>For example:</p>
+                <pre><code>
+&lt;link href="https://youtrack.jetbrains.com/issues/WRS"&gt;Issue tracker&lt;/link&gt;
+&lt;link href="mailto:writerside@jetbrains.com"&gt;Contact us&lt;/link&gt;
+                </code></pre>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:simpleContent>
+                <xs:extension base="xs:string">
+                    <xs:attribute name="href" type="xs:string" use="required">
+                        <xs:annotation>
+                            <xs:documentation>
+                                Specify the URL of an external resource.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                    <xs:attribute name="icon" type="xs:string" use="optional">
+                        <xs:annotation>
+                            <xs:documentation>
+                                <p>Specify an optional icon source for the link.</p>
+                                <p>When provided, the icon will be displayed alongside the link text.</p>
+                                <pre><code>&lt;link href="https://example.com" icon="icon.svg"&gt;Link with icon&lt;/link&gt;</code></pre>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                </xs:extension>
+            </xs:simpleContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="local-src">
+        <xs:annotation>
+            <xs:documentation>
+                Specify the location of per-instance icons.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="true">
+            <xs:attribute name="instance" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation>
+                        Specify different locations of icons for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="src">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                Specify the path to the file with keymaps declarations relative to the module root.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="true">
+            <xs:attribute name="instance" type="xs:string" use="optional">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Specify different keymap files for different instances.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="llms-txt">
+        <xs:annotation>
+            <xs:documentation>
+                Enable/disable and configure the settings for llms.txt file generation.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType mixed="false">
+            <xs:attribute name="single-file" type="xs:boolean">
+                <xs:annotation>
+                    <xs:documentation>
+                        <p>
+                            Set to <code>true</code> to create a single <code>llms.txt</code> file
+                            containing the contents of all topic files.
+                        </p>
+                        <p>
+                            Set to <code>false</code> to create a directory <code>_llms</code>
+                            with separate files for each topic. The <code>llms.txt</code> file
+                            is not created.
+                        </p>
+                        <p>
+                            Do not specify this attribute to generate both <code>llms.txt</code> file
+                            and <code>_llms</code> directory.
+                        </p>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

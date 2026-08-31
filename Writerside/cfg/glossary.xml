@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE terms SYSTEM "https://resources.jetbrains.com/writerside/1.0/glossary.dtd">
+<terms>
+    <term name="weave">A class carrying @Weave that describes a change to one or more other
+        classes. Without the annotation the class is ordinary, and every other Aether Weaver
+        annotation on it is never read.</term>
+
+    <term name="target">A class or interface a weave names with @Weave(value = ...) or
+        @Weave(targets = ...), and the class the weaver modifies.</term>
+
+    <term name="handler">A method of a weave carrying @Inject, @Redirect or @Wrap. It is the method
+        control is handed to at the position the declaration matched.</term>
+
+    <term name="driver">The module that supplies I/O and lifecycle around the engine: the Maven
+        plugin, the agent, the class loader, the annotation processor or the testkit.</term>
+</terms>

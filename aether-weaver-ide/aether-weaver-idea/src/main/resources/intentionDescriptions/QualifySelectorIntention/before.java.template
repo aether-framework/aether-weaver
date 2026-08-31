@@ -1,0 +1,1 @@
+@Inject(method = "charge(BigDecimal)", at = @At(Point.HEAD))

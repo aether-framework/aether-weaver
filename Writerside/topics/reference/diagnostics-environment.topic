@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="diagnostics-environment" title="AW2xxx - environment, drivers and configuration">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        These fourteen are about the run, not the declaration. They report the class file handed
+        over, the driver applying it, the manifest and settings read, and the JVM around them. A
+        declaration that will not compile is <a href="diagnostics-declaration.topic">AW1xxx</a>.
+    </p>
+
+    <table style="header-row">
+        <tr>
+            <td>Code</td>
+            <td>What happened</td>
+            <td>What to do</td>
+        </tr>
+        <tr>
+            <td><code>AW2003</code></td>
+            <td>Class file below major version 50</td>
+            <td>Recompile the target; it went unwoven</td>
+        </tr>
+        <tr>
+            <td><code>AW2004</code></td>
+            <td>Preview class file, wrong JDK version</td>
+            <td>Compile it where it will run</td>
+        </tr>
+        <tr>
+            <td><code>AW2101</code></td>
+            <td>Structural weave hits a loaded class</td>
+            <td>Weave at build time instead</td>
+        </tr>
+        <tr>
+            <td><code>AW2201</code></td>
+            <td>Build-time input another plan wove</td>
+            <td>Build clean, or weave the originals</td>
+        </tr>
+        <tr>
+            <td><code>AW2202</code></td>
+            <td>Load-time class woven at build time</td>
+            <td>Drop one driver; both plans apply</td>
+        </tr>
+        <tr>
+            <td><code>AW2300</code></td>
+            <td>A manifest that cannot be trusted</td>
+            <td>Rebuild the artefact holding it</td>
+        </tr>
+        <tr>
+            <td><code>AW2301</code></td>
+            <td>Manifest schema newer than this build</td>
+            <td>Update %product%, or rebuild it</td>
+        </tr>
+        <tr>
+            <td><code>AW2302</code></td>
+            <td>No manifest anywhere on the classpath</td>
+            <td>Add the processor to that module</td>
+        </tr>
+        <tr>
+            <td><code>AW2303</code></td>
+            <td>Two artefacts declare one weave class</td>
+            <td>Remove a dependency, or rename one</td>
+        </tr>
+        <tr>
+            <td><code>AW2310</code></td>
+            <td>A setting was not understood</td>
+            <td>Check the key, and the value it lists</td>
+        </tr>
+        <tr>
+            <td><code>AW2401</code></td>
+            <td>Weaving class loader, AOT cache on</td>
+            <td>Weave at build time instead</td>
+        </tr>
+        <tr>
+            <td><code>AW2402</code></td>
+            <td>A module graph was widened for you</td>
+            <td>Nothing, unless the JVM refused</td>
+        </tr>
+        <tr>
+            <td><code>AW2403</code></td>
+            <td>Reserved; no code reports it</td>
+            <td>Nothing to do</td>
+        </tr>
+        <tr>
+            <td><code>AW2501</code></td>
+            <td>Dependency classes written elsewhere</td>
+            <td>Put that directory on the classpath</td>
+        </tr>
+    </table>
+
+    <p>
+        Six of them are errors: <code>AW2003</code>, <code>AW2004</code>, <code>AW2101</code>,
+        <code>AW2201</code>, <code>AW2300</code> and <code>AW2301</code>. <code>AW2402</code> is
+        info, and the other seven are warnings. Whether an error stops you is the driver's rule,
+        and <a href="diagnostics.topic">Diagnostics</a> has all three.
+    </p>
+
+    <chapter title="A manifest that cannot be trusted" id="manifest">
+        <p>
+            <code>AW2300</code> is the broadest code in the range, and twelve places report it.
+            Which of them you hit decides what to change.
+            <a href="manifest-format.topic">The weave manifest</a> has the document's layout.
+        </p>
+
+        <deflist type="medium">
+            <def title="The document is damaged">
+                <p>Three shapes of damage, one remedy — rebuild the artefact — though one of the
+                    three reports with no remedy of its own:</p>
+                <list>
+                    <li><p>JSON that does not parse.</p></li>
+                    <li><p>An entry naming no class, no handler or no target method — reported
+                        with no remedy of its own.</p></li>
+                    <li><p>An <a href="extension-methods.topic">extension</a> entry missing one of
+                        the four parts that identify it.</p></li>
+                </list>
+                <p>
+                    A manifest is generated, so a broken one was hand-edited or truncated in
+                    transit.
+                </p>
+            </def>
+            <def title="A token this release does not know">
+                <p>
+                    An extension whose <code>kind</code> is unknown is dropped, because that field
+                    decides how a call site is rewritten. Update %product%, or rebuild the
+                    artefact against this version. An unknown <code>require</code>,
+                    <code>nulls</code> or <code>scope</code> keeps the entry and takes the default
+                    instead; update %product% only if that policy needs enforcing here.
+                </p>
+            </def>
+            <def title="The file would not open">
+                <list>
+                    <li><p>The classpath itself could not be searched. The whole run yields no
+                        candidates, and it is reported twice — <code>AW2300</code> here, and
+                        <code>AW2302</code> as well, whose "add the processor" remedy does not fit
+                        this cause.</p></li>
+                    <li><p>One manifest could not be read. Only that root is lost, discovery still
+                        reads the rest, and this carries no remedy of its own.</p></li>
+                </list>
+            </def>
+            <def title="A class its manifest names is gone">
+                <p>
+                    A runtime driver reads each weave out of the artefact that declared it, never
+                    off the wider classpath. Rebuild that artefact; its manifest outlived the class.
+                    <a href="weave-discovery.topic">How a weave is found</a> has the search order.
+                </p>
+            </def>
+            <def title="The processor could not write one">
+                <p>
+                    Raised by the annotation processor rather than by any driver, so it reaches you
+                    as a compiler message. Check that the processor can write to the compilation
+                    output directory. <a href="install.topic">Install</a> has the wiring it needs.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                Three faults produce no code at all: a member with a blank name, an injection
+                point given but blank, and a version that narrows below zero. A manifest
+                carrying any of them parses, then throws <code>IllegalArgumentException</code>
+                out of <code>ManifestReader.read</code>. Discovery ends there, with the later
+                manifests unread. Rebuild that artefact too.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Woven twice, or loaded too early" id="second-pass">
+        <p>
+            Three codes say the class was not fresh. The first two come from one check: a weave
+            record whose fingerprint is not this plan's. Only the driver tells them apart.
+            <a href="determinism.topic">Determinism</a> has what a fingerprint covers.
+        </p>
+
+        <deflist type="medium">
+            <def title="A build-time input was woven before">
+                <p>
+                    Reported when the driver is <code>BUILD</code> — the Maven plugin, and the
+                    testkit, which never sets a driver and defaults to it too. The class is
+                    refused and left as it arrived, so a second plan cannot stack on the first.
+                    Run a clean build. Where the input is an artefact that has been through
+                    weaving already, such as a shaded jar, weave the original classes instead.
+                </p>
+            </def>
+            <def title="A load-time class was woven at build time">
+                <p>
+                    Reported when the driver is <code>LOAD</code> — the agent, and the weaving
+                    class loader. Giving the agent and the plugin the same weaves keeps the two
+                    plans' fingerprints equal, and the class is left alone with no diagnostic.
+                    Any other weave list reports <code>AW2202</code> instead: both plans apply,
+                    but only a weave they genuinely share fires twice.
+                </p>
+                <p>
+                    Under <code>-javaagent</code> a report raised after install may never reach
+                    you: <a href="diagnostics.topic">Diagnostics</a> covers when the agent drains
+                    its listener. <a href="choose-a-driver.topic">Choose a driver</a> compares
+                    the three.
+                </p>
+            </def>
+            <def title="A structural weave meets a loaded class">
+                <p>
+                    Reached only from a dynamic attach, since <code>-javaagent</code> weaves
+                    every target as it loads and never meets an already-loaded one. The agent
+                    reports <code>AW2101</code> once per weave that would change an
+                    already-loaded class's shape. That covers adding or removing a member, and
+                    clearing <code>final</code> from a <code>@Shadow</code> field the weave
+                    writes to. A separate check retransforms only the classes left with no such
+                    change, and reports <code>AW2101</code> again if the JVM still refuses.
+                </p>
+                <p>
+                    Nothing is lost either way: the transformer stays installed, and classes
+                    loading from then on are woven in full, this weave included. Weave at build
+                    time, or start the JVM with <code>-javaagent</code> so the targets are woven
+                    as they load.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Settings that never took effect" id="settings">
+        <p>
+            <code>AW2310</code> is one code for five ways a setting fails to apply. No value is
+            ever coerced, so the setting is left for a lower-precedence layer rather than guessed
+            at. Five things raise it:
+        </p>
+
+        <list>
+            <li><p>A key nothing recognises. The nearest known key is offered where there is
+                one — paste it back.</p></li>
+            <li><p>An agent argument with no <code>=</code>. Write comma-separated
+                <code>key=value</code> pairs.</p></li>
+            <li><p>A boolean that is neither <code>true</code> nor <code>false</code>. Nothing
+                reads as a deliberate off.</p></li>
+            <li><p>A number that does not parse. Give a decimal integer.</p></li>
+            <li><p>An enumerated setting given a value it does not take. The diagnostic lists
+                every value it does.</p></li>
+        </list>
+
+        <p>
+            <a href="configuration-keys.topic">Configuration keys</a> has the keys and their precedence, and
+            <a href="agent-options.topic">Agent options</a> the argument spelling.
+        </p>
+    </chapter>
+
+    <chapter title="The JVM and the build around it" id="around">
+        <deflist type="medium">
+            <def title="A weaving class loader under an AOT cache">
+                <p>
+                    The loader reports <code>AW2401</code> once per construction, never per class.
+                    Three flags raise it: <code>-XX:AOTCache=</code>, <code>-XX:AOTCacheOutput=</code> and
+                    <code>-XX:AOTConfiguration=</code>. <code>-XX:AOTMode=off</code> beside any of
+                    them cancels the report, and <code>-XX:SharedArchiveFile</code> is deliberately
+                    left out. Cached classes load eagerly, so a target a parent loader also sees is
+                    probably defined, unwoven, first. Weave at build time and the two stop
+                    competing.
+                </p>
+            </def>
+            <def title="A module graph the agent widened">
+                <p>
+                    <code>AW2402</code> depends on the agent's own module, not the weave class's:
+                    it fires only where the module <code>WeaverAgent</code> was loaded into is
+                    named. Under an ordinary <code>-javaagent</code> run that module is unnamed,
+                    so nothing is reported either way, and a refused widening throws
+                    <code>IllegalAccessError</code> with no diagnostic ahead of it.
+                </p>
+                <p>
+                    On the classpath the JVM grants the edge itself; it is reported on success
+                    too, because widening what an application may reach should leave a trace.
+                    Put the weave class on the classpath instead.
+                </p>
+            </def>
+            <def title="Dependency classes written beside your own">
+                <p>
+                    The Maven plugin reports <code>AW2501</code> once at the end of a run that wove
+                    dependency artefacts, listing every class it touched. The originals are untouched, so
+                    deleting the directory undoes all of it. Nothing has put it on a classpath yet:
+                    set it ahead of the dependency jars wherever your build assembles one.
+                    <a href="build-time-weaving.topic#dependencies">Weaving dependencies</a> has the goal.
+                </p>
+            </def>
+            <def title="A number held against reuse">
+                <p>
+                    <code>AW2403</code> has no reporting site and no build produces it. The constant
+                    exists so that an unrelated condition cannot take the number. There is nothing
+                    to do about it, and the same holds for the four reserved numbers in
+                    <a href="diagnostics-declaration.topic">AW1xxx</a> and
+                    <a href="diagnostics-verification.topic">AW4xxx</a>.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="weave-discovery.topic">How a weave is found</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+            <a href="diagnostics-policy.topic">AW3xxx</a>
+        </category>
+    </seealso>
+</topic>

@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="repository-layout" title="Repository layout">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        Four things sit under the root. Nine modules build in one reactor, and the other
+        three stand outside it.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    repo["Repository root"] --> reactor["Maven reactor"]
+    repo --> ide["aether-weaver-ide"]
+    repo --> cfg["build-config"]
+    repo --> ws["Writerside"]
+    reactor --> lib["Seven jars"]
+    reactor --> bom["bom"]
+    reactor --> t["tests"]
+    </code-block>
+
+    <chapter title="Where a change goes" id="tree">
+        <table style="header-row">
+            <tr><td>Path</td><td>Holds</td><td>In the build</td></tr>
+            <tr><td>Seven jar modules</td><td>Main sources, unit tests, one pom each</td>
+                <td>The reactor</td></tr>
+            <tr><td><code>aether-weaver-bom</code></td><td>A version list and no source</td>
+                <td>The reactor</td></tr>
+            <tr><td><code>aether-weaver-tests</code></td>
+                <td>Architecture, integration and JMH tests</td>
+                <td>The reactor</td></tr>
+            <tr><td>A new module</td>
+                <td>A pom declaring <code>automatic.module.name</code></td>
+                <td>The reactor</td></tr>
+            <tr><td><code>aether-weaver-ide</code></td><td>The IntelliJ plugin and its sample</td>
+                <td>Gradle only</td></tr>
+            <tr><td><code>build-config</code></td><td>Checkstyle, two style contracts, a header</td>
+                <td>Read by both</td></tr>
+            <tr><td><code>Writerside</code></td><td>The pages of this site</td>
+                <td>Neither build</td></tr>
+        </table>
+
+        <p>
+            A consumer sees nine artefacts, not seven. The BOM is imported by name, and
+            the parent resolves behind every jar.
+            <a href="artifacts.topic">Artefacts and modules</a> names all nine and what each
+            drags in. <a href="building-and-testing.topic">Building and testing</a> is how you
+            run any of this.
+        </p>
+    </chapter>
+
+    <chapter title="What refuses a change" id="architecture-tests">
+        <p>
+            Three tests read the tree as text, never as compiled classes. They sit in
+            <code>aether-weaver-tests/src/test/java/.../architecture</code>. That is why they
+            catch mistakes the compiler is happy with.
+        </p>
+
+        <deflist type="full">
+            <def title="ProjectStructureTest">
+                <p>
+                    Scans import lines, file names and pom text. Which module is allowed to
+                    reference which is under
+                    <a href="artifacts.topic#rules">Rules the build enforces</a>. An
+                    <code>import</code> counts as a reference even where only a
+                    <code>{@link}</code> needs it, which the
+                    <a href="javadoc-policy.topic">JavaDoc policy</a> covers. It also fails on a source file
+                    that <code>.gitignore</code> matches, because such a file compiles locally and
+                    is absent from the commit.
+                </p>
+            </def>
+            <def title="JavadocCoverageTest">
+                <p>
+                    Fails on a declaration that carries no comment, and on a
+                    <code>@since</code> tag below a type. What it walks is under
+                    <a href="javadoc-policy.topic#scope">what has to carry a comment</a>.
+                </p>
+            </def>
+            <def title="JavadocStyleTest">
+                <p>
+                    Refuses wording no comment in this project may use, and reaches further
+                    than the reactor compiles. Its scope and its list are under
+                    <a href="javadoc-policy.topic#register">wording the style test refuses</a>.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="The build that stands apart" id="ide">
+        <p>
+            <code>aether-weaver-ide</code> sits
+            <a href="artifacts.topic#rules">outside the reactor</a>. Working on it costs two
+            things a reactor module does not:
+        </p>
+
+        <list>
+            <li><p>Gradle resolves the api and the engine from your local Maven repository.
+                The processor comes in at test scope. Nothing here compiles until the reactor
+                has been installed there.</p></li>
+            <li><p>Its Checkstyle task points at <code>build-config/checkstyle.xml</code>, the
+                file the reactor uses. One line-length limit governs both.</p></li>
+        </list>
+
+        <p>
+            One pom does sit further down. <code>aether-weaver-idea/sample</code> is a
+            standalone project, <code>com.acme:payments-sample</code>. A task of its own
+            builds it against the published api, and the Gradle build reads its version.
+            What the plugin does for a user is
+            <a href="intellij-plugin.topic">The IntelliJ IDEA plugin</a>.
+        </p>
+    </chapter>
+
+    <chapter title="Where the standards live" id="standards">
+        <p>
+            <code>build-config</code> holds three standards, each with a different reader.
+        </p>
+
+        <deflist type="medium">
+            <def title="checkstyle.xml">
+                <p>
+                    Runs in the <code>validate</code> phase, over main and test sources alike.
+                    Most of it is formatting. Three checks are semantic:
+                    <code>MissingOverride</code>, <code>EqualsHashCode</code> and
+                    <code>StringLiteralEquality</code>. Those reject code that compiles. The
+                    <a href="artifacts.topic#rules">module descriptor ban</a> lives here too, and
+                    <code>license-header.txt</code> beside it is read by nothing.
+                </p>
+            </def>
+            <def title="reweave/">
+                <p>
+                    The JavaDoc house style and its work breakdown. No build step reads either
+                    file; <code>mvn verify</code> enforces the outcome instead.
+                    <code>JavadocCoverageTest</code> and <code>JavadocStyleTest</code> are two of
+                    the four gates. Checkstyle holds the 120-column limit, and a
+                    <code>doclint</code> javadoc run resolves every <code>{@link}</code>.
+                </p>
+            </def>
+            <def title="docsite/">
+                <p>
+                    The style contract for this site, its page list, and
+                    <code>check-docs.py</code>. The pages themselves are under
+                    <code>Writerside</code>, and no Maven module touches them.
+                    <a href="building-and-testing.topic">Building and testing</a> has the command
+                    that checks them.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="reference">
+            <a href="artifacts.topic">Artefacts and modules</a>
+        </category>
+        <category ref="contributing">
+            <a href="building-and-testing.topic">Building and testing</a>
+        </category>
+        <category ref="external">
+            <a href="%repo%">Aether Weaver on GitHub</a>
+        </category>
+    </seealso>
+</topic>

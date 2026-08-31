@@ -1,0 +1,331 @@
+# ---------------------------------------------------------------------------------------------
+# Release.
+#
+# Triggered by a tag: `v0.1.0` publishes 0.1.0 to Maven Central through the Sonatype Central
+# Portal and opens a GitHub Release for it. Nothing else in this repository can publish, and
+# nothing is published that has not passed `mvn clean verify` at the release version.
+#
+# That gate is narrower than the one a pull request passes: build.yml runs the reactor on three
+# operating systems, checks reproducibility, runs the suite under a foreign locale and builds the
+# IntelliJ plugin. Tag a commit those jobs have already gone green on.
+#
+# The version is derived from the tag rather than committed. The working tree stays on
+# `-SNAPSHOT`, so `mvn install` from the default branch can never overwrite a released artefact,
+# and there is no release commit to forget to revert.
+#
+# Three things about Maven Central are worth knowing before running this:
+#   * a publication is immutable. There is no delete, no overwrite and no re-publish of a botched
+#     release — only a new version;
+#   * `autoPublish` with `waitUntil=published` means this job fails when Central rejects the
+#     deployment, instead of leaving it in VALIDATED for somebody to notice next week;
+#   * everything is signed. The signing key and its passphrase are repository secrets and appear
+#     in no file here.
+#
+# Required secrets:
+#   MAVEN_CENTRAL_USERNAME    the Central Portal user token's username half
+#   MAVEN_CENTRAL_TOKEN       its password half           (central.sonatype.com/usertoken)
+#   MAVEN_GPG_PRIVATE_KEY     the release signing key, armoured
+#                             (gpg --armor --export-secret-keys <key id>)
+#   MAVEN_GPG_PASSPHRASE      that key's passphrase
+# ---------------------------------------------------------------------------------------------
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the leading v (e.g. 0.1.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Build and check everything, publish nothing'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  MAVEN_ARGS: -B -ntp -e
+
+jobs:
+
+  # -------------------------------------------------------------------------------------------
+  # Everything that can say no, before anything is published.
+  #
+  # The version this release claims appears in four places besides the tag, and each of them is a
+  # separate file somebody has to remember. Rather than trusting that, this job reads all four and
+  # refuses a tag that disagrees with any of them. A release whose documentation is built under a
+  # different number than its jars is not a release anybody can support.
+  # -------------------------------------------------------------------------------------------
+  verify:
+    name: Verify ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      prerelease: ${{ steps.resolve.outputs.prerelease }}
+      publish: ${{ steps.resolve.outputs.publish }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Both inputs arrive through the environment rather than being spliced into the script.
+      # An expression pasted straight into a shell line runs before any validation below can look
+      # at it, which is the documented way to turn a workflow input into a command.
+      - name: Resolve the version
+        id: resolve
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$EVENT" = 'workflow_dispatch' ]; then
+            VERSION="$INPUT_VERSION"
+            if [ "$INPUT_DRY_RUN" = 'false' ]; then PUBLISH=true; else PUBLISH=false; fi
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+            PUBLISH=true
+          fi
+
+          if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$VERSION' is not a release version"
+            exit 1
+          fi
+          case "$VERSION" in
+            *-SNAPSHOT) echo "::error::Maven Central does not accept a -SNAPSHOT version"; exit 1 ;;
+          esac
+
+          # A pre-release is anything carrying a qualifier: 0.2.0-rc.1 is one, 0.2.0 is not.
+          case "$VERSION" in
+            *-*) PRERELEASE=true ;;
+            *)   PRERELEASE=false ;;
+          esac
+
+          echo "version=$VERSION"       >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH"       >> "$GITHUB_OUTPUT"
+          echo "Releasing $VERSION (prerelease=$PRERELEASE, publish=$PUBLISH)"
+
+      # The four places the number also lives. Each is read out of its own file and compared; the
+      # job names every mismatch rather than stopping at the first, so one run tells you
+      # everything that has to be fixed.
+      - name: Check that every file agrees on the version
+        run: |
+          VERSION='${{ steps.resolve.outputs.version }}'
+          FAILED=0
+
+          check() {
+            if [ "$2" != "$VERSION" ]; then
+              echo "::error file=$3::$3 says '$2', the tag says '$VERSION'"
+              FAILED=1
+            else
+              echo "ok  $3 -> $2"
+            fi
+          }
+
+          check changelog \
+            "$(grep -oE '^## \[[0-9][^]]*\]' CHANGELOG.md | head -1 | tr -d '#[] ')" \
+            CHANGELOG.md
+          check writerside \
+            "$(grep -oP '(?<=<instance )[^>]*version="\K[^"]+' Writerside/writerside.cfg)" \
+            Writerside/writerside.cfg
+          check vars \
+            "$(grep -oP '<var name="version" value="\K[^"]+' Writerside/v.list)" \
+            Writerside/v.list
+          check engine \
+            "$(grep -oP 'static final String VERSION = "\K[^"]+' \
+                 aether-weaver-engine/src/main/java/de/splatgames/aether/weaver/engine/Weaver.java)" \
+            Weaver.java
+
+          exit $FAILED
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Stamp the release version into every pom
+        run: >
+          mvn ${{ env.MAVEN_ARGS }}
+          org.codehaus.mojo:versions-maven-plugin:2.21.0:set
+          -DnewVersion=${{ steps.resolve.outputs.version }}
+          -DprocessAllModules=true
+          -DgenerateBackupPoms=false
+
+      # The same gate a pull request runs, against the version being released.
+      - name: Build and verify
+        run: mvn ${{ env.MAVEN_ARGS }} clean verify
+
+  # -------------------------------------------------------------------------------------------
+  # Publish to Maven Central.
+  #
+  # Tests are not run again here: `verify` above ran them against these exact sources. What this
+  # job adds is the sources jar, the javadoc jar and a signature beside every file — all of it in
+  # the `release` profile, which no other build activates.
+  # -------------------------------------------------------------------------------------------
+  publish:
+    name: Publish to Maven Central
+    needs: verify
+    if: needs.verify.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: maven-central
+      url: https://central.sonatype.com/artifact/de.splatgames.aether.weaver/aether-weaver-api
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # server-id matches <publishingServerId>central</publishingServerId> in the release profile;
+      # the two username/password inputs name the environment variables the generated settings.xml
+      # reads, not the credentials themselves.
+      - name: Set up JDK 25 with the publishing credentials
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: central
+          server-username: MAVEN_CENTRAL_USERNAME
+          server-password: MAVEN_CENTRAL_TOKEN
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Stamp the release version into every pom
+        run: >
+          mvn ${{ env.MAVEN_ARGS }}
+          org.codehaus.mojo:versions-maven-plugin:2.21.0:set
+          -DnewVersion=${{ needs.verify.outputs.version }}
+          -DprocessAllModules=true
+          -DgenerateBackupPoms=false
+
+      - name: Deploy
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: mvn ${{ env.MAVEN_ARGS }} -Prelease clean deploy -DskipTests
+
+  # -------------------------------------------------------------------------------------------
+  # A software bill of materials for the release, attached to the GitHub Release.
+  #
+  # It runs from the reactor rather than from the published jars, so it describes what was built.
+  # There is very little in it — the framework inherits no third-party dependency at run time —
+  # and that emptiness is exactly what a consumer's supply-chain review wants to see stated.
+  # -------------------------------------------------------------------------------------------
+  sbom:
+    name: SBOM
+    needs: verify
+    runs-on: ubuntu-latest
+    # Not allowed to hold up a release. Publication to Central is irreversible, so a bill of
+    # materials that failed to generate must not be the reason the GitHub Release never appears.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # The same stamp the other two jobs apply. Without it the bill of materials would describe
+      # the working tree's -SNAPSHOT while carrying the release's name, which is worse than having
+      # no bill of materials at all.
+      - name: Stamp the release version into every pom
+        run: >
+          mvn ${{ env.MAVEN_ARGS }}
+          org.codehaus.mojo:versions-maven-plugin:2.21.0:set
+          -DnewVersion=${{ needs.verify.outputs.version }}
+          -DprocessAllModules=true
+          -DgenerateBackupPoms=false
+
+      - name: Generate
+        run: >
+          mvn ${{ env.MAVEN_ARGS }}
+          org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom
+          -DoutputName=aether-weaver-${{ needs.verify.outputs.version }}-sbom
+          -DskipTests
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: target/aether-weaver-*-sbom.*
+          if-no-files-found: error
+          retention-days: 30
+
+  # -------------------------------------------------------------------------------------------
+  # The GitHub Release.
+  #
+  # Its body is the release's own section of CHANGELOG.md, read out of the file rather than
+  # written twice. A release note that disagrees with the changelog is a release note nobody
+  # trusts, and keeping one copy is the only way to be sure they agree.
+  # -------------------------------------------------------------------------------------------
+  github-release:
+    name: GitHub Release
+    needs: [ verify, publish, sbom ]
+    if: needs.verify.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download the SBOM
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: sbom
+          path: sbom
+
+      # awk over the changelog: print everything after this version's heading, stop at the next
+      # one. A version whose section is empty fails here rather than producing a blank release.
+      - name: Extract the release notes
+        id: notes
+        run: |
+          VERSION='${{ needs.verify.outputs.version }}'
+          awk -v v="## [$VERSION]" '
+            index($0, v) == 1        { found = 1; next }
+            found && /^## \[/        { exit }
+            found && /^\[.*\]: http/ { exit }
+            found                    { print }
+          ' CHANGELOG.md > notes.md
+
+          if [ ! -s notes.md ]; then
+            echo "::error file=CHANGELOG.md::CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+
+          {
+            echo "## Aether Weaver $VERSION"
+            echo
+            cat notes.md
+            echo
+            echo "---"
+            echo
+            echo "**Maven Central:** https://central.sonatype.com/namespace/de.splatgames.aether.weaver"
+            echo "**Documentation:** https://software.splatgames.de/docs/aether-weaver/"
+            echo "**Full changelog:** https://github.com/aether-framework/aether-weaver/blob/main/CHANGELOG.md"
+          } > body.md
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.verify.outputs.version }}
+          name: Aether Weaver ${{ needs.verify.outputs.version }}
+          body_path: body.md
+          prerelease: ${{ needs.verify.outputs.prerelease == 'true' }}
+          files: sbom/*
+          fail_on_unmatched_files: false

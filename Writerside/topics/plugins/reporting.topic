@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="reporting" title="Report rather than throw">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <tldr>
+        <p>
+            Requires a weaver your own code builds —
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a>.
+        </p>
+    </tldr>
+
+    <p>
+        A diagnostic you report carries a code and a message, and names the weave that caused
+        it; a remedy costs one more call. A throw carries none of that. The engine catches a
+        throw at five named phases; each guard decides what it costs. Those five phases are not
+        a perimeter around plugin code.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Instantiation guard"] -->|throws| A2["Your plugin never loads"]
+    A --> S["Sorted again, no guard"]
+    S -->|throws| X["No diagnostic at all"]
+    S --> B["Contribute guard"]
+    B -->|throws| B2["Every registration is discarded"]
+    B --> C["Planning guard, one PointSpec"]
+    C -->|throws| C2["Every site that spec would find"]
+    C --> D["Apply guard, whole class rewrite"]
+    D -->|throws| D2["Original bytes handed back"]
+    D --> E["Observe guard"]
+    E -->|throws| E2["Warning only, and weaving goes on"]
+    </code-block>
+
+    <chapter title="What you report with" id="handles">
+        <p>
+            Every reporting handle the SPI gives you is a <code>Reporter</code>. All of them end
+            at the one <code>DiagnosticListener</code> the driver installed.
+            <a href="spi.topic#report">The plugin SPI</a> lists them all.
+        </p>
+
+        <deflist type="full">
+            <def title="A code of your own">
+                <p>
+                    Build one from <code>PluginDiagnosticId</code>, never from a framework code. It
+                    carries your namespace, so the message traces back to you.
+                    <a href="namespaces.topic">Namespaces and identifiers</a> has the spelling.
+                </p>
+            </def>
+            <def title="A remedy, which costs one more call">
+                <p>
+                    <code>report(code, message)</code> gives the code's default severity, an
+                    unknown location, and no remedy. <code>Diagnostic.builder(...)</code> adds the
+                    location, the detail and the remedy. The remedy is the only part that says
+                    what to write instead.
+                </p>
+            </def>
+            <def title="Reporting stops nothing by itself">
+                <p>
+                    <code>report</code> returns void. An error you report neither fails the build
+                    nor withdraws a declaration. That is the driver's call, taken from the severity
+                    afterwards — <a href="diagnosing-a-weave.topic">Diagnosing a weave</a>. Stop
+                    yourself: answer with no sites, or with
+                    <code>Injector.Emitter.NOTHING</code>.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                The reporter handed to <code>Injector.validate</code> is the one call site whose
+                severities change what the engine does. An error there abandons the declaration
+                before any bytes are emitted. <code>WeaverBuilder</code>'s explain-report footer
+                also reads severities, but only to count them.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="What a throw costs" id="cost">
+        <p>
+            Five guards, five blast radii. Each catches <code>Throwable</code> and turns it into
+            the phase's diagnostic. Only <code>VirtualMachineError</code> is re-thrown untouched.
+            <a href="loading-plugins.topic">Loading and isolating plugins</a> covers the boundary
+            itself.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Throwing while</td><td>What it costs</td><td>Instead</td></tr>
+            <tr><td>Being constructed</td><td><code>AW3114</code>, that plugin</td>
+                <td>Return a constant from both</td></tr>
+            <tr><td>Contributing</td><td><code>AW3115</code>, every registration</td>
+                <td>Report through <code>diagnostics()</code></td></tr>
+            <tr><td>Resolving a point</td><td><code>AW3116</code>, every matched site</td>
+                <td>Report, then answer with no sites</td></tr>
+            <tr><td>Emitting bytes</td><td><code>AW3117</code>, the entire class</td>
+                <td>Report, then answer <code>NOTHING</code></td></tr>
+            <tr><td>Observing an event</td><td><code>AW3118</code>, a warning</td>
+                <td>Repair the observer; nothing broke</td></tr>
+        </table>
+
+        <p>
+            The first row also covers <code>id()</code> and <code>apiLevel()</code>: a malformed
+            service declaration costs every plugin on that loader, still as <code>AW3114</code>.
+            An emitter that throws <code>IllegalArgumentException</code> costs its class as
+            <code>AW4003</code> or <code>AW4004</code> instead of <code>AW3117</code> — the class
+            writer catches that one first, ahead of this guard. A declaration whose
+            <code>require</code> is left at its default of 1 is also refused as
+            <code>AW1043</code> when its point throws. The resolution that would have satisfied
+            it never ran.
+        </p>
+
+        <p>
+            The fourth row is the one to design around. That guard wraps the rewrite of the whole
+            class, entered whenever any contributed kind takes part. It costs every declaration
+            in that class, built-in ones included. The message names the contributed kind
+            identifiers taking part, comma-joined and possibly from more than one plugin, not any
+            one plugin by itself. <a href="pipeline.topic">The weaving pipeline</a> has what a
+            rewrite covers, and <a href="diagnostics-policy.topic">the AW3xxx codes</a> the
+            severities.
+        </p>
+    </chapter>
+
+    <chapter title="Where the guard does not reach" id="gaps">
+        <p>
+            Calls that run outside the five phases above are not wrapped by any of them. A throw
+            from one of these reaches <code>Weaver.weave</code> or <code>WeaverBuilder.build()</code>
+            with no diagnostic at all.
+        </p>
+
+        <deflist type="narrow">
+            <def title="The candidate sort's id()">
+                <p>A second call, after instantiation and before contribution, once per build.</p>
+            </def>
+            <def title="A contributed point on a slice bound">
+                <p>The planning guard reads the declaration's own <code>@At</code>, so a built-in
+                    one leaves the bound unguarded. Answer with no sites instead of throwing: the
+                    slice reports <code>AW1120</code> or <code>AW1121</code> for you.</p>
+            </def>
+            <def title="Looking up an injector by kind">
+                <p>Before every apply guard, once per declaration.</p>
+            </def>
+            <def title="validate and stackOperandsAt">
+                <p>Before every apply guard, once per declaration.</p>
+            </def>
+            <def title="A factory's kinds(), ids(), aliases()">
+                <p>After the contribute guard has already returned.</p>
+            </def>
+            <def title="plugin.id() in PluginRegistry.plugins()">
+                <p>Once per stamped class, while the weave record is written.</p>
+            </def>
+            <def title="plugin.id().describe()">
+                <p>An argument to the observe guard, evaluated before the guard is entered.</p>
+            </def>
+        </deflist>
+
+        <p>
+            Return a constant everywhere a factory or an injector is asked for its identity. Keep
+            whatever backs it out of a static initialiser. Two calls the guards do reach still
+            cost more than their phase suggests:
+        </p>
+
+        <list>
+            <li><p><code>PluginContext.metadata</code> throws past its bounds rather than
+                reporting. The throw lands inside the contribute guard, so exceeding a bound
+                still costs the whole plugin, as <code>AW3115</code>. Stay inside the limits
+                <a href="spi.topic#throws">The plugin SPI</a> gives.</p></li>
+            <li><p>A <code>WeavePolicy</code> is not guarded at all. Refuse a class with a
+                <code>Decision.Deny</code>, which carries a code and a reason. A throw there
+                costs the run rather than the class.
+                <a href="policy-and-safety.topic">Policy and safety</a> has what each driver does
+                with it.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="What you can hear back" id="observe">
+        <p>
+            Nothing. <code>PluginContext.diagnosticListeners(...)</code> is accepted, and the
+            registry keeps what you pass. No part of the engine asks the registry for it, so a
+            plugin is never handed a diagnostic.
+        </p>
+
+        <p>
+            The four events are all that reaches you, and none carries a diagnostic.
+            <code>WeavingFinished</code> brings counters, and the failures it counts are
+            verification refusals rather than reports.
+            <a href="plugin-lifecycle.topic">The plugin lifecycle</a> has the four in order. Keep
+            your own record as you report, on the thread you reported from.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="determinism.topic">What is guaranteed to be identical</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">AW3xxx - policy and plugins</a>
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+        <category ref="plugins">
+            <a href="plugins.topic">Extending the engine</a>
+        </category>
+    </seealso>
+</topic>

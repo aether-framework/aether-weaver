@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT vars (var+)>
+<!ELEMENT var (#PCDATA)>
+<!ATTLIST var
+        name CDATA #REQUIRED
+        type (string|xpath) "string"
+        instance CDATA #IMPLIED
+        tags CDATA #IMPLIED
+        value CDATA #REQUIRED
+        platform (primary|secondary|all) "all" default CDATA #IMPLIED>

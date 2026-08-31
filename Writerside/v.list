@@ -1,0 +1,15 @@
+<!DOCTYPE vars SYSTEM "https://resources.jetbrains.com/writerside/1.0/vars.dtd">
+<vars>
+    <var name="product" value="Aether Weaver"/>
+    <var name="group" value="de.splatgames.aether.weaver"/>
+    <var name="version" value="0.1.0"/>
+    <var name="jdk" value="25"/>
+    <var name="maven" value="3.9"/>
+    <var name="repo" value="https://github.com/aether-framework/aether-weaver"/>
+    <var name="issues" value="https://github.com/aether-framework/aether-weaver/issues"/>
+    <var name="vendor" value="Splatgames.de Software"/>
+    <var name="vendor-url" value="https://splatgames.de"/>
+    <var name="classfile-api" value="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/classfile/package-summary.html"/>
+    <var name="compiler-plugin" value="3.14.0"/>
+    <var name="junit" value="5.11.4"/>
+</vars>

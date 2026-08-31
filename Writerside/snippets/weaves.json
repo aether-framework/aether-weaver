@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "generator": "aether-weaver-processor/0.1.0",
+  "weaves": [
+    {
+      "class": "fixture.Audit",
+      "kind": "INSTANCE",
+      "priority": 0,
+      "require": "REQUIRED",
+      "phase": "DEFAULT",
+      "tags": [],
+      "targets": ["fixture.Target"],
+      "members": [
+        {
+          "disposition": "SHADOW",
+          "kind": "FIELD",
+          "name": "name",
+          "descriptor": "Ljava/lang/String;",
+          "targetName": "name",
+          "unique": false
+        }
+      ],
+      "injectors": [
+        {
+          "kind": "INJECT",
+          "id": "unnamed",
+          "handler": "onGreet()V",
+          "method": "greet()",
+          "points": [
+            {
+              "point": "HEAD",
+              "target": "",
+              "ordinal": -1,
+              "shift": "NONE",
+              "by": 0,
+              "access": "ANY",
+              "slice": ""
+            }
+          ],
+          "require": 0,
+          "allow": 0,
+          "group": ""
+        }
+      ]
+    }
+  ],
+  "extensions": [
+    {
+      "class": "fixture.Strings",
+      "receiver": "java.lang.String",
+      "name": "shout",
+      "descriptor": "()Ljava/lang/String;"
+    }
+  ]
+}

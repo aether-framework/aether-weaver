@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="extension-methods" title="Extension methods">
+
+    <secondary-label ref="experimental"/>
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        An extension is a method or a constant on a type you do not own. One holder class
+        contributes it. That type is never modified; your call sites are.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Holder class marked @Extension"] --> B["Processor records one manifest entry per contribution"]
+    B --> C["Stubs goal patches a copy of each receiver type"]
+    C --> D["javac compiles your call against that copy"]
+    D --> E["Weave goal repoints every instruction at its holder"]
+    E --> F["Woven caller invokes the static implementation"]
+    C -.-> G["Receiver type stays exactly as its author wrote it"]
+    </code-block>
+
+    <chapter title="What a holder contributes" id="holder">
+        <p>
+            A holder is a class marked <code>@Extension</code>. Every <code>public</code> method
+            of it is a candidate. Anything less visible stays an ordinary helper. Where
+            <code>@Receiver</code> sits decides the kind.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>@Receiver sits on</td>
+                <td>You get</td>
+                <td>Called as</td>
+            </tr>
+            <tr>
+                <td>the first parameter</td>
+                <td>an instance method</td>
+                <td><code>value.name(...)</code></td>
+            </tr>
+            <tr>
+                <td>the method</td>
+                <td>a static method</td>
+                <td><code>Type.name(...)</code></td>
+            </tr>
+            <tr>
+                <td>a public static final field</td>
+                <td>a constant</td>
+                <td><code>Type.NAME</code></td>
+            </tr>
+        </table>
+
+        <p>
+            <code>@Extension(BigDecimal.class)</code> names one receiver type for the whole class. A
+            method naming none of its own takes it as parameter zero. A holder that is not
+            <code>final</code> is <code>AW1300</code>, a warning. Its members are contributed
+            anyway. Declare it final; nothing ever instantiates it.
+        </p>
+
+        <note>
+            <p>
+                A weave adds a member from the inside, to a target it rewrites. An extension
+                changes no target at all. <a href="weave-members.topic">Weave members</a> has the
+                four shapes that takes.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="One manifest, two lists" id="manifest">
+        <p>
+            The processor records each contribution in the generated weave manifest, which
+            <a href="weave-discovery.topic">How a weave is found</a> covers. There,
+            <code>weaves</code> and <code>extensions</code> are separate arrays. Three things
+            follow from that.
+        </p>
+
+        <list>
+            <li><p>A module can declare extensions and no weave at all. The build-time driver
+                still runs. It repoints your calls and, where this module also declares a
+                holder, hardens that holder's own null checks.</p></li>
+            <li><p>Extensions are read from every entry of the compile classpath. Weaves are read
+                from this module's own output. So a dependency's extension reaches your code where
+                its weave would not. <a href="choose-a-driver.topic">Choose a driver</a> puts that
+                beside the other drivers.</p></li>
+            <li><p><code>require</code> and <code>scope</code> are read off the holder. Both
+                apply to every entry it writes. Neither has a per-member override.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="What the rewrite touches" id="rewrite">
+        <deflist type="full">
+            <def title="The caller's instructions">
+                <p>
+                    An <code>invokevirtual</code> or <code>invokeinterface</code> on an instance
+                    extension becomes an <code>invokestatic</code> on the holder. The receiver is
+                    passed as argument zero. An <code>invokestatic</code> on a static extension is
+                    repointed the same way. Nothing is prepended: its descriptor already has no
+                    receiver parameter. A <code>getstatic</code> of a contributed constant is
+                    repointed at the holder's field. A method handle among an
+                    <code>invokedynamic</code>'s bootstrap arguments is rebound the same way. That
+                    is what carries a method reference.
+                </p>
+            </def>
+            <def title="Never the receiver type">
+                <p>
+                    The type that appears to gain the member is not rewritten. Only the patched
+                    copy the compiler saw declares it. That copy is a build artefact.
+                </p>
+            </def>
+            <def title="A real member, first">
+                <p>
+                    Resolution starts at the owner written at the call site: superclasses first,
+                    then interfaces. A static extension is the exception: it stops at the
+                    superclass chain. One declared on an interface is never reached from a call on
+                    an implementing class. The first type to answer ends the walk. A member the
+                    hierarchy genuinely declares beats an extension. That is guaranteed by
+                    <code>AW1309</code>, and only where the receiver type was on the classpath when
+                    the index was built. Where a supertype cannot be read, the call is left alone.
+                </p>
+            </def>
+            <def title="A receiver you asked to be checked">
+                <p>
+                    <code>@Receiver(nulls = Nulls.CHECKED)</code> puts a
+                    <code>requireNonNull</code> prologue into the holder's own method. An
+                    <code>invokestatic</code> on a null receiver throws nothing by itself. Only an
+                    instance contribution may ask for it. On a static one or on a constant it is
+                    <code>AW1315</code>. Remove <code>nulls</code>, or mark a parameter
+                    <code>@Receiver</code> instead.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Only the build rewrites anything" id="build">
+        <p>
+            Only the Maven plugin gives the engine an index of extensions. The agent, the
+            weaving class loader and the testkit all leave it empty. No call site they see is
+            repointed. Where the pass sits among the gates is in
+            <a href="pipeline.topic">the weaving pipeline</a>.
+        </p>
+
+        <deflist type="medium">
+            <def title="require">
+                <p>
+                    <code>REQUIRED</code> is the default. The receiver type must be on the compile
+                    classpath or in the runtime image. Absent from both, stub generation fails. Add
+                    the dependency that provides it, or declare
+                    <code>require = Require.OPTIONAL</code> to skip the contribution.
+                </p>
+            </def>
+            <def title="scope">
+                <p>
+                    <code>MODULE</code> withholds the stub from everyone but the declaring
+                    module. It is read where stubs are written, and nowhere else. Nothing at weave
+                    time consults it. A call site that did compile is rewritten anyway.
+                </p>
+            </def>
+        </deflist>
+
+        <warning>
+            <p>
+                A method stub throws <code>UnsupportedOperationException</code>. A constant stub
+                is a plain field carrying the holder's value, so a contributed constant read
+                succeeds silently instead. Keep the stub tree off any runtime classpath either
+                way. A stub there shadows the real receiver type.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="What is refused" id="refused">
+        <p>
+            The holder is checked before its members. Two of these stop the pass outright.
+            <a href="diagnostics.topic">Diagnostics</a> covers what the ranges mean.
+        </p>
+
+        <deflist type="full">
+            <def title="A holder with type parameters, or with a supertype">
+                <p>
+                    <code>AW1306</code> and <code>AW1307</code>, and each ends the pass. Remove the
+                    type parameters; make the class extend <code>Object</code> and implement
+                    nothing. Nothing about the holder participates at the call site.
+                </p>
+            </def>
+            <def title="A public method that is not static">
+                <p>
+                    <code>AW1301</code>. Declare it static, or make it private if it is a
+                    helper. The receiver arrives as a parameter. A contributed method has no
+                    instance of its own.
+                </p>
+            </def>
+            <def title="A member the receiver type already declares">
+                <p>
+                    <code>AW1305</code> from the processor, for any kind of extension. A method
+                    collision is caught again at index build, as <code>AW1309</code>. A constant
+                    colliding with a field is not — the index checks methods only. There,
+                    <code>find()</code> resolves the call to the field that was already there.
+                    Rename the extension. <a href="redirect-and-wrap.topic">Redirect and Wrap</a>
+                    is the mechanism for changing what an existing member does.
+                </p>
+            </def>
+            <def title="Two contributions of one call">
+                <p>
+                    <code>AW1308</code>, from two overloads that erase to one descriptor. Two
+                    artefacts contributing the same call get it too. Rename one of them. Otherwise
+                    the winner depends on classpath order.
+                </p>
+            </def>
+            <def title="A receiver type that cannot carry a member">
+                <p>
+                    <code>AW1304</code> for a primitive, an array or a type variable.
+                    <code>AW1311</code> for a parameterised type, erasure being all the call site
+                    has. Name a class or interface. Use the raw type where it is generic.
+                    <code>Object</code> is <code>AW1312</code>, a warning: name the narrowest type
+                    the member is meaningful on.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="weave-members.topic">Weave members</a>
+            <a href="ordering.topic">Ordering</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">The annotation reference</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

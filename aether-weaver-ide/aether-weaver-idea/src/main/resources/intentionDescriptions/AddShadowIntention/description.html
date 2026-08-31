@@ -1,0 +1,33 @@
+<html>
+<body>
+Declares the <code>@Shadow</code> that makes an unresolved reference inside a weave resolve.
+<p>
+    A weave reaches into its target's own state by declaring the member again and marking it
+    <code>@Shadow</code>: the declaration is a promise that the target already has it, and the weaver
+    rewrites every reference to the target's own member. Writing it by hand means copying a type and
+    a signature out of another file.
+</p>
+<p>
+    Offered only where a target really declares a member of that name — and, for a method, exactly
+    one with a matching parameter count. A <code>@Shadow</code> of something the target does not have
+    is <code>AW1030</code>, so generating one from the reference alone would trade a compiler error
+    the reader understands for a framework error they do not.
+</p>
+<p>
+    Not offered in a static weave at all. Its code never moves into the target, so there is no
+    reference for a shadow to be rewritten into; that is <code>AW1090</code>, and the remedy there is
+    <code>@Accessor</code> or <code>@Invoker</code>.
+</p>
+<p>
+    <code>final</code> is dropped. A shadowed field has no initialiser and a weave may not declare a
+    constructor (<code>AW1081</code>), so a <code>final</code> copy would never be definitely
+    assigned and would not compile. Writing to a target's final field is
+    <code>@Shadow(mutable = true)</code> — a deliberate structural change to the target, always
+    reported as <code>AW1033</code>, and not something an intention chooses on the author's behalf.
+</p>
+<!-- tooltip end -->
+<pre><code>this.ledger</code></pre>
+gains
+<pre><code>@Shadow private Ledger ledger;</code></pre>
+</body>
+</html>

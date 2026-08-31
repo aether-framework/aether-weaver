@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="contributing" title="Contributing">
+
+    <section-starting-page>
+        <title>Contributing</title>
+        <description>
+            How the project is put together, and what a change has to clear before it
+            lands. None of it is needed to use the framework.
+        </description>
+
+        <spotlight>
+            <a href="repository-layout.topic" type="open-source"
+               summary="Where each directory sits, what belongs in it, and the three tests that refuse a change">Repository layout</a>
+            <a href="building-and-testing.topic" type="tools"
+               summary="The one command that gates everything, and what it runs">Building and testing</a>
+        </spotlight>
+
+        <primary>
+            <title>Standards and releases</title>
+            <a href="javadoc-policy.topic" type="library"
+               summary="What every type and member must document, the mandatory tags, and the checks that enforce them">JavaDoc policy</a>
+            <a href="release-notes.topic" type="mixed"
+               summary="What changed in each release, and what a consumer has to do about it">Release notes</a>
+        </primary>
+
+        <secondary>
+            <title>The source</title>
+            <a href="%repo%" type="open-source"
+               summary="The repository, its issues and its pull requests">Aether Weaver on GitHub</a>
+        </secondary>
+    </section-starting-page>
+</topic>

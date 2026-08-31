@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="injection-points" title="Injection points">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        An <code>@At</code> names a kind of position inside one target method. It answers with a
+        list of sites: none, one, or several. Five stages turn what you wrote into that list. Each
+        one sees the output of the last.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["The @At you wrote"] --> B["Slice narrows the search window"]
+    B --> C["Point finds every position of its kind"]
+    C --> D["Ordinal picks one match inside that window"]
+    D --> E["Shift moves the selection by whole elements"]
+    E --> F["Safety drops what cannot be woven at"]
+    F --> G["Sites, in body order"]
+    </code-block>
+
+    <chapter title="The nine points" id="points">
+        <table style="header-row">
+            <tr>
+                <td>Point</td>
+                <td>What it matches</td>
+                <td>target=</td>
+            </tr>
+            <tr><td><code>HEAD</code></td><td>where the method's own code begins</td>
+                <td>forbidden</td></tr>
+            <tr><td><code>RETURN</code></td><td>every return instruction</td>
+                <td>forbidden</td></tr>
+            <tr><td><code>TAIL</code></td><td>the last return in body order</td>
+                <td>forbidden</td></tr>
+            <tr><td><b><code>INVOKE</code></b></td><td>a call, before it happens</td>
+                <td>required</td></tr>
+            <tr><td><code>INVOKE_AFTER</code></td><td>the same call, once it has run</td>
+                <td>required</td></tr>
+            <tr><td><b><code>FIELD</code></b></td><td>a read or a write, narrowed by <code>access</code></td>
+                <td>required</td></tr>
+            <tr><td><b><code>NEW</code></b></td><td>a <code>new</code>, before the object exists</td>
+                <td>required</td></tr>
+            <tr><td><code>CONSTANT</code></td><td>a constant the target loads</td>
+                <td>optional</td></tr>
+            <tr><td><code>THROW</code></td><td>every throw, whatever the target says</td>
+                <td>optional</td></tr>
+        </table>
+
+        <p>
+            <b>Bold</b> names the three that stand for an operation; only they accept
+            <code>@Redirect</code> and <code>@Wrap</code>. The other six are <code>AW1061</code> at
+            validation: use <code>@Inject</code>, or point at the call, access or instantiation you
+            meant. The same check runs again per site, and there it drops one
+            <code>AFTER_ELEMENT</code> match at a time. That is what catches a point a plugin
+            contributed. <a href="selectors.topic">Selectors</a> has the
+            grammar a target is written in. <a href="annotations.topic">The annotation reference</a> covers
+            every element of <code>@At</code>.
+        </p>
+
+        <note>
+            <p>
+                A plugin can register further points. You name one as text in <code>custom</code>,
+                always spelled <code>namespace:NAME</code>. A name nothing answers to is
+                <code>AW1101</code>: check the spelling, and that the plugin is on the classpath.
+                <a href="plugins.topic">Extending the engine</a> covers contributing one.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="How many sites you get" id="count">
+        <deflist type="medium">
+            <def title="One, from the point itself">
+                <p>
+                    <code>HEAD</code>'s point always returns one site, whatever the body holds. A
+                    shift on it is refused outright, and safety can drop it too, for a constructor
+                    whose delegating call leaves the window's first instruction unreachable to an
+                    instance handler; either empties the resolved list. Every other point depends on
+                    the method in front of it.
+                </p>
+            </def>
+            <def title="At most one">
+                <p>
+                    <code>TAIL</code> keeps the last of the returns and drops the rest. A method
+                    that only throws gives none. Textually last is not executed last.
+                </p>
+            </def>
+            <def title="As many as match">
+                <p>
+                    The remaining seven. <code>ordinal</code> defaults to <code>-1</code>, which
+                    keeps every match. One declaration can then weave four call sites at once.
+                </p>
+            </def>
+            <def title="None, which is not an error by itself">
+                <p>
+                    The declaration decides, through <code>require</code>. Omitted, it reads as one,
+                    so matching nothing is <code>AW1043</code>. Write <code>require = 0</code> where
+                    the site is genuinely optional.
+                </p>
+            </def>
+        </deflist>
+
+        <warning>
+            <p>
+                A point that takes a target reports <code>AW1043</code> on its own account, and
+                <code>require = 0</code> does not silence that one. When nothing of the kind exists
+                in the method at all, the message says so and lists nothing; when something exists
+                but none matches the target, it lists up to ten candidates from the search window —
+                not in the same spelling for every point:
+            </p>
+            <table style="header-row">
+                <tr><td>Point</td><td>What the candidate list shows</td></tr>
+                <tr><td><code>INVOKE</code></td><td>the target spelling, to copy exactly</td></tr>
+                <tr><td><code>FIELD</code></td><td>the same, plus the access kind</td></tr>
+                <tr><td><code>CONSTANT</code></td><td>the value, not a spelling</td></tr>
+                <tr><td><code>THROW</code></td><td>nothing — the list is always empty</td></tr>
+            </table>
+        </warning>
+    </chapter>
+
+    <chapter title="Where HEAD lands" id="head">
+        <code-block lang="mermaid">
+flowchart TB
+    A["HEAD resolves"] --> B{"Is this a constructor?"}
+    B -->|no| C["The body's first instruction"]
+    B -->|yes| D{"Does it delegate?"}
+    D -->|yes| E["Immediately past that super or this call"]
+    D -->|no| C
+        </code-block>
+
+        <p>
+            The delegating call is found by pairing each constructor call with a preceding
+            <code>new</code>. So a constructor whose arguments build objects still lands past its
+            own call. The third branch is real: a constructor that delegates nowhere falls back to
+            the first instruction. <a href="first-weave.topic">Your first weave</a> uses
+            <code>HEAD</code> on an ordinary method.
+        </p>
+    </chapter>
+
+    <chapter title="What narrows the list" id="narrow">
+        <deflist type="medium">
+            <def title="slice">
+                <p>
+                    A named region, from its lower bound inclusive to its upper bound exclusive.
+                    Both bounds resolve against the whole method first. A <code>slice</code> naming
+                    nothing you declared is silent, and the search widens to the method.
+                    <a href="annotations.topic#positions">The slice reference</a> has the bound rules and their codes.
+                </p>
+            </def>
+            <def title="ordinal">
+                <p>
+                    Zero-based, and counted inside the window rather than inside the method. Adding
+                    a slice therefore renumbers it. Past the last match is <code>AW1110</code>:
+                    count again from the window the slice left you.
+                </p>
+            </def>
+            <def title="shift">
+                <p>
+                    <code>BEFORE</code>, <code>AFTER</code>, or <code>BY</code> so many code
+                    elements. Not instructions: the element list carries labels and line numbers
+                    too. Leaving the window is <code>AW1111</code> and costs that <code>@At</code>
+                    every site. Widen the slice, or drop the shift.
+                </p>
+            </def>
+            <def title="Where a shift is refused outright">
+                <p>
+                    <code>HEAD</code> takes none. Neither does a <code>@Redirect</code> or a
+                    <code>@Wrap</code>, at any point. Both report <code>AW1102</code>: name the
+                    position you want directly. A <code>BY</code> beyond four in either direction is
+                    <code>AW1112</code>, a warning.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Found, then refused" id="safety">
+        <p>
+            The last stage asks whether code may be emitted where the first four landed. It runs
+            for every declaration, but not the same way. <code>@Redirect</code> and
+            <code>@Wrap</code> get only the <code>AFTER_ELEMENT</code> check above.
+            <code>@Inject</code> alone gets the three below. A refused site is dropped on its own, not the declaration. Three of
+            four matches are still woven, and the accounting sees three.
+        </p>
+
+        <deflist type="medium">
+            <def title="Before a constructor's own super() call">
+                <p>
+                    <code>AW1026</code>, and only for a handler that needs a receiver. Declare the
+                    handler static, or move the point past that call. <code>HEAD</code> already sits
+                    there.
+                </p>
+            </def>
+            <def title="Between a new and its constructor call">
+                <p>
+                    <code>AW1105</code>. The stack there holds an object that does not exist yet.
+                    Move past the constructor call with an ordinal, a slice or
+                    <code>INVOKE_AFTER</code>. Or use <code>@Redirect</code>, which takes the whole
+                    instantiation over.
+                </p>
+            </def>
+            <def title="An instruction nothing can reach">
+                <p>
+                    <code>AW1130</code>, a warning, and the site is dropped anyway. It usually means
+                    the selector found a compiler-generated leftover. Narrow it with a slice or an
+                    ordinal. <a href="diagnostics.topic">Diagnostics</a> has the ranges and how to read one.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="selectors.topic">Selectors</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">The annotation reference</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

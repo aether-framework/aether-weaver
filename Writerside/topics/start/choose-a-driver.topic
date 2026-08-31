@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="choose-a-driver" title="Choose a driver">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        A driver decides which classes reach the engine, and when. Start from the classes you
+        must change.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    Q1{"Only inside one test?"}
+    Q1 -->|yes| D2["The testkit"]
+    Q1 -->|no| Q2{"Classes this module compiles?"}
+    Q2 -->|yes| A2["The Maven plugin"]
+    Q2 -->|no| Q3{"Classes the JVM loads, not JDK internals?"}
+    Q3 -->|yes| B2["The Java agent"]
+    Q3 -->|no| C2["A weaving class loader"]
+    </code-block>
+
+    <chapter title="When each one runs" id="when">
+        <table style="header-row">
+            <tr>
+                <td>Driver</td>
+                <td>It runs</td>
+                <td>It can change</td>
+            </tr>
+            <tr>
+                <td>The Maven plugin</td>
+                <td>at <code>process-classes</code> (<code>weave</code>)</td>
+                <td>this module's output (or more)</td>
+            </tr>
+            <tr>
+                <td>The Java agent</td>
+                <td>as a class is defined</td>
+                <td>unloaded classes outside the JDK</td>
+            </tr>
+            <tr>
+                <td>A weaving class loader</td>
+                <td>as it defines a class</td>
+                <td>its own roots only</td>
+            </tr>
+            <tr>
+                <td>The testkit</td>
+                <td>inside a test method</td>
+                <td>bytes in memory</td>
+            </tr>
+        </table>
+    </chapter>
+
+    <chapter title="What each one costs you" id="costs">
+        <deflist type="full">
+            <def title="The Maven plugin">
+                <p>
+                    Whatever you publish is woven already, so running it takes no flag. It applies
+                    only the weaves the rewritten module declares: a weave arriving from a
+                    dependency reaches nothing. An extension a dependency declares is different —
+                    it still reaches this module's call sites, and this is the only driver that
+                    rewrites them. <a href="install.topic">Install</a> has the pom,
+                    <a href="extension-methods.topic">Extension methods</a> names the annotation, and
+                    <a href="build-time-weaving.topic#dependencies">Weaving dependencies</a> covers the jars around it.
+                </p>
+            </def>
+            <def title="The Java agent">
+                <p>
+                    <code>-javaagent</code> on the command line is the common path. Attaching to a
+                    running JVM instead needs no flag, though it only reaches classes not yet
+                    loaded when it attaches. A weave failure halts the process by default — set
+                    <code>aether.weaver.onError=report</code> to let the class load unwoven
+                    instead. Nothing raised once start-up finishes is ever printed.
+                    <a href="load-time-weaving.topic">Weaving at load time</a> has the options.
+                </p>
+            </def>
+            <def title="A weaving class loader">
+                <p>
+                    Your code constructs it, hands it the roots, and closes it. Delegation stays
+                    parent-first, so a target the parent can also see is defined by the parent,
+                    unwoven, and nothing is reported. Keep the roots you weave off the parent.
+                    <a href="runtime-weaving.topic">Weaving in a running application</a> has the constructors.
+                </p>
+            </def>
+            <def title="The testkit">
+                <p>
+                    Tests only, and nothing is redefined: the target class stays exactly as the
+                    JVM already has it. Weaving itself writes nothing to disk and reads no
+                    manifest — the weaves are the classes you name in source. A golden-file
+                    assertion is the exception: it writes its fixture the first time it runs.
+                    <a href="testing-woven-code.topic">Testing a weave</a> has the assertions.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Running two of them" id="both">
+        <p>
+            A second pass over already-woven bytes, build time or load time, checks the plan
+            that wove them first.
+        </p>
+
+        <deflist type="medium">
+            <def title="Its own plan, already applied">
+                <p>Skipped; nothing runs twice.</p>
+            </def>
+            <def title="A different plan, at build time">
+                <p>Refused as <code>AW2201</code>; left alone.</p>
+            </def>
+            <def title="A different plan, at load time">
+                <p>Applied anyway; a shared weave runs twice, as <code>AW2202</code>.</p>
+            </def>
+        </deflist>
+
+        <p>
+            Under <code>-javaagent</code> that last warning is never printed — nothing raised
+            after start-up is drained. Give the agent and the plugin the same weaves so their
+            plans match, or drop one of the two. <a href="diagnostics.topic">Diagnostics</a> says which
+            range a code is in.
+        </p>
+
+        <p>
+            The testkit checks its own plan the same way build time does.
+            <a href="first-weave.topic">Your first weave</a> is a good target to assert on.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="what-is-aether-weaver.topic">What Aether Weaver is</a>
+            <a href="install.topic">Install</a>
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="reference">
+            <a href="maven-goals.topic">The Maven plugin</a>
+            <a href="agent-options.topic">Agent options</a>
+        </category>
+    </seealso>
+</topic>

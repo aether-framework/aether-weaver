@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="reference" title="Reference">
+
+    <section-starting-page>
+        <title>Reference</title>
+        <description>
+            The exact rule. Every element, parameter, key and diagnostic code, with no
+            narrative around it.
+        </description>
+
+        <spotlight>
+            <a href="annotations.topic" type="library"
+               summary="Every annotation the API declares, each parameter, and what each one refuses">Annotations</a>
+            <a href="diagnostics.topic" type="search"
+               summary="What the codes are for, how to read a range, and which stage raises which">Diagnostic codes</a>
+        </spotlight>
+
+        <primary>
+            <title>The codes, by range</title>
+            <a href="diagnostics-declaration.topic" type="tools"
+               summary="Declarations and injection: what the processor and the planner refuse">AW1xxx</a>
+            <a href="diagnostics-environment.topic" type="mixed"
+               summary="Environment, drivers and configuration: class files, class paths and settings">AW2xxx</a>
+            <a href="diagnostics-policy.topic" type="support"
+               summary="Policy and plugins: classes that may not be woven, and extensions that misbehave">AW3xxx</a>
+            <a href="diagnostics-verification.topic" type="cross-platform"
+               summary="Verification and engine faults: bytes that were written but did not hold up">AW4xxx</a>
+        </primary>
+
+        <secondary>
+            <title>Configuration and artefacts</title>
+            <a href="selector-grammar.topic" type="search"
+               summary="The grammar a selector is parsed against, written out">The selector grammar</a>
+            <a href="configuration-keys.topic" type="tools"
+               summary="Every configuration key, its type, its default and where it may be set">Configuration keys</a>
+            <a href="maven-goals.topic" type="install"
+               summary="The Maven goals, their parameters and the phases they bind to">Maven goals</a>
+            <a href="agent-options.topic" type="start"
+               summary="Every option the agent accepts on its command line">Agent options</a>
+            <a href="spi.topic" type="development"
+               summary="The service interfaces a plugin implements, and what the engine promises each one">SPI</a>
+            <a href="manifest-format.topic" type="library"
+               summary="What the processor writes into the weave manifest, field by field">The weave manifest</a>
+            <a href="artifacts.topic" type="open-source"
+               summary="Every published module, what it contains, and what depends on what">Artefacts and modules</a>
+        </secondary>
+    </section-starting-page>
+</topic>

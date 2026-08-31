@@ -1,0 +1,21 @@
+<html>
+<body>
+Reports an <code>@At</code> target that cannot name an operation inside the weave's target method.
+<p>
+    Three things are reported, each with the <code>AW10xx</code> code the build would use: a target
+    that does not parse, a target written on a point that names a position rather than an operation
+    (or missing from one that needs it), and a target whose owner class declares no member of that
+    name at all.
+</p>
+<p>
+    What it does not report is whether the target method really performs that operation. That is
+    what the build checks, against the compiled class file — the instruction stream holds calls no
+    source shows, so an answer read out of source would name one call and match two.
+</p>
+<p>
+    It stays silent whenever it cannot be certain: a target naming no owner, an owner this module
+    cannot see, several classes sharing one simple name, or a signature the owner does not declare.
+    A false underline under correct code is worse than a report that arrives one build later.
+</p>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self'">
+
+<script>
+    (function () {
+        var real = Object.getOwnPropertyDescriptor(Document.prototype, "cookie");
+        if (!real || !real.set) return;
+        Object.defineProperty(document, "cookie", {
+            configurable: true,
+            get: function () { return real.get.call(document); },
+            set: function (value) {
+                if (/^\s*userToken\s*=/.test(value)) return;
+                real.set.call(document, value);
+            }
+        });
+    })();
+</script>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="tba"
+       title="Not written yet">
+
+    <p>
+        The section that led here is planned and not published yet.
+    </p>
+
+    <chapter title="Why it is not here" id="why">
+        <p>
+            Every page of this site is written from the source of Aether Weaver and reviewed
+            against it before it appears. The sections therefore arrive one at a time, rather
+            than all at once as an outline. An outline in a repository reads like
+            documentation, and the reader cannot tell the difference until it is too late.
+        </p>
+        <p>
+            The source is on <a href="%repo%">GitHub</a>. A question this site does not answer
+            yet belongs in the <a href="%issues%">issue tracker</a>.
+        </p>
+    </chapter>
+</topic>

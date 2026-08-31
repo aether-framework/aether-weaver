@@ -1,0 +1,92 @@
+<html>
+<body>
+Reports an <code>@Extension</code> declaration the build is going to refuse, on grounds the source
+alone settles.
+<p>
+    This inspection matters more than its neighbours, and for a reason worth knowing. An extension is
+    validated <em>once</em>: by the time anything is woven, <code>javac</code> has already compiled
+    every caller against a compile-time stub derived from the declaration. A declaration that turns
+    out to be wrong is wrong in code that already exists — so finding out while typing it, rather
+    than after writing fifty call sites, is the difference between an edit and a migration.
+</p>
+<ul>
+    <li><code>AW1300</code> — the extension class is not <code>final</code>; it is never
+        instantiated and never subclassed
+    </li>
+    <li><code>AW1301</code> — a <code>public</code> method is not <code>static</code>; the receiver
+        arrives as a parameter, so there is no instance for it to be called on
+    </li>
+    <li><code>AW1302</code> — a contributed method names no receiver, so nothing says what type it
+        is contributed to. <code>@Receiver</code> on the first parameter contributes an instance
+        method; <code>@Receiver(Type.class)</code> on the method contributes a <code>static</code>
+        one. A method that is not part of the contributed surface belongs in the class as a
+        <code>private</code> helper
+    </li>
+    <li><code>AW1303</code> — <code>@Receiver</code> is not on the first parameter. The rewrite
+        passes the receiver straight through as argument zero, which is where the JVM has already
+        put it for the virtual call
+    </li>
+    <li><code>AW1304</code> — the receiver is a primitive, an array or a type variable, none of
+        which can carry a method for <code>javac</code> to resolve against — or a
+        <code>@Receiver</code> on a method named no type at all, which leaves it at its default of
+        <code>void</code>
+    </li>
+    <li><code>AW1305</code> — the receiver already has that exact signature, declared or inherited.
+        <code>javac</code> resolves to the real member, so the extension would never be reached
+    </li>
+    <li><code>AW1306</code> — the extension class is generic; a type parameter on the holder has
+        nothing to bind to at the call site
+    </li>
+    <li><code>AW1307</code> — the extension class has a superclass or an interface, stating a
+        relationship nothing at the call site can honour
+    </li>
+    <li><code>AW1308</code> — the class contributes the same call twice. Two contributions collide
+        on name <em>and</em> descriptor, so ordinary overloads are two calls and not one; two
+        methods with a single erased signature do not compile, which means one class cannot reach
+        this in valid Java. The build reports it where it does happen — when two separate extension
+        classes contribute the same call
+    </li>
+    <li><code>AW1310</code> — a contributed method declares its own type parameters; the stub would
+        carry a type variable with nothing to bind it
+    </li>
+    <li><code>AW1311</code> — the receiver is a parameterised type. Erasure is all a call site has,
+        so <code>@Receiver List&lt;String&gt;</code> would be contributed to every
+        <code>List</code> in the program
+    </li>
+    <li><code>AW1312</code> — the receiver is <code>java.lang.Object</code>, so the method is offered
+        on every expression in every module that reads the extension. A warning rather than a
+        refusal: it is occasionally what somebody means, and far more often the widest type that
+        happened to compile
+    </li>
+    <li><code>AW1313</code> — a receiver is named on the method <em>and</em> on a parameter. The two
+        forms describe different methods — a <code>static</code> member of a type, and an instance
+        member of its values — and a declaration asking for both says nowhere which it is
+    </li>
+</ul>
+<p>
+    <code>AW1305</code> is the one to reach for the API documentation about rather than work around.
+    An extension cannot override, intercept or shadow anything: to change what an existing method
+    does, use <code>@Weave</code> with <code>@Inject</code> or <code>@Redirect</code>, which are
+    built for that and say so at the declaration.
+</p>
+<p>
+    Four of these carry a quick fix, and they are the four with one mechanical repair and no
+    judgement in it: declare the class <code>final</code> (<code>AW1300</code>), declare the method
+    <code>static</code> (<code>AW1301</code>), mark the first parameter <code>@Receiver</code>
+    (<code>AW1302</code>, offered only where the parameter's type could carry a method at all), and
+    move the <code>@Receiver</code> parameter to the front (<code>AW1303</code>).
+</p>
+<p>
+    The rest are offered none on purpose. What a primitive receiver should become, what to rename a
+    method that collides with a real one, how a generic extension should be narrowed — each is a
+    design decision, and a menu entry guessing at it would produce compiling source that means
+    something the author did not choose.
+</p>
+<p>
+    Deliberately absent is <code>AW1309</code> — the receiver having <em>since</em> grown the method.
+    That is a statement about a class file at weave time, possibly against a different JDK from the
+    one open in the editor, and the editor has no way to know which. The build reports it where the
+    class file is actually in hand.
+</p>
+</body>
+</html>

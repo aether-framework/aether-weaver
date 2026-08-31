@@ -1,0 +1,51 @@
+version: 2
+
+# Every entry targets `develop`. The project follows Git Flow: `main` carries releases and takes
+# nothing but a release or a hotfix branch, so a dependency bump opened against it would be a
+# pull request that cannot be merged where it was opened. Without `target-branch` Dependabot
+# picks the default branch, which is exactly that one.
+
+updates:
+  # Keeps the pinned action versions current. Without this, a workflow silently rots until an
+  # action major is deprecated and CI breaks on an unrelated pull request.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencies
+
+  # Plugin and test-dependency updates. Note that a bump here can legitimately fail the build:
+  # the banned-dependency rule rejects any transitive ASM, Javassist, Byte Buddy or cglib, and a
+  # new transitive pull-in of one of those is exactly the kind of change that must be reviewed
+  # rather than merged.
+  - package-ecosystem: maven
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "build"
+    labels:
+      - dependencies
+    open-pull-requests-limit: 5
+
+  # The IntelliJ plugin, which is a Gradle build outside the Maven reactor. Without an entry of its
+  # own it is the one part of this repository whose dependencies never get an update proposed —
+  # and it is also the part most exposed to somebody else's release cadence, because it compiles
+  # against a full IntelliJ Platform distribution.
+  - package-ecosystem: gradle
+    directory: /aether-weaver-ide/aether-weaver-idea
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "build"
+    labels:
+      - dependencies
+      - tooling
+    open-pull-requests-limit: 3
+

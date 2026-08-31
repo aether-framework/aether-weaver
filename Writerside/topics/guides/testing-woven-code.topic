@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="testing-woven-code" title="Testing woven code">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>The testkit ships no JUnit. Declare JUnit 5 yourself, at test scope —
+            <a href="artifacts.topic">Artefacts and modules</a>.</p>
+    </tldr>
+
+    <p>
+        A test method takes a <code>Weaving</code>, weaves a class in memory, and asserts on the
+        bytes that come back. No build step, no agent.
+    </p>
+
+    <code-block lang="java"><![CDATA[
+package fixture;
+
+import de.splatgames.aether.weaver.api.diagnostic.Severity;
+import de.splatgames.aether.weaver.testkit.WeaveResult;
+import de.splatgames.aether.weaver.testkit.WeaverExtension;
+import de.splatgames.aether.weaver.testkit.Weaves;
+import de.splatgames.aether.weaver.testkit.Weaving;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import static de.splatgames.aether.weaver.testkit.WovenAssert.assertThatWoven;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+@ExtendWith(WeaverExtension.class)
+@Weaves(Audit.class)
+class AuditTest {
+
+    @Test
+    void greetRunsTheHandler(final Weaving weaving) {
+        final WeaveResult result = weaving.weave(Target.class);
+
+        assertThatWoven(result)
+                .wasWoven()
+                .reportsNothing(Severity.WARNING)
+                .satisfiesEveryInvariant()
+                .preservesUntargetedMethods("greet")
+                .loadsAndRuns(AuditTest::stillGreets);
+    }
+
+    static void stillGreets(final Class<?> woven) throws Exception {
+        final Object it = woven.getDeclaredConstructor().newInstance();
+        assertEquals("hello", woven.getMethod("greet").invoke(it));
+    }
+}
+]]></code-block>
+
+    <chapter title="Where the bytes come from" id="bytes">
+        <code-block lang="mermaid">
+flowchart TB
+    L["Each class's own loader"] --> O["Original class file"]
+    W["The weave classes you name"] --> P["Weaver planned once per test"]
+    O --> P
+    P --> R["WeaveResult, bytes before and after"]
+    R --> D["Throwaway loader, one per defining call"]
+    D --> H["Reflection reaches the injected handler"]
+    L --> J["Loaded class, never redefined"]
+        </code-block>
+
+        <p>
+            Both class files are read as resources. A target the JVM already holds weaves like
+            one merely on the classpath. <a href="pipeline.topic">The weaving pipeline</a> covers
+            what happens in between.
+        </p>
+    </chapter>
+
+    <procedure title="Add the testkit and run it" id="run">
+        <step>
+            <p>Add both dependencies. The BOM from <a href="install.topic">Install</a> carries
+                the testkit version. Any JUnit 5 version is yours to pick; this is the one the
+                testkit is tested against.</p>
+            <code-block lang="xml"><![CDATA[
+<dependency>
+    <groupId>%group%</groupId>
+    <artifactId>aether-weaver-testkit</artifactId>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>%junit%</version>
+    <scope>test</scope>
+</dependency>
+]]></code-block>
+        </step>
+        <step>
+            <p>Put the target and the weave in your test sources.
+                <a href="first-weave.topic">Your first weave</a> has both classes. Its
+                <code>Audit</code> prints a line you can watch for.</p>
+        </step>
+        <step>
+            <p>Run the tests.</p>
+            <code-block lang="bash">
+mvn test
+            </code-block>
+        </step>
+        <step>
+            <p>The handler runs inside the woven copy. Its output arrives under the test that
+                loaded it.</p>
+            <code-block lang="console">
+[INFO] Running fixture.AuditTest
+woven
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.179 s -- in fixture.AuditTest
+            </code-block>
+        </step>
+    </procedure>
+
+    <chapter title="What each call in the chain checks" id="assertions">
+        <deflist type="full">
+            <def title="wasWoven()">
+                <p>
+                    Nothing applied. Put it first: <code>satisfiesEveryInvariant</code>,
+                    <code>preservesUntargetedMethods</code> and <code>loadsAndRuns</code> read the
+                    woven bytes and pass silently on the original when nothing did.
+                    <code>reportsNothing</code> never reads bytes, so it can run before this one —
+                    the only way to see the <code>AW1020</code> listing below.
+                </p>
+            </def>
+            <def title="reportsNothing(Severity.WARNING)">
+                <p>
+                    Something was reported at that severity or worse. The failure lists each
+                    diagnostic, with a remedy line where one was set.
+                </p>
+            </def>
+            <def title="satisfiesEveryInvariant()">
+                <p>
+                    The bytes fail the verifier or the JVM, the two passes disagree
+                    (<a href="determinism.topic">Determinism</a>), the class version changed, or a
+                    method lost a debug attribute it had.
+                </p>
+            </def>
+            <def title='preservesUntargetedMethods("greet")'>
+                <p>
+                    A method you did not name lost or changed its body. The failure quotes the
+                    first differing instruction, the two lengths if one sequence is a prefix of
+                    the other, or nothing if the method vanished.
+                </p>
+            </def>
+            <def title="loadsAndRuns(callback)">
+                <p>
+                    A throwaway loader refused the bytes, or your callback threw. Reflection there
+                    sees the woven members, not the loaded ones.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="When nothing was woven" id="nothing">
+        <code-block lang="console">
+[fixture.Target] nothing was woven into fixture.Target, so every
+assertion after this one would be about the original class
+        </code-block>
+
+        <deflist type="medium">
+            <def title="The weave never matched">
+                <p>
+                    <code>wasWoven()</code> fails first, with the message above. Drop it, or call
+                    <code>reportsNothing</code> before it, and <code>AW1020</code> lists every
+                    method the target declares — copy a signature from that listing.
+                    <a href="diagnostics-declaration.topic">AW1xxx</a> has the rest, and
+                    <a href="selectors.topic">Selectors</a> the grammar.
+                </p>
+            </def>
+            <def title="Your build wove the class already">
+                <p>
+                    The <code>weave-tests</code> goal already rewrote
+                    <code>target/test-classes</code>, and the loader hands that copy back. The
+                    same plan is skipped in silence; a different one is refused as
+                    <code>AW2201</code>. Bind only <code>weave</code>, never
+                    <code>weave-tests</code>, if your test sources are to stay unwoven
+                    (<a href="build-time-weaving.topic">Build-time weaving</a>).
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Pinning the bytes" id="golden">
+        <code-block lang="java"><![CDATA[
+GoldenFiles.in(Path.of("src/test/resources/golden"))
+        .verify("target-audited", weaving.weave(Target.class));
+]]></code-block>
+
+        <p>
+            The first run writes <code>target-audited.class</code> and a <code>javap</code>
+            rendering beside it. It fails anyway, so that nobody commits a fixture nobody read.
+            Later runs diff against it. Accept a change with a property, which asserts nothing
+            while it is set.
+        </p>
+
+        <code-block lang="bash">
+mvn test -Dgolden.update=true
+        </code-block>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="guides">
+            <a href="build-time-weaving.topic">Build-time weaving</a>
+            <a href="diagnosing-a-weave.topic">Diagnosing a weave</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+            <a href="artifacts.topic">Artefacts and modules</a>
+        </category>
+    </seealso>
+</topic>

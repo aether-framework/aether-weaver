@@ -1,0 +1,55 @@
+code:where([class*="language-"]),
+pre code {
+    font-variant-ligatures: none;
+}
+
+.article dl dt {
+    font-weight: 600;
+}
+
+/* The builder sizes a table to max-content and lets the wrapper scroll, so a table wider than the
+   article is hidden rather than wrapped. Measured: 1689px of table inside an 843px column, of
+   which the reader saw the first two columns of six. Capping the width wraps it instead.
+
+   A cell's longest code token then sets the floor -- aether.weaver.onError=fail will not break --
+   and below about a 1400px window that floor is still wider than the column. Measured across
+   1024 to 1920: with the token allowed to break, no table on the site scrolls at any width. */
+.article .table__content--wide {
+    max-width: 100%;
+}
+
+@media (max-width: 1439px) {
+    .article .table__content td,
+    .article .table__content th,
+    .article .table__content code {
+        overflow-wrap: anywhere;
+    }
+}
+
+/* source: images/splatgames-logo.svg sha256:b5d03ac3853a74ce */
+.footer {
+    justify-content: flex-start;
+    position: relative;
+    padding-right: 72px;
+}
+
+.footer__wrapper {
+    width: auto;
+    padding-right: 0;
+}
+
+.footer__powered {
+    align-self: flex-end;
+    margin-left: 16px;
+}
+
+.footer::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    background: url("data:image/svg+xml;base64,Cgo8c3ZnIHdpZHRoPSI0NjciIGhlaWdodD0iMzEyIiB2aWV3Qm94PSI2NCAzNCA0NjcgMzEyIgogICAgIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJTcGxhdGdhbWVzLmRlIFNvZnR3YXJlIj4KICAgIDxkZWZzPgogICAgICAgIAogICAgICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZ3JhZExlZnQiIHgxPSIwLjIiIHkxPSIwLjIiIHgyPSIwLjgiIHkyPSIwLjgiPgogICAgICAgICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNmFhM2ZiIi8+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzVjOTZmMCIvPgogICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CgogICAgICAgIAogICAgICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZ3JhZFJpZ2h0IiB4MT0iMC4yIiB5MT0iMC4yIiB4Mj0iMC44IiB5Mj0iMC44Ij4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzU4NjVDNyIvPgogICAgICAgICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM0ZTU5YjUiLz4KICAgICAgICA8L2xpbmVhckdyYWRpZW50PgoKICAgICAgICAKICAgICAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImdyYWRQYXRoIiB4MT0iMC4yIiB5MT0iMC4yIiB4Mj0iMC44IiB5Mj0iMC44Ij4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzRhOTRmMiIvPgogICAgICAgICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMzNjg1ZmYiLz4KICAgICAgICA8L2xpbmVhckdyYWRpZW50PgoKICAgICAgICAKICAgICAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImdyYWRNaWRkbGUiIHgxPSIwLjIiIHkxPSIwLjIiIHgyPSIwLjgiIHkyPSIwLjgiPgogICAgICAgICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzE0YWI2Ii8+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzJhNDA5ZiIvPgogICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8L2RlZnM+CgoKICAgIAogICAgPHJlY3QgeD0iLTExMCIgeT0iLTExMCIgd2lkdGg9IjIyMCIgaGVpZ2h0PSIyMjAiIHJ4PSIyNiIgcnk9IjI2IgogICAgICAgICAgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjIwIDE5MCkgcm90YXRlKDQ1KSIKICAgICAgICAgIGZpbGw9InVybCgjZ3JhZExlZnQpIiBvcGFjaXR5PSIwLjk1IiAvPgoKICAgIDxwYXRoIGQ9Ik0gLTg0IC0xMTAgQSAyNiAyNiAwIDAgMCAtMTEwIC04NCBWIDAgSCAwIFYgLTExMCBaIgogICAgICAgICAgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjIwIDE5MCkgcm90YXRlKDQ1KSIKICAgICAgICAgIGZpbGw9InVybCgjZ3JhZFBhdGgpIiBvcGFjaXR5PSIxIi8+CgogICAgCiAgICA8cmVjdCB4PSItMTEwIiB5PSItMTEwIiB3aWR0aD0iMjIwIiBoZWlnaHQ9IjIyMCIgcng9IjI2IiByeT0iMjYiCiAgICAgICAgICB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNzUgMTkwKSByb3RhdGUoNDUpIgogICAgICAgICAgZmlsbD0idXJsKCNncmFkUmlnaHQpIiBvcGFjaXR5PSIwLjk1IiAvPgoKICAgIAogICAgPHJlY3QgeD0iLTExMCIgeT0iLTExMCIgd2lkdGg9IjExMCIgaGVpZ2h0PSIxMTAiCiAgICAgICAgICB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyOTcuNSAyNjguMDgpIHJvdGF0ZSg0NSkiCiAgICAgICAgICBmaWxsPSJ1cmwoI2dyYWRNaWRkbGUpIiBvcGFjaXR5PSIwLjk1IiAvPgo8L3N2Zz4K") no-repeat center / contain;
+}

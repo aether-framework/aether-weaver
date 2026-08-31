@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE labels SYSTEM "https://resources.jetbrains.com/writerside/1.0/labels-list.dtd">
+<labels xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/labels.xsd">
+
+    <secondary-label id="wip" name="Draft" color="tangerine">
+        This page is a stub and is still being written.
+    </secondary-label>
+
+    <secondary-label id="experimental" name="Experimental" color="purple">
+        Part of de.splatgames.aether.weaver.api.experimental. The shape of this feature may change
+        in a minor release.
+    </secondary-label>
+
+    <secondary-label id="internal" name="Internal" color="blue">
+        Engine internals. Nothing here is API and none of it is covered by the compatibility
+        promise.
+    </secondary-label>
+
+    <secondary-label id="0.1.0" name="0.1.0" color="blue">
+        Introduced in Aether Weaver 0.1.0.
+    </secondary-label>
+</labels>

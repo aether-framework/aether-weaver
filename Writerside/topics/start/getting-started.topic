@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="getting-started" title="Get started">
+
+    <section-starting-page>
+        <title>Get started</title>
+        <description>
+            Four pages, in order. At the end a weave of yours has changed a class, and you
+            know which of the four drivers you want to keep using.
+        </description>
+
+        <spotlight>
+            <a href="what-is-aether-weaver.topic" type="start"
+               summary="What a weave is, the four ways to run one, and what the framework is built on">What Aether Weaver is</a>
+            <a href="install.topic" type="install"
+               summary="The artefacts to declare, the JDK the build needs, and where the plugin goes">Install</a>
+        </spotlight>
+
+        <primary>
+            <title>Then</title>
+            <a href="first-weave.topic" type="creative"
+               summary="One weave, one target, one build. The smallest thing that changes a class">Your first weave</a>
+            <a href="choose-a-driver.topic" type="mixed"
+               summary="Build time, load time, inside the application or in a test. Which one fits, and what each costs">Choose a driver</a>
+        </primary>
+    </section-starting-page>
+</topic>

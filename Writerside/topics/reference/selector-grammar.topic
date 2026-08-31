@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="selector-grammar" title="The selector grammar">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>Three spellings share one entry point.</p>
+
+    <code-block lang="text">
+selector       ::= constant | descriptorForm | sourceForm
+
+constant       ::= "null"
+                 | "int:" integer     | "long:" integer
+                 | "float:" decimal   | "double:" decimal
+                 | "string:" '"' characters '"'
+                 | "class:" binaryName | "class:desc:" fieldDescriptor
+
+descriptorForm ::= "desc:" [ internalName "." ] descriptorName
+                   ( methodDescriptor | ":" fieldDescriptor )
+descriptorName ::= non-blank text holding no "." and no "(" and no "*"
+
+sourceForm     ::= [ "src:" ] [ owner "." | "#" ] memberName
+                   [ parameterList ] [ ":" type ]
+parameterList  ::= "(" [ type ( "," type )* ] ")"
+owner          ::= identifier ( "." identifier )*
+memberName     ::= identifier | "*" | "&lt;init&gt;" | "&lt;clinit&gt;"
+type           ::= "*" | typeName [ typeArguments ] ( "[" "]" )*
+typeName       ::= a run of Java identifier characters and dots
+    </code-block>
+
+    <p>
+        An <code>identifier</code> is a Java identifier. <code>Character.isJavaIdentifierStart</code>
+        tests the first character, and <code>Character.isJavaIdentifierPart</code> tests the rest.
+        A <code>typeName</code> is not held to that rule, and whether it names a class is
+        settled when the selector is matched: <a href="selectors.topic">Selectors</a> has that.
+        The annotation elements that take a selector are in
+        <a href="annotations.topic">Annotations</a>.
+    </p>
+
+    <chapter title="Which spelling a text is" id="classification">
+        <p>The order is fixed, and each step commits. No later step re-reads accepted text.</p>
+
+        <list type="decimal">
+            <li><p>The text is trimmed. An empty selector is <code>AW1015</code>; write a
+                member name.</p></li>
+            <li><p>A constant is recognised: the bare word <code>null</code>, or a constant
+                keyword before the first colon.</p></li>
+            <li><p>Text beginning <code>desc:</code> is the descriptor form. Nothing past that
+                prefix is read as source syntax.</p></li>
+            <li><p>Everything else is the source form, with a leading <code>src:</code>
+                stripped.</p></li>
+            <li><p>Only once that parse has failed is the text inspected for descriptor syntax.
+                That is <code>AW1017</code>, and it carries a corrected spelling; paste it
+                back.</p></li>
+        </list>
+
+        <p>Several texts have two readings, and the order settles which one you get.</p>
+
+        <table style="header-row">
+            <tr>
+                <td>Written</td>
+                <td>Reads as</td>
+                <td>For the other reading</td>
+            </tr>
+            <tr>
+                <td><code>state:I</code></td>
+                <td>field <code>state</code> of type <code>I</code></td>
+                <td><code>desc:state:I</code></td>
+            </tr>
+            <tr>
+                <td><code>int:42</code></td>
+                <td>the constant 42</td>
+                <td><code>src:int:42</code></td>
+            </tr>
+            <tr>
+                <td><code>string:x</code></td>
+                <td>field <code>string</code> of type <code>x</code></td>
+                <td><code>string:"x"</code></td>
+            </tr>
+            <tr>
+                <td><code>src:null</code></td>
+                <td>method named <code>null</code></td>
+                <td><code>null</code></td>
+            </tr>
+            <tr>
+                <td><code>Int:42</code></td>
+                <td>field <code>Int</code> of type <code>42</code></td>
+                <td>none: keywords are exact</td>
+            </tr>
+        </table>
+
+        <warning>
+            <p>
+                A field named <code>int</code>, <code>long</code>, <code>float</code>,
+                <code>double</code>, <code>class</code>, <code>src</code> or <code>desc</code>,
+                written with no owner, does not survive being rendered and read back.
+                <code>src:int:42</code> renders as <code>int:42</code>, which reads back as the
+                constant. Give it an owner, or write <code>src:</code> again by hand.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="The source form" id="source">
+        <deflist type="medium">
+            <def title="Owner">
+                <p>
+                    Everything before the last dot of the head:
+                    <code>com.acme.Gateway.send(Payment)</code>. Java identifiers and single
+                    dots only, so <code>com/acme/Gateway.send()</code> is <code>AW1015</code>;
+                    use dots, or write it as a descriptor:
+                    <code>desc:com/acme/Gateway.send()V</code>.
+                </p>
+            </def>
+            <def title="No owner">
+                <p>
+                    Leave it off, or write a leading <code>#</code>. <code>#state</code> and
+                    <code>state</code> are one selector. The <code>#</code> refuses an owner
+                    rather than splitting one off, so <code>#a.b</code> is <code>AW1015</code>;
+                    remove the <code>#</code>.
+                </p>
+            </def>
+            <def title="Name">
+                <p>
+                    A Java identifier, <code>&lt;init&gt;</code>, <code>&lt;clinit&gt;</code>,
+                    or <code>*</code> alone. <code>*</code> counts only as the whole name.
+                    <code>get*</code> and <code>*get</code> are each <code>AW1015</code>: no
+                    selector carries a partial pattern. Absent, empty and wildcard parameter
+                    lists each mean something different, and
+                    <a href="selectors.topic">Selectors</a> has the three.
+                </p>
+            </def>
+            <def title="Types">
+                <p>
+                    <code>*</code>, one of nine primitive keywords (<code>boolean</code>,
+                    <code>byte</code>, <code>char</code>, <code>short</code>, <code>int</code>,
+                    <code>long</code>, <code>float</code>, <code>double</code>,
+                    <code>void</code>), or any other name, kept as written. Brackets follow the
+                    name: <code>String[]</code>, <code>byte[][]</code>.
+                </p>
+            </def>
+            <def title="Type arguments">
+                <p>
+                    Parsed and thrown away, so <code>process(List&lt;String&gt;)</code> and
+                    <code>process(List)</code> are one selector. An unbalanced <code>&lt;</code>
+                    is <code>AW1015</code>; close it. At compile time, the annotation processor
+                    reports the drop as <code>AW1016</code> before it parses the selector. It is
+                    informational: there is nothing to fix.
+                </p>
+            </def>
+            <def title="Return and field type">
+                <p>
+                    After a colon: <code>get():String</code>, <code>state:int</code>. Leaving it
+                    off constrains nothing.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="The descriptor form" id="descriptor">
+        <p>Every type in it is exact. Nothing after the prefix is trimmed.</p>
+
+        <list>
+            <li><p>The owner is an internal name, <code>com/acme/Gateway</code>, or a full
+                descriptor for an array, <code>[Ljava/lang/String;</code>, then a dot. Leaving
+                it off is allowed.</p></li>
+            <li><p>The name is whatever lies between that dot and the descriptor. It is not
+                held to the identifier rule, so <code>lambda$process$0</code> and even
+                <code>a b</code> are nameable.</p></li>
+            <li><p>A method descriptor carries its return type.
+                <code>desc:charge(D)</code> is <code>AW1019</code>; append it, and
+                <code>V</code> for <code>void</code>.</p></li>
+            <li><p>A field descriptor follows the last colon in the text, as in
+                <code>desc:com/acme/Session.state:I</code>. Without one,
+                <code>desc:charge</code> is <code>AW1018</code>; add the colon and the
+                type.</p></li>
+            <li><p>A wildcard anywhere after the prefix is <code>AW1018</code>; write the
+                pattern in the source form instead.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="Constants" id="constants">
+        <p>
+            Seven spellings, each naming a loaded value rather than a member. An
+            <a href="injection-points.topic">injection point</a> takes one as its target.
+        </p>
+
+        <deflist type="medium">
+            <def title="null">
+                <p>The null reference. It is written bare, and it takes no colon.</p>
+            </def>
+            <def title="int:, long:, float:, double:">
+                <p>
+                    <code>int:42</code>, <code>long:7</code>, <code>float:1.5</code>,
+                    <code>double:1.0</code>. The text after the colon goes to
+                    <code>Integer.valueOf</code> and its three siblings exactly as written, so
+                    <code>long:7L</code> and <code>int: 42</code> are <code>AW1015</code>;
+                    delete the suffix, and delete the space.
+                </p>
+            </def>
+            <def title="string:">
+                <p>
+                    A quoted value, <code>string:"retry"</code>, whose escapes are
+                    <code>\"</code> and <code>\\</code>. Unquoted,
+                    <code>string:x</code> is a field named <code>string</code>; quote the
+                    value to get the constant.
+                </p>
+            </def>
+            <def title="class:">
+                <p>
+                    A binary name, <code>class:java.util.List</code>, or a field descriptor,
+                    <code>class:desc:Ljava/util/List;</code>. A primitive keyword names its own
+                    class constant. An array needs the descriptor, so
+                    <code>class:java.util.List[]</code> is <code>AW1015</code>; write
+                    <code>class:desc:[Ljava/util/List;</code>.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Where a space is allowed" id="spaces">
+        <list>
+            <li><p>The whole text is trimmed, and so is the head, so <code>m (int)</code> is
+                <code>m(int)</code>.</p></li>
+            <li><p>A space right after <code>(</code> is not an empty list. It commits to a type,
+                so <code>m( )</code> is <code>AW1015</code>, "expected a type name". Write
+                <code>m()</code> for no parameters.</p></li>
+            <li><p>Elsewhere, only the space character counts. It is skipped before every type:
+                after <code>(</code>, after <code>,</code>, after a field's colon, and after a
+                method's return colon. <code>m( String [ ] )</code>, <code>state : int</code>
+                and <code>m(int): void</code> all parse.</p></li>
+            <li><p>Only the return colon's left side is closed up: <code>m(int) :void</code> is
+                <code>AW1015</code> trailing text; close it up.</p></li>
+            <li><p>A tab between the parentheses is <code>AW1015</code>; make it a
+                space.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="Worked examples" id="examples">
+        <table style="header-row">
+            <tr>
+                <td>Written</td>
+                <td>Parses to</td>
+            </tr>
+            <tr>
+                <td><code>ledger</code></td>
+                <td>a method of any signature</td>
+            </tr>
+            <tr>
+                <td><code>Gateway.send(Payment)</code></td>
+                <td><code>send</code> of <code>Gateway</code>, one parameter</td>
+            </tr>
+            <tr>
+                <td><code>get():String</code></td>
+                <td>no parameters, returning <code>String</code></td>
+            </tr>
+            <tr>
+                <td><code>*(*)</code></td>
+                <td>any name, one parameter</td>
+            </tr>
+            <tr>
+                <td><code>desc:Session.state:I</code></td>
+                <td>that field, of type <code>int</code></td>
+            </tr>
+        </table>
+
+        <p>
+            A bare name reads as a method unless the caller asks for a field, which is what
+            <code>@At(value = Point.FIELD, target = "ledger")</code> does.
+        </p>
+    </chapter>
+
+    <chapter title="What the parser refuses" id="errors">
+        <table style="header-row">
+            <tr>
+                <td>Code</td>
+                <td>Raised for</td>
+                <td>Write instead</td>
+            </tr>
+            <tr>
+                <td><code>AW1015</code></td>
+                <td>any source-grammar violation</td>
+                <td>what the caret points at</td>
+            </tr>
+            <tr>
+                <td><code>AW1017</code></td>
+                <td>descriptor syntax, no prefix</td>
+                <td>the suggestion it carries</td>
+            </tr>
+            <tr>
+                <td><code>AW1018</code></td>
+                <td>a bad descriptor, or a wildcard</td>
+                <td>an exact descriptor</td>
+            </tr>
+            <tr>
+                <td><code>AW1019</code></td>
+                <td>a descriptor, no return type</td>
+                <td>the return type it records</td>
+            </tr>
+        </table>
+
+        <p>
+            Each carries an offset and a message; <code>formatWithCaret()</code> renders a caret
+            under the offset. <code>AW1017</code>'s offset is always <code>0</code>: the failure
+            is about the whole text, not one position. The other three point where parsing
+            stopped. What each code covers across the whole build is in
+            <a href="diagnostics.topic">Diagnostic codes</a>.
+        </p>
+
+        <note>
+            <p>
+                Two texts escape with no code and no offset, as a raw
+                <code>IllegalArgumentException</code>: an array of <code>void</code>, such as
+                <code>m(void[])</code>, and a <code>desc:</code> method whose name is blank,
+                such as <code>desc: ()V</code>. Drop the brackets, and give the method its
+                name.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="selectors.topic">Selectors</a>
+            <a href="injection-points.topic">Injection points</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">Annotations</a>
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+    </seealso>
+</topic>

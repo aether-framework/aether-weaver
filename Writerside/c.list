@@ -1,0 +1,11 @@
+<!DOCTYPE categories SYSTEM "https://resources.jetbrains.com/writerside/1.0/categories.dtd">
+<categories>
+    <category id="start" name="Getting started" order="0"/>
+    <category id="concepts" name="Concepts" order="1"/>
+    <category id="guides" name="Guides" order="2"/>
+    <category id="reference" name="Reference" order="3"/>
+    <category id="plugins" name="Extending the engine" order="4"/>
+    <category id="tooling" name="Tooling" order="5"/>
+    <category id="contributing" name="Contributing" order="6"/>
+    <category id="external" name="External" order="7"/>
+</categories>

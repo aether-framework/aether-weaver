@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="configuration" title="Configuration">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Needs a driver already weaving — <a href="choose-a-driver.topic">Choose a driver</a>. A
+            Maven build takes <a href="maven-goals.topic">plugin parameters</a> instead.</p>
+    </tldr>
+
+    <p>
+        The engine will tell you which layer set every value it runs with. You change no code to
+        ask. Every setting is one <code>aether.weaver.</code> key, and the last layer to name it
+        wins.
+    </p>
+
+    <code-block lang="bash">
+java -Daether.weaver.explain=true \
+     -Daether.weaver.verification=off \
+     -javaagent:lib/agent.jar=verification=report \
+     -cp "app.jar:lib/*" app.Main
+    </code-block>
+
+    <p>The first thing that run prints is the resolved configuration.</p>
+
+    <code-block lang="console"><![CDATA[
+Aether Weaver %version% — plan 48334c30a6d625a7
+Configuration: enabled, verification=report, onError=fail, phase=default, explain
+  enabled            ← default
+  verification       ← agent arguments
+  onError            ← default
+  phase              ← default
+  tags               ← default
+  dump               ← default
+  explain            ← system properties
+  policy.allowSigned ← default
+]]></code-block>
+
+    <chapter title="Which layer decides, under the agent" id="layers">
+        <code-block lang="mermaid">
+flowchart TB
+    A["System properties, read first"] --> C["Stack folded, bottom upwards"]
+    B["Agent arguments, added above"] --> C
+    C --> D{"Did a layer mention it?"}
+    D -->|yes| E["Highest one to speak decides"]
+    D -->|no| F["Built-in default applies"]
+    E --> G["One configuration, now fixed"]
+    F --> G
+    G --> H["Weaves discovered, transformer installed"]
+        </code-block>
+
+        <p>
+            Silence is not a value. A layer that left a key out decides nothing about it, so the
+            layer below still counts. That is why <code>verification=off</code> above lost: the
+            argument spoke about it, and arguments sit higher.
+        </p>
+
+        <list>
+            <li><p>Every key resolves once, before a single class is offered. Setting a system
+                property later in the run reaches nobody.</p></li>
+            <li><p>Two things merge rather than override: the per-weave and per-injection
+                overrides, and a relaxed policy.
+                <a href="configuration-keys.topic#layers">Configuration keys</a> has both rules.
+                </p></li>
+            <li><p>Only the agent stacks layers. The weaving class loader is handed a
+                configuration already resolved.</p></li>
+            <li><p>The full list of keys, their values and their defaults is in
+                <a href="configuration-keys.topic">Configuration keys</a>.</p></li>
+        </list>
+    </chapter>
+
+    <procedure title="Change a setting and prove which layer decided it" id="prove">
+        <step>
+            <p>Write the key on whichever source you control. On the agent flag the prefix is
+                implied and the pairs are comma-separated.
+                <a href="agent-options.topic">Agent options</a> has the string.</p>
+            <code-block lang="bash">
+-javaagent:lib/agent.jar=verification=report
+            </code-block>
+        </step>
+        <step>
+            <p>Add <code>explain=true</code> on any layer and start the application. The console
+                block above is that report. One arrow per attributed setting names the layer that
+                decided it.</p>
+        </step>
+        <step>
+            <p>Find your key among the eight. Nothing else is attributed, so a
+                <code>weave[…]</code> or <code>injector[…]</code> key never appears here, and
+                nor does <code>policy.allowPackage</code>.</p>
+        </step>
+        <step>
+            <p>Read the arrow. <code>← default</code> usually means nothing you wrote was accepted,
+                so go to <a href="#nothing">When the key you set changes nothing</a>.</p>
+        </step>
+        <step>
+            <p>An arrow naming a layer you did not expect is the answer. Something else sets that
+                key. Remove it there rather than writing the key twice.</p>
+        </step>
+        <step>
+            <p>Drop <code>explain=true</code> again. The closing line still carries the values,
+                and <a href="diagnosing-a-weave.topic">Diagnosing a weave</a> reads the rest of
+                the report.</p>
+        </step>
+    </procedure>
+
+    <chapter title="Switch one weave off" id="one-weave">
+        <p>
+            Two settings decide which weaves reach the plan at all. One names a weave class; the
+            other reads the tags a weave declares.
+        </p>
+
+        <code-block lang="bash"><![CDATA[
+java '-Daether.weaver.weave[app.Audit].enabled=false' \
+     -javaagent:lib/agent.jar -cp "app.jar:lib/*" app.Main
+
+java -Daether.weaver.tags.include=audit \
+     -javaagent:lib/agent.jar -cp "app.jar:lib/*" app.Main
+]]></code-block>
+
+        <warning>
+            <p>
+                Quote the first one. The brackets are a filename pattern. zsh refuses the word
+                outright, and bash passes it on only while no file matches it.
+            </p>
+        </warning>
+
+        <p>
+            The demo declares a single weave. Both commands here drop it, and the closing line
+            says so. The second carries the filter that did it.
+        </p>
+
+        <code-block lang="console"><![CDATA[
+Aether Weaver %version% — no weaves to apply (enabled, verification=strict, onError=fail, phase=default).
+Aether Weaver %version% — no weaves to apply (enabled, verification=strict, onError=fail, phase=default, tags=TagFilter[include=[audit], exclude=[]]).
+]]></code-block>
+
+        <p>
+            Two tags need a system property, because a comma separates agent arguments rather than
+            values. <a href="agent-options.topic">Agent options</a> has that split, and
+            <a href="weave-discovery.topic">How a weave is found</a> has what the tags come from.
+        </p>
+    </chapter>
+
+    <chapter title="A file, if your own code loads one" id="file">
+        <p>
+            No driver opens a file for you. A properties layer exists where your launcher builds
+            one. It sits under the system properties.
+        </p>
+
+        <code-block lang="properties" src="weaver.properties"/>
+
+        <code-block lang="java" src="Configured.java" include-lines="21-38"/>
+
+        <code-block lang="console"><![CDATA[
+$ java -cp "classes:lib/*" \
+       -Daether.weaver.onError=fail launcher.Configured
+enabled=true  <- default
+verification=report  <- weaver.properties
+onError=fail  <- system properties
+phase=default  <- default
+tags=TagFilter[all]  <- default
+dump=none  <- default
+explain=false  <- default
+policy.allowSigned=false  <- default
+woven
+hello
+]]></code-block>
+
+        <p>
+            The loop over <code>layers.settings()</code> prints one line per attributed setting,
+            here six of them defaults. Your own code draws those arrows, so they read
+            <code>&lt;-</code> where the agent prints <code>←</code>. The loader that takes
+            <code>config</code> is in <a href="runtime-weaving.topic">Runtime weaving</a>.
+        </p>
+
+        <warning>
+            <p>
+                Keys in a file carry <code>aether.weaver.</code> in full. One written without it
+                is <code>AW2310</code> and is ignored — add the prefix. System properties are the
+                exception. An unprefixed one there belongs to somebody else, and is passed over.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="When the key you set changes nothing" id="nothing">
+        <table style="header-row">
+            <tr>
+                <td>What you see</td>
+                <td>What to do</td>
+                <td>The rule</td>
+            </tr>
+            <tr>
+                <td>The key does nothing</td>
+                <td><code>AW2310</code> offers a nearer key; use it</td>
+                <td><a href="configuration-keys.topic#keys">The keys</a></td>
+            </tr>
+            <tr>
+                <td>The value does nothing</td>
+                <td><code>AW2310</code> offers none; check the value</td>
+                <td><a href="configuration-keys.topic#bad-values">A value it cannot read</a></td>
+            </tr>
+            <tr>
+                <td>In the report, no effect</td>
+                <td>check that this driver reads it</td>
+                <td><a href="configuration-keys.topic#drivers">What each driver acts on</a></td>
+            </tr>
+        </table>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="guides">
+            <a href="diagnosing-a-weave.topic">Diagnosing a weave</a>
+            <a href="policy-and-safety.topic">Policy and safety</a>
+            <a href="runtime-weaving.topic">Runtime weaving</a>
+        </category>
+        <category ref="reference">
+            <a href="configuration-keys.topic">Configuration keys</a>
+            <a href="agent-options.topic">Agent options</a>
+            <a href="diagnostics-environment.topic">AW2xxx</a>
+            <a href="maven-goals.topic">Maven goals</a>
+        </category>
+    </seealso>
+</topic>

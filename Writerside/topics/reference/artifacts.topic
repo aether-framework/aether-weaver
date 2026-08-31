@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="artifacts" title="Artefacts and modules">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Nine artefacts are published under <code>%group%</code>: seven jars, the BOM, and
+        its parent. Every jar names <code>aether-weaver-parent</code> as its own.
+        <code>aether-weaver-bom</code> manages six of the jars' versions; the plugin supplies
+        its own. <code>aether-weaver-tests</code> is never installed.
+    </p>
+
+    <table style="header-row">
+        <tr><td>Artefact</td><td>Holds</td><td>How you get it</td></tr>
+        <tr><td><code>aether-weaver-api</code></td><td>Annotations, SPI and codes</td>
+            <td>With every library below</td></tr>
+        <tr><td><code>aether-weaver-engine</code></td><td>Weaving pipeline and facade</td>
+            <td>With every library below</td></tr>
+        <tr><td><code>aether-weaver-runtime</code></td><td>Class loader, discovery, config</td>
+            <td>Declare it</td></tr>
+        <tr><td><code>aether-weaver-agent</code></td><td>premain and agentmain</td>
+            <td>Declare it; brings runtime</td></tr>
+        <tr><td><code>aether-weaver-processor</code></td><td>Compile-time checks</td>
+            <td>Declare it, provided scope</td></tr>
+        <tr><td><code>aether-weaver-maven-plugin</code></td><td>The build-time goals</td>
+            <td>Declare it as a plugin</td></tr>
+        <tr><td><code>aether-weaver-testkit</code></td><td>JUnit 5 support, assertions</td>
+            <td>Declare it at test scope</td></tr>
+    </table>
+
+    <p>
+        Runtime, agent, the plugin and the testkit are drivers. The processor is not: it only
+        reads a class file, and never writes one. A driver decides when a class is woven and
+        where its bytes come from. <a href="choose-a-driver.topic">Choose a driver</a>
+        compares the four, and <a href="determinism.topic">Determinism</a> is why the choice
+        does not change the output.
+    </p>
+
+    <chapter title="What depends on what" id="graph">
+        <p>
+            Each arrow is a <code>dependency</code> element in that module's pom.
+        </p>
+
+        <code-block lang="mermaid">
+flowchart TB
+    plugin["Maven plugin"] --> engine["Engine"]
+    processor["Processor"] --> engine
+    testkit["Testkit"] --> engine
+    agent["Agent"] --> runtime["Runtime"]
+    runtime --> engine
+    processor --> api["API"]
+    engine --> api
+        </code-block>
+
+        <p>
+            Adding a driver brings the engine and the api with it. The agent also brings the
+            runtime. <code>org.jetbrains:annotations</code> is managed at
+            <code>provided</code>, so it reaches no consumer classpath. The testkit's JUnit is
+            <code>provided</code> too, and you supply your own; <a href="testing-woven-code.topic">Testing
+            woven code</a> covers that.
+        </p>
+    </chapter>
+
+    <chapter title="The bill of materials" id="bom">
+        <deflist type="medium">
+            <def title="aether-weaver-bom">
+                <p>
+                    Import it with <code>&lt;type&gt;pom&lt;/type&gt;</code> and
+                    <code>&lt;scope&gt;import&lt;/scope&gt;</code>. The six library artefacts
+                    then need no version of their own.
+                    <a href="install.topic">Install</a> has the stanza inside a pom that builds.
+                </p>
+            </def>
+            <def title="aether-weaver-maven-plugin">
+                <p>
+                    <code>dependencyManagement</code> never versions a
+                    <code>&lt;plugin&gt;</code> element, the BOM's included; only
+                    <code>pluginManagement</code> does. Give it its own
+                    <code>&lt;version&gt;</code>.
+                    <a href="maven-goals.topic">Maven goals</a> has the goals it binds and the
+                    parameters they take.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Rules the build enforces" id="rules">
+        <p>
+            Each of these fails <code>mvn verify</code> rather than a review.
+            <a href="building-and-testing.topic">Building and testing</a> is how you run them.
+        </p>
+
+        <deflist type="full">
+            <def title="The dependency arrow points one way">
+                <p>
+                    <code>ProjectStructureTest</code> reads the <code>import</code> lines of
+                    every published module. The api may name no other module. The engine may
+                    name no driver. No driver may name another, and the agent importing the
+                    runtime is the one exception the test allows.
+                </p>
+            </def>
+            <def title="Engine internals stay in the engine">
+                <p>
+                    A package path holding <code>.internal.</code> carries no compatibility
+                    promise. <code>ProjectStructureTest</code> scans imports for it: no
+                    published module but the engine may import one, and no <code>public</code>
+                    or <code>protected</code> line in the engine may name one by its simple
+                    name. A fully qualified reference, or a driver's own <code>internal</code>
+                    package, escapes that scan.
+                </p>
+            </def>
+            <def title="One bytecode library">
+                <p>
+                    Rewriting goes through <code>java.lang.classfile</code>. The enforcer bans
+                    ASM, Javassist, Byte Buddy and cglib in every module, tests included.
+                    AssertJ's Byte Buddy is excluded from the dependency rather than exempted
+                    from the rule.
+                </p>
+            </def>
+            <def title="No module descriptor">
+                <p>
+                    Checkstyle rejects a file named <code>module-info.java</code>, and the test
+                    walks the tree for one. Every published jar carries
+                    <code>Automatic-Module-Name</code> instead: <code>%group%</code> plus the
+                    artefact's last segment, except the Maven plugin, which ends
+                    <code>.maven</code>.
+                </p>
+            </def>
+            <def title="The IntelliJ plugin is outside the reactor">
+                <p>
+                    <code>aether-weaver-ide</code> holds a Gradle build and no
+                    <code>pom.xml</code> at its root, and the reactor never lists it. Building
+                    it downloads an IntelliJ Platform distribution, which
+                    <code>mvn install</code> must not need.
+                    <a href="intellij-plugin.topic">The IntelliJ IDEA plugin</a> is what it produces, and
+                    <a href="repository-layout.topic">Repository layout</a> is where the rest of the tree sits.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="install.topic">Install</a>
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="reference">
+            <a href="maven-goals.topic">Maven goals</a>
+            <a href="agent-options.topic">Agent options</a>
+        </category>
+        <category ref="external">
+            <a href="%repo%">Aether Weaver on GitHub</a>
+        </category>
+    </seealso>
+</topic>

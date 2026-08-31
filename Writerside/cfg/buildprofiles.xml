@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE buildprofiles SYSTEM "https://resources.jetbrains.com/writerside/1.0/build-profiles.dtd">
+<buildprofiles xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/build-profiles.xsd"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <variables>
+        <web-root>https://software.splatgames.de/docs</web-root>
+
+        <primary-color>#7A5CFF</primary-color>
+        <link-color>#5B3FD9</link-color>
+        <link-color-dark>#A98CFF</link-color-dark>
+
+        <custom-css>custom.css</custom-css>
+        <header-logo>aether-weaver-mark.svg</header-logo>
+        <custom-favicons>favicon-16.png,favicon-32.png,favicon-96.png,favicon-300.png,favicon-500.png</custom-favicons>
+
+        <code-soft-wrap>true</code-soft-wrap>
+        <resizable-sidebar>true</resizable-sidebar>
+
+        <offline-docs>true</offline-docs>
+        <include-in-head>head.html</include-in-head>
+
+        <external-links-in-new-tab>true</external-links-in-new-tab>
+
+        <enable-contribution>true</enable-contribution>
+        <contribute-url>https://github.com/aether-framework/aether-weaver/edit/develop/Writerside</contribute-url>
+
+        <generate-canonicals>true</generate-canonicals>
+
+        <showDownloadButton>true</showDownloadButton>
+        <download-title>Get the artefacts</download-title>
+        <download-page>https://central.sonatype.com/search?q=g:de.splatgames.aether.weaver</download-page>
+
+        <versions-switcher>https://software.splatgames.de/docs/aether-weaver/versions.json</versions-switcher>
+
+        <custom-banner label="Release" bg-theme="purple" date="2026-12-31"
+                       link="https://github.com/aether-framework/aether-weaver/releases">
+            Aether Weaver is on Maven Central
+        </custom-banner>
+    </variables>
+
+    <shortcuts>
+        <src>keymap.xml</src>
+        <layout name="Windows" display-name="Windows"/>
+        <layout name="macOS" display-name="macOS"/>
+        <layout name="Linux" display-name="Linux"/>
+    </shortcuts>
+
+    <footer>
+        <social type="github" href="https://github.com/aether-framework/aether-weaver">Aether Weaver on GitHub</social>
+        <social type="bugtracker" href="https://github.com/aether-framework/aether-weaver/issues">Issue tracker</social>
+        <link href="https://central.sonatype.com/search?q=g:de.splatgames.aether.weaver">Maven Central</link>
+        <link href="https://github.com/aether-framework/aether-weaver/blob/main/LICENSE">MIT License</link>
+        <link href="https://splatgames.de">Splatgames.de Software</link>
+        <copyright>2026 Splatgames.de Software</copyright>
+    </footer>
+
+    <build-profile instance="aw">
+        <sitemap priority="0.8" change-frequency="weekly"/>
+        <llms-txt/>
+        <variables>
+            <noindex-content>false</noindex-content>
+            <product-web-url>https://software.splatgames.de/docs/aether-weaver/</product-web-url>
+            <og-image>https://software.splatgames.de/docs/aether-weaver/social-preview.png</og-image>
+        </variables>
+    </build-profile>
+</buildprofiles>

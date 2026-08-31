@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cross-module integration, end-to-end and architecture tests. Never published.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.splatgames.aether.weaver</groupId>
+        <artifactId>aether-weaver-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>aether-weaver-tests</artifactId>
+    <packaging>jar</packaging>
+
+    <name>aether-weaver-tests</name>
+    <description>Cross-module integration, end-to-end and architecture tests. Not published.</description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-runtime</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-agent</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-processor</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-testkit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          The build-time driver, for the cross-driver equivalence test. It is the only place the
+          Maven goal is exercised outside its own module, and the whole point of that test is to
+          run the real goal rather than something shaped like it.
+        -->
+        <dependency>
+            <groupId>de.splatgames.aether.weaver</groupId>
+            <artifactId>aether-weaver-maven-plugin</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          The plugin declares these `provided`, so they are not transitive. Instantiating a mojo
+          needs them on the test classpath; nothing here uses Maven for anything else.
+        -->
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-plugin-api</artifactId>
+            <version>${maven.api.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>${maven.api.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Annotations that appear on types this module reads but never uses. They are `provided`
+          everywhere else, so they are absent here — and with annotation processing switched on for
+          JMH, javac reports every one of them. Adding them silences the cause rather than the
+          symptom: 110 warnings in a build that is otherwise clean is 110 warnings nobody reads.
+        -->
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugin-tools</groupId>
+            <artifactId>maven-plugin-annotations</artifactId>
+            <version>${maven-plugin-tools.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!--
+                      maven-compiler-plugin 3.14 does not run annotation processors unless asked:
+                      implicit discovery was deprecated, and the default is now to skip processing
+                      entirely. Without this the JMH processor is silently not run and the suite
+                      fails at run time with "Unable to find the resource: /META-INF/BenchmarkList".
+                    -->
+                    <proc>full</proc>
+                    <!--
+                      JMH generates a runner class per @Benchmark method, so its processor has to
+                      run over the test sources. Naming the path explicitly rather than letting
+                      javac discover processors on the classpath: the weaver's own processor is a
+                      dependency of this module, and it has nothing to say about benchmarks.
+                    -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.openjdk.jmh</groupId>
+                            <artifactId>jmh-generator-annprocess</artifactId>
+                            <version>${jmh.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

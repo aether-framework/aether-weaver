@@ -1,0 +1,31 @@
+<html>
+<body>
+Rewrites a selector's parameter types from simple names to fully qualified ones.
+<p>
+    A simple name in a selector is matched against the target's parameter types by simple name, so it
+    binds correctly today and keeps binding until two types in play share one. The qualified form
+    says which was meant, permanently, and costs nothing but width.
+</p>
+<p>
+    The qualified text is not produced by expanding the file's imports — that would be a second
+    implementation of name resolution, disagreeing with the compiler at exactly the interesting edges
+    and doing so invisibly, because the result still parses. Instead the selector is resolved to the
+    one method it names and that method's own erased parameter types are written. Where the selector
+    names no method, or more than one, the intention is not offered.
+</p>
+<p>
+    The rewritten selector is resolved again before being offered and must land on the same method. A
+    qualification that moved the selector to a different overload would be one working selector
+    quietly replaced by another — accepted by somebody who asked for it and will not re-read it.
+</p>
+<p>
+    A selector that names no parameters at all is left alone. Turning <code>"charge"</code> into
+    <code>"charge(java.math.BigDecimal)"</code> narrows a selector that deliberately named every
+    overload, and narrowing is the author's decision, not a formatting change.
+</p>
+<!-- tooltip end -->
+<pre><code>charge(BigDecimal)</code></pre>
+becomes
+<pre><code>charge(java.math.BigDecimal)</code></pre>
+</body>
+</html>

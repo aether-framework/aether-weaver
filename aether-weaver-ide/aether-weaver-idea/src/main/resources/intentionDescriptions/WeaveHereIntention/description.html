@@ -1,0 +1,45 @@
+<html>
+<body>
+Works out which instruction the caret is on, and generates a weave handler for exactly it.
+<p>
+    Every other way into this framework starts in the weave and works backwards: open the weave, pick
+    a target method from a list, pick an operation from another, and hope the one chosen is the call
+    you were looking at. This runs the other way round — stand on the call and the instruction, the
+    point, the ordinal, the slice and the weave to put it in are all worked out from where the caret
+    is.
+</p>
+<p>
+    The caret is read as an expression, not as a line. A line can hold three calls, and the one the
+    caret sits inside is not the one the compiler emits first — so the expression under the caret is
+    resolved and matched against the compiled method, innermost first. Each offer says why it is that
+    instruction, because an ordinal is the one thing in the generated annotation that fails silently
+    when it is wrong.
+</p>
+<p>
+    Where the caret stands inside a loop, a <code>try</code> or an <code>if</code>, a
+    <code>@Slice</code> is derived from that block and offered beside the plain form: an ordinal
+    counted inside a region the author can see survives an edit outside it, which a bare ordinal does
+    not. The slice is put back through the engine's own resolver before it is offered.
+</p>
+<p>
+    A dialog shows the offers with a live preview of the handler, and keeps the decisions a caret
+    cannot make: which weave, before or after a call, the callback, the captured locals, the
+    visibility and the name.
+</p>
+<p>
+    Available inside a method body of a class that is not itself a weave. A caret inside a lambda is
+    refused: its body compiles into a method of its own, so the instructions there are not the
+    enclosing method's. Without a class file — the target has never been built, or has been edited
+    since — only the three points that name a position are offered.
+</p>
+<!-- tooltip end -->
+<pre><code>for (Entry entry : entries) {
+    ledger.flush();
+}</code></pre>
+generates, in a weave on that class
+<pre><code>@Inject(method = "charge(BigDecimal)",
+        at = @At(value = Point.INVOKE, target = "Ledger.flush()", ordinal = 0),
+        slice = @Slice(from = @At(value = Point.INVOKE, target = "Ledger.begin()", ordinal = 0),
+                       to = @At(value = Point.INVOKE, target = "Ledger.commit()", ordinal = 0)))</code></pre>
+</body>
+</html>

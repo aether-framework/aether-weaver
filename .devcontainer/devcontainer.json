@@ -1,0 +1,58 @@
+{
+  "name": "Aether Weaver - Hardened Sandbox",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "containerUser": "vscode",
+  "customizations": {
+    "jetbrains": {
+      "backend": "IntelliJ",
+      "plugins": [
+        "com.anthropic.code.plugin"
+      ]
+    }
+  },
+  "forwardPorts": [
+    8080,
+    5173
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "Claude Code OAuth Callback",
+      "onAutoForward": "ignore"
+    },
+    "5173": {
+      "label": "Frontend Dev Server (Vite HMR)",
+      "onAutoForward": "notify"
+    }
+  },
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--cap-add=CHOWN",
+    "--cap-add=SETGID",
+    "--cap-add=SETUID",
+    "--cap-add=KILL",
+    "--cap-add=NET_ADMIN",
+    "--cap-add=FOWNER",
+    "--security-opt=no-new-privileges",
+    "--memory=6g",
+    "--cpus=4",
+    "--pids-limit=1024",
+    "--add-host=host.docker.internal:host-gateway",
+    "-p",
+    "5173:5173",
+    "-p",
+    "8080:8080"
+  ],
+  "mounts": [
+    "source=splatgames-claude-${devcontainerId},target=/home/vscode/.claude,type=volume"
+  ],
+  "postCreateCommand": "bash ${containerWorkspaceFolder}/.devcontainer/post-create.sh",
+  "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/refresh-firewall.sh && echo 'Aether Weaver sandbox active. Egress firewall refreshed against current DNS. Run `claude` to start; plugins and MCP are pre-provisioned.'",
+  "containerEnv": {
+    "CLAUDE_CODE_SANDBOX": "true",
+    "NO_PROXY": "localhost,127.0.0.1",
+    "no_proxy": "localhost,127.0.0.1",
+    "WORKSPACE_DIR": "${containerWorkspaceFolder}"
+  },
+}

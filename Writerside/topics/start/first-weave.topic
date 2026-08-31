@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="first-weave" title="Your first weave">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>Needs the build from <a href="install.topic">Install</a>.</p>
+    </tldr>
+
+    <p>
+        Three small classes, and <code>Target.greet()</code> prints a line its own source never
+        mentions.
+    </p>
+
+    <procedure title="Weave one method" id="weave">
+        <step>
+            <p>Write the class you want to change. It takes no annotation and no dependency.</p>
+            <code-block lang="java" src="Target.java"/>
+        </step>
+        <step>
+            <p>Write the weave beside it. <code>@Weave</code> names the target, and
+                <code>@Inject</code> names the method and the point inside it.</p>
+            <code-block lang="java" src="Audit.java"/>
+        </step>
+        <step>
+            <p>Give yourself something to run.</p>
+            <code-block lang="java" src="Main.java"/>
+        </step>
+        <step>
+            <p>Build, then run off the rewritten output directory.</p>
+            <code-block lang="bash">
+mvn verify
+java -cp target/classes fixture.Main
+            </code-block>
+            <p>The handler runs before <code>greet</code> does anything else.</p>
+            <code-block lang="console">
+woven
+            </code-block>
+        </step>
+    </procedure>
+
+    <chapter title="What made it apply" id="apply">
+        <deflist type="medium">
+            <def title="@Weave(Target.class)">
+                <p>
+                    A class literal is checked by the compiler and follows a rename. For a class
+                    that is off the compile classpath, write its binary name in
+                    <code>targets</code> instead — one of the two, never both.
+                    <a href="annotations.topic">The annotation reference</a> has every element.
+                </p>
+            </def>
+            <def title='method = "greet()"'>
+                <p>
+                    Named <code>greet</code>, taking no parameters, any return type. Bare
+                    <code>greet</code> would constrain no signature at all.
+                    <a href="selectors.topic">Selectors</a> has the grammar.
+                </p>
+            </def>
+            <def title="at = @At(Point.HEAD)">
+                <p>
+                    <code>HEAD</code> resolves to one position, the method's first instruction. In
+                    a constructor it sits after whichever of <code>super(...)</code> or
+                    <code>this(...)</code> that constructor writes.
+                    <a href="injection-points.topic">Injection points</a> covers the other eight points.
+                </p>
+            </def>
+            <def title="void onGreet()">
+                <p>
+                    A handler returns <code>void</code>. Apart from an optional
+                    <code>Callback</code> or <code>ReturnableCallback</code>, its parameters have
+                    to be a prefix of the target method's own arguments, so taking none always
+                    fits.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What Target looks like afterwards" id="after">
+        <code-block lang="mermaid">
+flowchart TB
+    T["Target.greet, unchanged source"] --> G["The weave goal, at build time"]
+    A["Audit, your weave class"] --> G
+    G --> M["onGreet copied onto Target"]
+    G --> C["greet calls it first"]
+    C --> O["Console prints woven"]
+        </code-block>
+
+        <p>
+            <code>Audit</code> is an instance weave, as opposed to static. Its class file still
+            ships in the artefact.
+        </p>
+    </chapter>
+
+    <chapter title="What can go wrong" id="fails">
+        <deflist type="medium">
+            <def title="The selector matched no method">
+                <p>
+                    <code>AW1020</code> (<a href="diagnostics.topic">Diagnostics</a>). The message lists
+                    every method <code>Target</code> declares, so copy one of them. A method the
+                    class only inherits has to be woven where it is declared.
+                </p>
+            </def>
+            <def title="The selector matched several">
+                <p>
+                    <code>AW1021</code> (<a href="diagnostics.topic">Diagnostics</a>), with the overloads
+                    it found. Add the parameter types, as in
+                    <code>greet(java.lang.String)</code>.
+                </p>
+            </def>
+            <def title="The handler returns a value">
+                <p>
+                    <code>AW1041</code> (<a href="diagnostics.topic">Diagnostics</a>). Declare it
+                    <code>void</code>. To change what the target returns, take a
+                    <code>ReturnableCallback</code> and cancel with a value —
+                    <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>.
+                </p>
+            </def>
+            <def title="The weave class is not final">
+                <p>
+                    <code>AW1008</code> (<a href="diagnostics.topic">Diagnostics</a>), a warning. Add
+                    <code>final</code>. An <code>abstract</code> weave is exempt.
+                </p>
+            </def>
+            <def title="You changed the weave and rebuilt">
+                <p>
+                    <code>AW2201</code> (<a href="diagnostics.topic">Diagnostics</a>), when the old
+                    classes are still there. Run <code>mvn clean verify</code>. Building twice
+                    over an unchanged weave is safe, and rewrites nothing.
+                </p>
+            </def>
+            <def title="Nothing was woven and nothing failed">
+                <p>
+                    The weave is fine and the compiler never ran the processor that records it.
+                    <a href="install.topic">Install</a> says what switches it on.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="what-is-aether-weaver.topic">What Aether Weaver is</a>
+            <a href="install.topic">Install</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">The annotation reference</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

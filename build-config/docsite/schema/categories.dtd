@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT categories (category)*>
+<!ELEMENT category EMPTY>
+<!ATTLIST category id CDATA #REQUIRED name CDATA #REQUIRED order CDATA #REQUIRED tags CDATA #IMPLIED>

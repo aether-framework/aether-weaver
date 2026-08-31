@@ -1,0 +1,29 @@
+<html>
+<body>
+Generates a weave handler where the local variable under the caret is live, capturing it.
+<p>
+    A local exists between two positions in the bytecode, not between two statements, and a
+    <code>@Local</code> naming it outside that range fails the build with <code>AW1050</code>. So
+    wanting a variable has meant working out where it is alive before deciding where to inject. Here
+    the variable chooses the position instead.
+</p>
+<p>
+    Every operation in the method is put to the target's own local variable table, and only the
+    positions where this name resolves are offered, nearest to the caret first. The difference is not
+    one that can be read off the source: in
+    <code>final String tag = text.toString();</code> the variable is not yet live at that call, and a
+    handler generated there would read perfectly and not work.
+</p>
+<p>
+    A parameter is not offered — a handler's parameter list is already a prefix of its target's, so
+    the value is there and capturing it would be the same thing twice. A target compiled without a
+    local variable table is reported rather than generated for: that is <code>AW1052</code>, and the
+    remedy is <code>-g</code>.
+</p>
+<!-- tooltip end -->
+<pre><code>final Receipt receipt = new Receipt(amount);
+if (!receipt.valid()) { ... }</code></pre>
+generates a handler at the call the variable is live at, with
+<pre><code>@Local Receipt receipt</code></pre>
+</body>
+</html>

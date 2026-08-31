@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="plugins" title="Extending the engine">
+
+    <section-starting-page>
+        <title>Extending the engine</title>
+        <description>
+            A <code>WeaverPlugin</code> adds behaviour to the weaver itself: new places an
+            injection may name, new kinds of injection, metadata on every class it stamps. It is
+            neither the Maven plugin nor the IDE plugin. It compiles against
+            <code>aether-weaver-api</code> and names no engine type.
+        </description>
+
+        <spotlight>
+            <a href="what-a-plugin-can-do.topic" type="idea"
+               summary="What the six registrations accept, and why only a weaver your own program builds ever loads one">What a plugin can do</a>
+            <a href="write-a-plugin.topic" type="creative"
+               summary="One class, one identity, one contribute call. The smallest plugin the engine will accept">Write a plugin</a>
+        </spotlight>
+
+        <primary>
+            <title>Loading a plugin, and what it contributes</title>
+            <a href="plugin-lifecycle.topic" type="mixed"
+               summary="The four gates a candidate passes before it contributes, and the events it hears afterwards">The plugin lifecycle</a>
+            <a href="namespaces.topic" type="search"
+               summary="Why everything a plugin adds carries its namespace, and what happens when two claim the same name">Namespaces and identifiers</a>
+            <a href="reporting.topic" type="support"
+               summary="The convention every interface here is built around, and what containment does and does not cover">Report rather than throw</a>
+            <a href="loading-plugins.topic" type="development"
+               summary="Discovery, an instance installed directly, the allowlist, and which drivers ask for either">Loading and isolating plugins</a>
+            <a href="contribute-an-injection-point.topic" type="account"
+               summary="Register an identifier an @At may name, and decide where in a method it resolves to">Contribute an injection point</a>
+            <a href="contribute-an-injector.topic" type="tools"
+               summary="Register a kind an injection may carry, and write the instructions behind it">Contribute an injector</a>
+            <a href="spi.topic" type="library"
+               summary="Every interface in api.spi, what it is handed, and how it is meant to fail">The plugin SPI</a>
+        </primary>
+
+        <secondary>
+            <title>Next to the section</title>
+            <a href="artifacts.topic" type="open-source"
+               summary="Which module a plugin compiles against, and what it needs on the classpath at run time">Artefacts and modules</a>
+            <a href="%repo%" type="library"
+               summary="The api.spi package itself, and the tests every claim on these pages is anchored to">Aether Weaver on GitHub</a>
+        </secondary>
+    </section-starting-page>
+</topic>

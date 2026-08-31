@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="maven-goals" title="Maven goals">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>The pom block that adds <code>aether-weaver-maven-plugin</code> is on
+            <a href="install.topic">Install</a>.</p>
+    </tldr>
+
+    <p>
+        <code>aether-weaver-maven-plugin</code> declares four goals. Three bind to a phase of
+        their own; <code>audit</code> binds to none and is invoked directly.
+    </p>
+
+    <table style="header-row">
+        <tr><td>Goal</td><td>Binds to</td><td>What one run does</td></tr>
+        <tr><td><code>stubs</code></td><td><code>generate-sources</code></td>
+            <td>Writes extension stubs</td></tr>
+        <tr><td><code>weave</code></td><td><code>process-classes</code></td>
+            <td>Rewrites your own classes</td></tr>
+        <tr><td><code>weave-tests</code></td><td><code>process-test-classes</code></td>
+            <td>Rewrites your test classes</td></tr>
+        <tr><td><code>audit</code></td><td>nothing; you invoke it</td>
+            <td>Prints what a jar records</td></tr>
+    </table>
+
+    <p>
+        A default of <code>true</code> or <code>false</code> marks a <code>boolean</code>
+        parameter. The rest are a <code>File</code>. A path default sits under the build
+        directory. Every goal but <code>audit</code> also takes a read-only
+        <code>project</code>. It is always the current one.
+    </p>
+
+    <chapter title="What the two weaving goals share" id="shared">
+        <p>
+            <code>weave</code> and <code>weave-tests</code> extend one base class, so they take
+            the same four parameters. <code>stubs</code> shares <code>skip</code> with them;
+            <code>audit</code> takes none of them.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Parameter</td><td>Property</td><td>Default</td></tr>
+            <tr><td><code>skip</code></td><td><code>aether.weaver.skip</code></td>
+                <td><code>false</code></td></tr>
+            <tr><td><code>failOnError</code></td><td><code>aether.weaver.failOnError</code></td>
+                <td><code>true</code></td></tr>
+            <tr><td><code>explain</code></td><td><code>aether.weaver.explain</code></td>
+                <td><code>false</code></td></tr>
+            <tr><td><code>dumpDirectory</code></td><td><code>aether.weaver.dump</code></td>
+                <td>none</td></tr>
+        </table>
+
+        <list>
+            <li><p>Both goals apply the weaves that <code>META-INF/aether/weaves.json</code> names
+                in the directory they rewrite, and read extension declarations off the classpath
+                — <a href="manifest-format.topic">The weave manifest</a>.</p></li>
+            <li><p><code>stubs</code> reads <code>aether.weaver.skip</code> as well, so setting it
+                on the command line stops that goal too. <code>audit</code> never reads
+                it.</p></li>
+            <li><p><code>failOnError</code> decides only whether a collected diagnostic of error
+                severity fails the build; clear it and the error is still logged, and the woven
+                classes are still written. An unresolved classpath or a class file that cannot be
+                read or written fails the goal regardless of it.</p></li>
+            <li><p><code>explain</code> prints the report at info level after the weaving, so it
+                names what each injection point matched —
+                <a href="diagnosing-a-weave.topic">Diagnosing a weave</a>.</p></li>
+            <li><p><code>dumpDirectory</code> takes the original bytes, the woven bytes and a diff
+                for each class of the directory it rewrites that the run changed. A dump it cannot
+                write is <code>AW4090</code>: check that the directory is writable.</p></li>
+        </list>
+
+        <note>
+            <p>
+                No goal declares a <code>verification</code> parameter, so the engine's strict
+                default stands for all four —
+                <a href="diagnostics-verification.topic">AW4xxx</a> has what a refusal looks like.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="weave" id="weave">
+        <p>
+            Rewrites your output directory in place. It resolves the compile and runtime
+            scopes.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Parameter</td><td>Property</td><td>Default</td></tr>
+            <tr><td><code>weaveDependencies</code></td>
+                <td><code>aether.weaver.weaveDependencies</code></td>
+                <td><code>false</code></td></tr>
+            <tr><td><code>allowSigned</code></td><td><code>aether.weaver.allowSigned</code></td>
+                <td><code>false</code></td></tr>
+            <tr><td><code>dependencyOutputDirectory</code></td><td>none</td>
+                <td><code>aether-weaver/dependencies</code></td></tr>
+            <tr><td><code>classesDirectory</code></td><td>read-only</td>
+                <td>the output directory</td></tr>
+        </table>
+
+        <list>
+            <li><p>Left off, <code>weaveDependencies</code> keeps every dependency as its
+                publisher shipped it. A weave whose target lives in one then stays planned and
+                unwoven, and the run warns how many targets it never found.</p></li>
+            <li><p>Switched on, every resolved jar goes through the same weaver in path order,
+                and only the classes the plan changed are written out. The jars themselves are
+                never modified — <a href="build-time-weaving.topic#dependencies">Weaving dependencies</a>.</p></li>
+            <li><p>Nothing puts that output directory on a classpath. <code>AW2501</code> lists
+                what was written: put the directory ahead of the jars wherever your build
+                assembles one.</p></li>
+            <li><p><code>allowSigned</code> has no effect unless <code>weaveDependencies</code> is
+                also set. With both set, a signed dependency jar that would otherwise be refused as
+                <code>AW3002</code> is woven and reported as <code>AW3020</code> instead. Both codes
+                are specific to a dependency jar; your own module's classes are never signed —
+                <a href="diagnostics-policy.topic">AW3xxx</a> has the codes.</p></li>
+            <li><p><code>dependencyOutputDirectory</code> names no property, so you set it in the
+                plugin's own <code>configuration</code> element rather than on the command
+                line.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="weave-tests" id="weave-tests">
+        <p>
+            Rewrites your test output directory. It resolves the test scope. It writes nothing
+            else: dependency weaving belongs to <code>weave</code> alone.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Parameter</td><td>Property</td><td>Default</td></tr>
+            <tr><td><code>testClassesDirectory</code></td><td>read-only</td>
+                <td>the test output directory</td></tr>
+        </table>
+
+        <p>
+            Its other four parameters are the shared ones above. The weaves it applies come
+            from that directory alone — <a href="testing-woven-code.topic">Testing woven code</a>.
+        </p>
+
+        <warning>
+            <p>
+                Your own main classes reach the test classpath as a separate entry, and this goal
+                counts only the test output and your declared dependencies as direct. Weaves you
+                declared in your main sources are therefore reported as <code>AW3010</code> on
+                every test build, and none of its offered remedies fits a module reporting
+                against itself — <a href="diagnostics-policy.topic">AW3xxx</a> has why there is
+                nothing to do about it.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="stubs" id="stubs">
+        <p>
+            Writes a copy of every extended receiver that is found and has something left to add.
+            Each carries the members contributed to it, so your calls compile.
+            <a href="extension-methods.topic">Extension methods</a> has the model.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Parameter</td><td>Property</td><td>Default</td></tr>
+            <tr><td><code>skip</code></td><td><code>aether.weaver.skip</code></td>
+                <td><code>false</code></td></tr>
+            <tr><td><code>outputDirectory</code></td><td>none</td>
+                <td><code>aether-weaver/stubs</code></td></tr>
+        </table>
+
+        <list>
+            <li><p>A receiver the running JVM's runtime image holds goes under
+                <code>patch/</code>, one directory per module; one it does not hold goes to
+                <code>classpath/</code>.</p></li>
+            <li><p>The goal prints the <code>--patch-module</code> arguments at info level and
+                configures nothing. Pass them to the compiler yourself, or the build compiles
+                against the unpatched receivers.</p></li>
+            <li><p>No diagnostic fails this goal. An error is logged at error level and every
+                other severity at warning level, with the code and the message alone; the details
+                and the remedy are dropped.</p></li>
+            <li><p>A declaration refused as <code>AW1308</code> or <code>AW1309</code> is logged
+                and then not stubbed. Check both of them in
+                <a href="diagnostics-declaration.topic">AW1xxx</a>, which carries the
+                remedies.</p></li>
+            <li><p>Three things do fail it: an unresolved compile classpath, a stub it cannot
+                write, and a missing receiver. A receiver is missing when a required extension
+                names it and it is on neither the compile classpath nor the runtime image. Add
+                the dependency that provides it, or declare that extension
+                <code>@Extension(require = Require.OPTIONAL)</code>.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="audit" id="audit">
+        <p>
+            Reads a jar, a war or a directory of classes. It prints what each woven class
+            records about itself. It names no phase and declares
+            <code>requiresProject = false</code>. You invoke it directly, inside a project or
+            outside one.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Parameter</td><td>Property</td><td>Default</td></tr>
+            <tr><td><code>artifact</code></td><td><code>aether.weaver.artifact</code></td>
+                <td>the output directory</td></tr>
+        </table>
+
+        <code-block lang="console"><![CDATA[
+$ mvn %group%:aether-weaver-maven-plugin:%version%:audit \
+      -Daether.weaver.artifact=target/app.jar
+[INFO] fixture/Target.class
+[INFO]   ← fixture.Greeting                INJECT   onGreet()V  →  greet()
+[INFO]
+[INFO] 1 class, 1 modification, fingerprint <64 hex characters>, no policy overrides
+]]></code-block>
+
+        <list>
+            <li><p>One line per woven class, one indented line per modification it records, then a
+                summary. A class carrying no record is left out, and an artefact carrying none is
+                a single line.</p></li>
+            <li><p>Each fingerprint is a plan's whole digest, and the summary joins the
+                distinct ones with <code>+</code> —
+                <a href="determinism.topic">Determinism</a> says what moves one.</p></li>
+            <li><p>The summary closes with <code>no policy overrides</code>, or with
+                <code>A POLICY OVERRIDE WAS USED</code> where an audited class records
+                one.</p></li>
+            <li><p>It writes nothing, re-weaves nothing and raises no diagnostic. Name the
+                artefact yourself where the current project has no output to read, or the goal
+                fails saying so.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="Binding all three build goals" id="binding">
+        <p>
+            One execution carries all three. Each goal takes its own phase. A
+            <code>configuration</code> element beside the executions applies to each.
+        </p>
+
+        <code-block lang="xml"><![CDATA[
+<plugin>
+    <groupId>%group%</groupId>
+    <artifactId>aether-weaver-maven-plugin</artifactId>
+    <version>%version%</version>
+    <configuration>
+        <weaveDependencies>true</weaveDependencies>
+    </configuration>
+    <executions>
+        <execution>
+            <goals>
+                <goal>stubs</goal>
+                <goal>weave</goal>
+                <goal>weave-tests</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+]]></code-block>
+    </chapter>
+
+    <seealso>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+            <a href="configuration-keys.topic">Configuration keys</a>
+            <a href="agent-options.topic">Agent options</a>
+            <a href="artifacts.topic">Artefacts and modules</a>
+        </category>
+        <category ref="guides">
+            <a href="build-time-weaving.topic">Build-time weaving</a>
+        </category>
+    </seealso>
+</topic>

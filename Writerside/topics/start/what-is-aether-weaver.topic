@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="what-is-aether-weaver" title="What Aether Weaver is">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Aether Weaver changes what a compiled class does, without touching its source.
+    </p>
+
+    <p>
+        You write a weave: a plain Java class that says which classes it modifies and how. One
+        engine reads it and rewrites their bytecode. The classes you are changing never learn
+        about it, and neither does the code that calls them.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    W["The weave you write"] --> P["A plan, built once"]
+    P --> E["The engine"]
+    C["A class, handed over by a driver"] --> E
+    E --> R["Rewritten bytecode"]
+    </code-block>
+
+    <chapter title="A weave is a class you write" id="a-weave">
+        <p>
+            Mark it <code>@Weave</code> and name the targets. Class literals if they are on the
+            compile classpath, binary names as text if they are not. One of the two, never both.
+        </p>
+
+        <p>
+            Inside it you put handlers and members:
+        </p>
+
+        <list>
+            <li><p><code>@Inject</code> runs your code inside a target method,
+                <code>@Redirect</code> replaces a call it makes, and <code>@Wrap</code> takes the
+                call over.</p></li>
+            <li><p><code>@Shadow</code> reaches a field or method the target already has.
+                <code>@Unique</code> adds one that will not collide with it.</p></li>
+        </list>
+
+        <p>
+            An instance weave is dissolved into every target it names, and the weave class
+            itself never loads. A static weave stays where it is, and its handlers are called
+            across the class boundary. <a href="annotations.topic">The annotation reference</a> has the
+            rules that turn on that difference.
+        </p>
+    </chapter>
+
+    <chapter title="Four ways to run it" id="drivers">
+        <p>
+            The engine is the same in all four. What changes is who hands it the classes, and when.
+        </p>
+
+        <deflist type="medium">
+            <def title="The Maven plugin">
+                <p>Weaves the classes your build has compiled. Nothing is needed at run time.</p>
+            </def>
+            <def title="The Java agent">
+                <p>Weaves as classes load, under <code>-javaagent</code>. No build step.</p>
+            </def>
+            <def title="The weaving class loader">
+                <p>Weaves inside a running application, for what it loads itself.</p>
+            </def>
+            <def title="The testkit">
+                <p>Weaves in memory in a JUnit test, without redefining the class.</p>
+            </def>
+        </deflist>
+
+        <p>
+            The first three produce byte-identical output. A test weaves one fixture all three
+            ways and compares the bytes. That is what says none of them weaves differently on its
+            own. <a href="choose-a-driver.topic">Choose a driver</a> covers which one fits a project.
+        </p>
+    </chapter>
+
+    <chapter title="What it is built on" id="built-on">
+        <p>
+            Bytecode goes through <code>java.lang.classfile</code>, the JDK's own Class-File API,
+            and through nothing else. ASM, Javassist, Byte Buddy and cglib are banned dependencies,
+            and the build fails if one appears.
+        </p>
+
+        <p>
+            That API is the reason for the floor. Aether Weaver needs JDK 25 or later, and Maven
+            3.9 or later to build against. <a href="install.topic">Install</a> lists the artefacts.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="install.topic">Install</a>
+            <a href="first-weave.topic">Your first weave</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">Annotations</a>
+        </category>
+        <category ref="external">
+            <a href="https://github.com/aether-framework/aether-weaver">Aether Weaver on GitHub</a>
+        </category>
+    </seealso>
+</topic>

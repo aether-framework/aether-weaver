@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="contribute-an-injector" title="Contribute an injector">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <tldr>
+        <p>
+            A plugin registers it — <a href="write-a-plugin.topic">Write a plugin</a>. No annotation
+            names a contributed kind, so you build the declaration too.
+        </p>
+    </tldr>
+
+    <p>
+        An injector writes the instructions at the positions a declaration matched. You implement
+        two interfaces. A factory names your kinds, and an injector answers for each.
+    </p>
+
+    <code-block lang="java" src="AcmeInjectors.java" include-symbol="AcmeInjectors"/>
+
+    <chapter title="What your injector writes" id="injector">
+        <code-block lang="java" src="TraceInjector.java" include-symbol="TraceInjector"/>
+
+        <p>Three rules hold inside the emitter:</p>
+
+        <list>
+            <li><p>Never write the element you were handed. The engine writes it once every
+                emitter has been asked, unless one of them answers
+                <code>Disposition.REPLACE</code>.</p></li>
+            <li><p>Push a <code>HandlerBinding</code> in its order: the receiver, the stack values
+                you asked for, <code>emitArguments</code>, the callback, then
+                <code>emitCaptures</code>. After the invoke, emit the write-backs
+                <code>emitCaptures</code> returned. Drop them and every assignment to a mutable
+                <code>@Local</code> is lost, with nothing reported. What shape a handler may have
+                is in <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>.</p></li>
+            <li><p>Your only handle on the bytes is the <code>CodeBuilder</code>, which is the
+                JDK's own <code>java.lang.classfile</code>.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="What the engine asks, and when" id="calls">
+        <code-block lang="mermaid">
+flowchart TB
+    subgraph outside["Outside every guard: a throw reaches the driver"]
+        direction TB
+        A["create builds your injector"] --> B["validate checks it against this class"]
+        B --> C["Once per site: stackOperandsAt, then binding"]
+    end
+    C --> D
+    subgraph inside["Inside the apply guard: a throw is reported as AW3117"]
+        direction TB
+        D["emitter opens one method rewrite"] --> E["emitAt sees every element of that body"]
+    end
+        </code-block>
+
+        <deflist type="medium">
+            <def title="create">
+                <p>
+                    The engine calls it once per declaration per class, and nothing caches the
+                    answer. Hand back a constant unless your injector keeps state for one
+                    declaration's work.
+                </p>
+            </def>
+            <def title="validate">
+                <p>
+                    This is where you refuse. An error reported here drops that one declaration, and the
+                    rest of the class is woven without it; a warning drops nothing.
+                    <a href="reporting.topic">Report rather than throw</a> covers the sink.
+                </p>
+            </def>
+            <def title="stackOperandsAt">
+                <p>
+                    Answer with how many of the handler's leading parameters the stack already
+                    supplies. Zero is the default. Three ways to get it wrong:
+                </p>
+                <list>
+                    <li><p>More than the handler declares in front of its captures: the declaration
+                        is dropped as <code>AW1040</code>.</p></li>
+                    <li><p>More than the stack holds, but within that list: the verifier rejects
+                        your call.</p></li>
+                    <li><p>Fewer than the stack holds: the wrong parameters bind, with nothing to
+                        report it.</p></li>
+                </list>
+            </def>
+            <def title="emitter">
+                <p>
+                    The engine calls it once per method whose name matches the target's, as that
+                    rewrite begins. Read
+                    the whole body here — an emitter sees one element at a time. Return
+                    <code>Emitter.NOTHING</code> to contribute nothing after reporting why. Every
+                    view the context hands you is listed in <a href="spi.topic">The plugin
+                    SPI</a>.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Get the kind into a plan" id="declare">
+        <p>
+            The parser reads a <code>@Weave</code> class into three kinds and no others:
+            <code>inject</code>, <code>redirect</code> and <code>wrap</code>. Nothing it produces
+            carries <code>acme:trace</code>. One route into a plan is left. Build the
+            <code>InjectorSpec</code> yourself. Hold it in a <code>WeaveClass</code>, and pass that
+            to <code>weaves(...)</code>. Your plugin names no engine type; this launcher does.
+            <code>WeaveClass</code> and <code>TargetRef</code> are engine types, and
+            <a href="weaving-model.topic">The weaving model</a> has the eleven parts one carries.
+        </p>
+
+        <code-block lang="java" src="Tracing.java"/>
+
+        <note>
+            <p>
+                <code>PointSpec.named("RETURN")</code> names a built-in position, so this needs no
+                injection point of your own; adding one is
+                <a href="contribute-an-injection-point.topic">Contribute an injection point</a>.
+                What the built-in points find is in
+                <a href="injection-points.topic">Injection points</a>. The grammar your kind's
+                identifier must satisfy is in
+                <a href="namespaces.topic">Namespaces and identifiers</a>.
+            </p>
+        </note>
+    </chapter>
+
+    <procedure title="Compile and run the tracer" id="run">
+        <step>
+            <p>Register the factory from a plugin's <code>contribute</code>. Everything else about
+                that class is <a href="write-a-plugin.topic">Write a plugin</a>.</p>
+            <code-block lang="java" src="AcmeTracingPlugin.java" include-symbol="AcmeTracingPlugin"/>
+        </step>
+        <step>
+            <p>Build the target class into <path>plugins</path>, which nothing else is on. It is
+                the one from <a href="first-weave.topic">Your first weave</a>, and it carries no
+                annotation of any kind.</p>
+            <code-block lang="bash"><![CDATA[
+javac -d plugins src/fixture/Target.java
+]]></code-block>
+        </step>
+        <step>
+            <p>Build the factory, the injector, the plugin registering them and the launcher into
+                <path>classes</path>, against the jars <a href="write-a-plugin.topic">Write a
+                plugin</a> resolved into <path>lib</path>.</p>
+            <code-block lang="bash"><![CDATA[
+javac -cp "lib/*" -d classes \
+      src/acme/AcmeInjectors.java src/acme/TraceInjector.java \
+      src/acme/AcmeTracingPlugin.java src/launcher/Tracing.java
+]]></code-block>
+        </step>
+        <step>
+            <p>Run it, keeping <path>plugins</path> off the classpath you pass.</p>
+            <code-block lang="bash"><![CDATA[
+java -cp "classes:lib/*" launcher.Tracing
+]]></code-block>
+        </step>
+        <step>
+            <p>Two lines. The first is your handler, reached through an <code>invokestatic</code>
+                your emitter wrote in front of the target's <code>areturn</code>. The second is
+                what <code>greet()</code> still returns.</p>
+            <code-block lang="console"><![CDATA[
+acme:trace fired
+hello
+]]></code-block>
+            <p><code>AW4090</code> naming <code>acme:trace</code>, and then <code>hello</code> on
+                its own, means no factory answers for that kind: hand the plugin to
+                <code>plugin(...)</code> on the builder, or let
+                <a href="loading-plugins.topic">discovery</a> find it.</p>
+        </step>
+    </procedure>
+
+    <chapter title="What a throw costs you" id="throwing">
+        <deflist type="full">
+            <def title="create, validate and stackOperandsAt">
+                <p>
+                    Nothing contains a throw from these. It leaves the weaver with no diagnostic
+                    raised, and the driver decides: the weaving class loader reports
+                    <code>AW4090</code>, and the load then fails with
+                    <code>ClassNotFoundException</code>. Under
+                    <code>-Daether.weaver.onError=report</code> it defines the class unwoven, which
+                    <a href="runtime-weaving.topic">Weaving in a running application</a> covers.
+                    Report through the <code>Reporter</code> and return instead.
+                </p>
+            </def>
+            <def title="emitter, and the emitter it returned">
+                <p>
+                    Reported as <code>AW3117</code>, and the class is left exactly as it was, so
+                    the run carries on with the next one. An <code>IllegalArgumentException</code>
+                    is <code>AW4003</code> or <code>AW4004</code> instead: the class writer catches
+                    that one first. Move the check into
+                    <code>validate</code>: emission has to be total, because nothing can undo
+                    instructions already written.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                A guard exists only while a contributed identifier takes part. Which calls run
+                outside every guard is in
+                <a href="reporting.topic#gaps">Where the guard does not reach</a>.
+            </p>
+        </note>
+    </chapter>
+
+    <seealso>
+        <category ref="plugins">
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a>
+            <a href="loading-plugins.topic">Loading and isolating plugins</a>
+            <a href="spi.topic">The plugin SPI</a>
+        </category>
+        <category ref="concepts">
+            <a href="injection-points.topic">Injection points</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">AW3xxx - policy and plugins</a>
+        </category>
+    </seealso>
+</topic>

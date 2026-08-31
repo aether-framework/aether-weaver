@@ -1,0 +1,135 @@
+name: 🐛 Bug report
+description: Something the framework does that it should not, or does not do that it should.
+title: "[Bug]: "
+labels: [ bug, needs-triage ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file this. The more of the boxes below you can fill, the
+        faster this gets diagnosed — a diagnostic code and a minimal weave are usually enough.
+
+        Please do **not** report security issues here. See the
+        [security policy](https://github.com/aether-framework/aether-weaver/blob/main/SECURITY.md).
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The Aether Weaver version you are running.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: driver
+    attributes:
+      label: Driver
+      description: How the weaving ran.
+      options:
+        - Maven plugin (build-time weaving)
+        - Java agent (load-time weaving)
+        - Runtime API (WeavingClassLoader)
+        - Testkit
+        - Annotation processor only (compile-time checking)
+        - IntelliJ IDEA plugin
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Where you believe the problem lives. Pick "Not sure" if you do not know.
+      options:
+        - aether-weaver-api
+        - aether-weaver-engine
+        - aether-weaver-runtime
+        - aether-weaver-agent
+        - aether-weaver-processor
+        - aether-weaver-maven-plugin
+        - aether-weaver-testkit
+        - aether-weaver-bom
+        - IntelliJ IDEA plugin
+        - Documentation
+        - Build / CI
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: diagnostic
+    attributes:
+      label: Diagnostic code
+      description: The `AW####` code, if one was reported.
+      placeholder: "AW1101"
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: >-
+        The smallest weave and target that shows it. A `@Weave` class with one handler and the
+        class it targets is usually enough.
+      render: java
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration
+      description: The relevant part of your pom, your agent arguments, or the `Weaver` you built.
+      render: xml
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or stack trace
+      description: >-
+        The diagnostics the run printed. If you can, re-run with explain output on — it names the
+        plan, the class and the injector.
+      render: shell
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: JDK vendor and version, Maven version, operating system.
+      placeholder: |
+        JDK: Temurin 25.0.1
+        Maven: 3.9.9
+        OS: Windows 11 / Ubuntu 24.04 / macOS 15
+    validations:
+      required: true
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Is this a regression?
+      options:
+        - "No, or I do not know"
+        - "Yes, it worked in an earlier version"
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched the existing issues and this is not a duplicate
+          required: true
+        - label: I checked the diagnostic reference for the code this reported
+        - label: I am on the latest released version, or I have said why I am not

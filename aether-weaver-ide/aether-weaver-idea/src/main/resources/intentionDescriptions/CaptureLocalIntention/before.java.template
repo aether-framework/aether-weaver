@@ -1,0 +1,4 @@
+public void record(BigDecimal amount) {
+    Receipt receipt = new Receipt(amount);
+    if (!receipt.valid()) { }
+}

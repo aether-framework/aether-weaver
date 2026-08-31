@@ -1,0 +1,14 @@
+<html>
+<body>
+Reports a selector string that cannot bind to a member of the weave's target.
+<p>
+    The build reports the same defects, with the same <code>AW10xx</code> codes; this inspection
+    only moves the report forward to where the string is being written.
+</p>
+<p>
+    It stays silent whenever it cannot be certain — when no target resolves, when the selector uses
+    a wildcard, or when the annotation has no enclosing <code>@Weave</code> — because a false
+    underline under correct code is worse than a report that arrives one build later.
+</p>
+</body>
+</html>

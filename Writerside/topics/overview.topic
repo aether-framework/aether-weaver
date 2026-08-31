@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="overview"
+       title="Aether Weaver">
+
+    <section-starting-page>
+        <title>Aether Weaver</title>
+        <description>
+            A weaving framework for the JVM. A weave is an ordinary Java class that names the
+            classes it changes; one engine applies it, and a driver decides when.
+        </description>
+
+        <spotlight>
+            <a href="what-is-aether-weaver.topic" type="start"
+               summary="What a weave is, what it can change, and which of the four ways of running it fits a given situation">What Aether Weaver is</a>
+            <a href="install.topic" type="install"
+               summary="Three artefacts, one plugin execution, and a build that rewrites its own class files">Install</a>
+        </spotlight>
+
+        <primary>
+            <title>The documentation</title>
+            <a href="getting-started.topic" type="learn"
+               summary="From an empty pom to a class a weave has modified">Get started</a>
+            <a href="concepts.topic" type="idea"
+               summary="How the framework works, and why it behaves the way it does">Core concepts</a>
+            <a href="guides.topic" type="tools"
+               summary="One task per page, with the whole configuration it needs">Guides</a>
+            <a href="plugins.topic" type="creative"
+               summary="Add your own injection points, injectors and policies through the SPI">Extending the engine</a>
+            <a href="reference.topic" type="library"
+               summary="Every element, parameter, key and diagnostic code, and nothing else">Reference</a>
+            <a href="tooling.topic" type="development"
+               summary="The IntelliJ plugin: what it adds to the editor, and what it deliberately does not do">Tooling</a>
+            <a href="contributing.topic" type="open-source"
+               summary="The repository, the build, and the standards a change is held to">Contributing</a>
+        </primary>
+
+        <secondary>
+            <title>The source</title>
+            <a href="%repo%" type="library"
+               summary="Nine Maven modules, the IntelliJ plugin, and the tests every claim on this site is anchored to">Aether Weaver on GitHub</a>
+            <a href="https://central.sonatype.com/search?q=g:de.splatgames.aether.weaver" type="install"
+               summary="Every published module, at version %version%">Maven Central</a>
+            <a href="%classfile-api%" type="development"
+               summary="The JDK API every byte of this framework is written against">java.lang.classfile</a>
+        </secondary>
+    </section-starting-page>
+</topic>

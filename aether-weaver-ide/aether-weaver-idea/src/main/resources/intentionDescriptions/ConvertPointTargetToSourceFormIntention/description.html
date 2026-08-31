@@ -1,0 +1,18 @@
+<html>
+<body>
+Rewrites a descriptor-form <code>@At</code> target the way it reads in Java.
+<p>
+    A descriptor carries resolved types already, so this is a rendering and nothing more — and the
+    result is parsed again and has to read back identically before the intention is offered.
+</p>
+<p>
+    It costs precision for readability: the source form matches an owner by simple name, so the
+    conversion widens what the target can match. It is offered because a target nobody can read is
+    its own hazard, not because the two forms are equivalent.
+</p>
+<!-- tooltip end -->
+<pre><code>target = "desc:com/acme/Ledger.flush()V"</code></pre>
+becomes
+<pre><code>target = "com.acme.Ledger.flush():void"</code></pre>
+</body>
+</html>

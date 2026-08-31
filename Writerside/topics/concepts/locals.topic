@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="locals" title="Locals">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        A handler's ordinary parameters copy the target's arguments. A local variable is not an
+        argument. It has no position to take, so a parameter that wants one names it with
+        <code>@Local</code>. Captures go last;
+        <a href="handlers-and-callbacks.topic">Handlers and callbacks</a> has the rest of that rule.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["@Local on a trailing parameter"] --> B{"Was index written?"}
+    B -->|yes| C["Read that slot; a described occupant of the wrong type is AW1050"]
+    B -->|no| D{"Does the target carry debug information?"}
+    D -->|no| E["Refused as AW1052"]
+    D -->|yes| F["Search the variables live at this site"]
+    F --> G["Name first, ordinal next, otherwise type alone"]
+    C --> H["One load, emitted into the handler call"]
+    G --> H
+    </code-block>
+
+    <chapter title="Which variable you get" id="strategies">
+        <table style="header-row">
+            <tr>
+                <td>What you write</td>
+                <td>Which variable</td>
+                <td>Needs debug info</td>
+            </tr>
+            <tr><td><code>@Local(index = 3)</code></td>
+                <td>whatever occupies slot 3 here</td><td>no</td></tr>
+            <tr><td><code>@Local(name = "total")</code></td>
+                <td>the live one of that name</td><td>yes</td></tr>
+            <tr><td><code>@Local(ordinal = 1)</code></td>
+                <td>the second of the type, in slot order</td><td>yes</td></tr>
+            <tr><td><code>@Local</code></td>
+                <td>the one live variable of the type</td><td>yes</td></tr>
+        </table>
+
+        <p>
+            Exactly one of the three elements is read, in the fixed order the table above lists:
+            <code>index</code>, then <code>name</code>, then <code>ordinal</code>. Source order
+            plays no part. It says nothing about the ones it dropped. Writing <code>index</code>
+            beside a <code>name</code> quietly reads the slot.
+            <a href="annotations.topic">The annotation reference</a> has every element.
+        </p>
+    </chapter>
+
+    <chapter title="Live here, not declared somewhere" id="scope">
+        <p>
+            A capture resolves once per site. That happens in the weaving moment of
+            <a href="weaving-model.topic">the weaving model</a>. One declaration matching two sites
+            can read two slots. Each is right where it stands.
+        </p>
+
+        <deflist type="medium">
+            <def title="Only what is live at that site">
+                <p>
+                    A variable declared further down, or one whose scope has already closed, does
+                    not match — even though the class file still lists it.
+                    <a href="injection-points.topic">Injection points</a> decides which sites a
+                    declaration gets. <code>index</code> is the exception: it reads the slot even
+                    where nothing is recorded as live there, since it names the slot outright rather
+                    than searching the table for it.
+                </p>
+            </def>
+            <def title="A slot is not a name">
+                <p>
+                    The compiler reuses a slot once a scope ends. One slot holding a
+                    <code>String</code> at the top of a method can hold a <code>long</code> further
+                    down, so <code>index</code> is right for one build of one target.
+                </p>
+            </def>
+            <def title="How closely the type has to match">
+                <p>
+                    <code>name</code> and <code>index</code> take any reference for a reference
+                    parameter. <code>ordinal</code> and a bare <code>@Local</code> are stricter:
+                    their candidates are the live variables whose declared type equals the
+                    parameter's exactly. A <code>CharSequence</code> parameter never finds a
+                    <code>String</code> that way.
+                </p>
+            </def>
+            <def title="One bad site costs the declaration">
+                <p>
+                    A site whose capture does not resolve withdraws the whole declaration, not that
+                    one site. Each unresolved capture is reported on its own, so three of them
+                    give you three messages instead of one.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Writing one back" id="mutable">
+        <p>
+            Java passes a parameter by value. Assigning to it changes the handler's own copy. To
+            change the target's variable, write <code>mutable = true</code>. The parameter then has
+            to be a carrier.
+        </p>
+
+        <deflist type="medium">
+            <def title="The carrier types">
+                <p>
+                    <code>LocalRef&lt;T&gt;</code> for any reference, and <code>LocalIntRef</code>
+                    with its seven siblings for the primitives. The flag and the type are checked
+                    against each other, so neither half of the intent can be written alone.
+                </p>
+            </def>
+            <def title="What a carrier matches">
+                <p>
+                    What it holds, not its own type: a <code>LocalIntRef</code> resolves as an
+                    <code>int</code>. <code>LocalRef</code> erases to <code>Object</code>, so
+                    <code>ordinal</code> and a bare <code>@Local</code> look for a variable declared
+                    exactly <code>Object</code>. Capture any other reference by name or by index.
+                </p>
+            </def>
+            <def title="When the value lands">
+                <p>
+                    The write-back is emitted straight after the handler call and reads the carrier
+                    once. A handler that stores into it later changes nothing. On the
+                    <code>@Inject</code> path it runs before the cancellation branch, so a handler
+                    that both writes and cancels gets both.
+                </p>
+            </def>
+            <def title="A redirect writes nothing back">
+                <p>
+                    No write-back is emitted for a <code>@Redirect</code> handler, so what it stores
+                    into a carrier is discarded. Writing a local is what the
+                    <code>@Inject</code> path does;
+                    <a href="handlers-and-callbacks.topic">Handlers and callbacks</a> covers the
+                    difference.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                A reference write-back is cast to the type the table recorded for the slot before
+                the store, so a handler that put back the wrong type fails there with a
+                <code>ClassCastException</code> naming that type, rather than somewhere later in
+                the target's own code. A stripped target captured by <code>index</code> is the
+                exception: with no table entry at that site, there is no recorded type to cast to.
+                The cast is to <code>Object</code>, and a wrong type surfaces later, in the
+                target's own code.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="When a capture is refused" id="refused">
+        <deflist type="medium">
+            <def title="The parameter is in the wrong place">
+                <p>
+                    <code>AW1040</code>. <a href="handlers-and-callbacks.topic">Handlers and
+                    callbacks</a> has the ordering rule <code>@Local</code> adds a parameter to.
+                </p>
+                <p>
+                    A <code>@Wrap</code> handler has less room than that: its
+                    <code>Operation</code> parameter must be last. A capture placed after it is
+                    <code>AW1062</code>; one placed before it is <code>AW1040</code> instead,
+                    since it still leaves no parameter for the operation's own inputs. Either way,
+                    delete the capture or use <code>@Inject</code>.
+                    <a href="weave-members.topic">Weave members</a> covers the other shapes a
+                    weave declares.
+                </p>
+            </def>
+            <def title="Nothing matched here">
+                <p>
+                    <code>AW1050</code>, and the message lists what is live at that site with its
+                    types. Pick one of those, or move the injection to where the variable you meant
+                    is live. A named slot that holds something else there reports the same code.
+                </p>
+            </def>
+            <def title="Several matched">
+                <p>
+                    <code>AW1051</code>: say which with <code>name</code> or with
+                    <code>ordinal</code>. It comes only from resolution by type, where two
+                    candidates and a coin flip would not be resolution.
+                </p>
+            </def>
+            <def title="No usable local variable table here">
+                <p>
+                    <code>AW1052</code>: read the woven method's bytecode and capture by
+                    <code>index</code> instead. No slot is inferred from the method's signature,
+                    because a wrong slot reads a different value instead of failing.
+                </p>
+                <p>
+                    Recompiling with <code>-g</code> is the usual fix. The table is built per
+                    woven method body, though. A <code>-g</code> target whose one woven method
+                    still has no placeable entry reports the same code, and <code>index</code> is
+                    the only remedy there too.
+                </p>
+            </def>
+        </deflist>
+
+        <warning>
+            <p>
+                <code>mutable</code> and the parameter's type must agree. <code>mutable = true</code>
+                on a plain parameter is <code>AW1053</code>: declare the carrier type. A carrier
+                without the flag is <code>AW1054</code>: add <code>mutable = true</code>, or declare
+                the parameter as the variable's own type if it only reads. Both arrive from the
+                annotation processor at compile time and again from the engine.
+                <a href="diagnostics.topic">Diagnostics</a> says how to read a code.
+            </p>
+        </warning>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>
+            <a href="injection-points.topic">Injection points</a>
+            <a href="weave-members.topic">Weave members</a>
+            <a href="weaving-model.topic">The weaving model</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">The annotation reference</a>
+            <a href="diagnostics.topic">Diagnostics</a>
+        </category>
+    </seealso>
+</topic>

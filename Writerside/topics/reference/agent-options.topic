@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="agent-options" title="Agent options">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        The agent's options are the text after the first <code>=</code> on
+        <code>-javaagent</code>. They are read last, so an ordinary key on the command line beats
+        the same system property.
+        <code>dump</code> and the policy keys are exceptions; <a href="configuration-keys.topic">Configuration
+        keys</a> has the precedence rule in full.
+    </p>
+
+    <code-block lang="bash">
+OPTS=explain=true,onError=report
+
+java -javaagent:aether-weaver-agent-%version%.jar=$OPTS \
+     -cp app.jar app.Main
+    </code-block>
+
+    <chapter title="How the string is read" id="grammar">
+        <p>
+            Comma-separated <code>key=value</code> pairs, with <code>aether.weaver.</code> implied
+            on every key.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Written</td><td>How it parses</td></tr>
+            <tr><td><code>onError=report</code></td><td>One pair. The prefix is added before the lookup</td></tr>
+            <tr><td><code>dump=/tmp/a=b</code></td><td>The first <code>=</code> splits it; later ones stay in the value</td></tr>
+            <tr><td><code>explain = true</code></td><td>Both halves are trimmed, and an empty pair is skipped</td></tr>
+            <tr><td><code>dump=/a,dump=/b</code></td><td>The last value given for a key is the one used</td></tr>
+            <tr><td><code>verifcation=report</code></td><td>Unknown; the nearest scalar key is offered when close enough</td></tr>
+            <tr><td><code>report</code></td><td>No <code>=</code> at all. Give the key as well</td></tr>
+        </table>
+
+        <p>
+            The last two are <code>AW2310</code>, and nothing is coerced. A value the parser
+            cannot read leaves that key unset, so a system property or the default decides it
+            instead. <code>enabled=ture</code> does not read as <code>false</code>. A
+            <code>dump</code> value is the exception. An unusable path throws instead, and no
+            later fragment in that source is read.
+            <a href="diagnostics-environment.topic">AW2xxx</a> has the five ways it is raised.
+        </p>
+
+        <note>
+            <p>
+                Nothing escapes the comma, so a multi-valued key cannot be written here.
+                <code>tags.include=audit,metrics</code> parses as <code>tags.include=audit</code>
+                followed by a fragment <code>metrics</code>. Set that key as a system property
+                instead, where the whole list survives:
+            </p>
+            <code-block lang="bash">
+java -Daether.weaver.tags.include=audit,metrics \
+     -javaagent:aether-weaver-agent-%version%.jar \
+     -jar app.jar
+            </code-block>
+        </note>
+    </chapter>
+
+    <chapter title="The keys it takes" id="keys">
+        <p>
+            Every key the parser accepts, spelled without the prefix.
+            <a href="configuration-keys.topic">Configuration keys</a> has the accepted values, the
+            defaults and the layer order.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Key</td><td>What it changes here</td></tr>
+            <tr><td><code>enabled</code></td><td>Off installs no transformer and says so in one line</td></tr>
+            <tr><td><code>explain</code></td><td>Prints the plan at install time, not at the end</td></tr>
+            <tr><td><code>onError</code></td><td>Whether a class that fails to weave halts the JVM</td></tr>
+            <tr><td><code>verification</code></td><td>What the engine does with bytes its verifier refuses</td></tr>
+            <tr><td><code>dump</code></td><td>Writes the before and after bytes of each woven class</td></tr>
+            <tr><td><code>phase</code></td><td>Nothing; it reaches the closing line and no further</td></tr>
+            <tr><td><code>tags.include</code></td><td>Which discovered weaves reach the plan</td></tr>
+            <tr><td><code>tags.exclude</code></td><td>Which discovered weaves are dropped from it</td></tr>
+            <tr><td><code>policy.allowSigned</code></td><td>Nothing here; the class-loader driver reads it instead</td></tr>
+            <tr><td><code>policy.allowPackage</code></td><td>Nothing enforces it; only the summary line notes it</td></tr>
+            <tr><td><code>weave[name].enabled</code></td><td>Keeps or drops one weave, whatever its tags say</td></tr>
+            <tr><td><code>weave[name].priority</code></td><td>Nothing; stored but unread</td></tr>
+            <tr><td><code>injector[name].enabled</code></td><td>Nothing; discovery reads <code>weave[name].enabled</code> instead</td></tr>
+        </table>
+
+        <p>
+            A name inside brackets is taken verbatim and matched against nothing, so a misspelt
+            weave never applies and says nothing about it. Check it against the manifest that
+            declared it; <a href="weave-discovery.topic">How a weave is found</a> covers the
+            search.
+        </p>
+    </chapter>
+
+    <chapter title="The two entry points" id="entry-points">
+        <p>
+            One class answers both. A flag inside it is false from <code>premain</code> and true
+            from <code>agentmain</code>, and that flag gates two things a
+            <code>-javaagent</code> run never does.
+        </p>
+
+        <table style="header-row">
+            <tr><td>What differs</td><td>Under <code>-javaagent</code>, and on a dynamic attach</td></tr>
+            <tr><td>Manifest entry</td><td><code>Premain-Class</code>; <code>Agent-Class</code> for an attach</td></tr>
+            <tr><td>Already-loaded targets</td><td>Untouched; an attach retransforms what it can</td></tr>
+            <tr><td>A structural weave</td><td>Silent unless a target is loaded; then <code>AW2101</code></td></tr>
+            <tr><td>What <code>explain=true</code> shows</td><td><code>not woven yet</code>; an attach, what each point matched</td></tr>
+            <tr><td>The closing line ends</td><td><code>(premain)</code>; <code>(agentmain)</code> for an attach</td></tr>
+        </table>
+
+        <p>
+            Under <code>-javaagent</code> every target is woven as it is defined. Neither the
+            retransformation nor <code>AW2101</code> arises there; weave at build time when a
+            target is already loaded. An attach raises <code>AW2101</code> for a structural weave
+            whose target is already loaded. It raises the same code again if the JVM then
+            refuses the retransformation. Attaching to a live JVM is
+            <a href="runtime-weaving.topic">Weaving in a running application</a>, and the flag on the command
+            line is <a href="load-time-weaving.topic">Weaving at load time</a>.
+        </p>
+
+        <p>
+            The closing line is your confirmation. It names the version, the weave and target
+            counts, the plan fingerprint and the settings as resolved.
+            <a href="determinism.topic">Determinism</a> says what a fingerprint covers.
+        </p>
+    </chapter>
+
+    <chapter title="What reaches your console" id="output">
+        <p>
+            Diagnostics go into one list, and the agent empties it at whichever of four points
+            ends the installation:
+        </p>
+
+        <list>
+            <li><p>the configuration switched weaving off;</p></li>
+            <li><p>discovery came back with no weave to apply;</p></li>
+            <li><p>the plan could not be built, which rethrows and, under
+                <code>-javaagent</code>, aborts the JVM before <code>main</code>;</p></li>
+            <li><p>the closing line, once the transformer is installed.</p></li>
+        </list>
+
+        <p>
+            Nothing empties the list again. Under <code>-javaagent</code>, everything raised from
+            here on is unprinted. That includes <code>AW4090</code> for a
+            failed weave and <code>AW2202</code> for a class already woven by another plan.
+            Retransforming an already-loaded target under <code>agentmain</code> prints its
+            diagnostics before the closing line. Only a class defined after that line stays
+            unprinted. Weave at build time when you need those
+            messages; <a href="maven-goals.topic">Maven goals</a> has the run that prints them, and
+            <a href="diagnostics-verification.topic">AW4xxx</a> the codes.
+        </p>
+
+        <deflist type="medium">
+            <def title="onError=fail, the default">
+                <p>
+                    Three lines naming the class and the policy go to standard error, then the
+                    failure's stack trace. The JVM is then halted with status 70 — halted rather
+                    than exited, because this runs on a class-loading thread. No shutdown hook
+                    runs, and nothing buffered elsewhere is flushed.
+                </p>
+            </def>
+            <def title="onError=report">
+                <p>
+                    The JVM keeps the bytes it already had, that one class loads unwoven, and the
+                    application carries on. Give the message and a <code>dump</code> directory to
+                    the <a href="%issues%">issue tracker</a>.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+            <a href="install.topic">Install</a>
+        </category>
+        <category ref="concepts">
+            <a href="weave-discovery.topic">How a weave is found</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="configuration-keys.topic">Configuration keys</a>
+            <a href="diagnostics-environment.topic">AW2xxx</a>
+        </category>
+    </seealso>
+</topic>

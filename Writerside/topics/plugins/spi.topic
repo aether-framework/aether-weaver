@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="spi" title="The plugin SPI">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Twenty-eight top-level types sit in <code>de.splatgames.aether.weaver.api.spi</code>. None of their
+        signatures names an engine type, so a plugin compiles against
+        <a href="artifacts.topic">the API artefact</a> and nothing else.
+    </p>
+
+    <chapter title="What a plugin implements" id="implement">
+        <table style="header-row">
+            <tr><td>Interface</td><td>Registered by</td><td>Answers with</td></tr>
+            <tr><td><code>WeaverPlugin</code></td><td>the weaver builder</td>
+                <td>its PluginId and SPI level</td></tr>
+            <tr><td><code>InjectionPointFactory</code></td><td><code>points(...)</code></td>
+                <td>ids, aliases, one point each</td></tr>
+            <tr><td><code>InjectionPoint</code></td><td>its factory</td>
+                <td>the sites it matched, or none</td></tr>
+            <tr><td><code>InjectorFactory</code></td><td><code>injectors(...)</code></td>
+                <td>kinds, aliases, one injector each</td></tr>
+            <tr><td><code>Injector</code></td><td>its factory</td>
+                <td>an Emitter, or Emitter.NOTHING</td></tr>
+            <tr><td><code>Injector.Emitter</code></td><td><code>Injector.emitter</code></td>
+                <td>KEEP or REPLACE, per element</td></tr>
+            <tr><td><code>SelectorResolver</code></td><td><code>selectorResolvers(...)</code></td>
+                <td>a name and a priority nothing reads</td></tr>
+        </table>
+
+        <p>
+            Only <code>WeaverPlugin</code> is looked for by name. Every other row arrives through
+            the registration beside it. Building the two halves is
+            <a href="contribute-an-injection-point.topic">Contribute an injection point</a> and
+            <a href="contribute-an-injector.topic">Contribute an injector</a>. The gates a candidate
+            passes first are <a href="plugin-lifecycle.topic">The plugin lifecycle</a>.
+        </p>
+
+        <note>
+            <p>
+                The last row is inert, and so is <code>diagnosticListeners(...)</code>. Both lists
+                reach the registry and no call site asks for either.
+                <a href="what-a-plugin-can-do.topic">What a plugin can do</a> has what that leaves
+                you.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="What a driver supplies" id="driver">
+        <p>
+            Four more interfaces belong to whoever builds the weaver. A plugin may hold one.
+            Registering it is not how one arrives.
+        </p>
+
+        <table style="header-row">
+            <tr><td>Interface</td><td>Supplied by</td><td>Its job</td></tr>
+            <tr><td><code>DiagnosticListener</code></td><td><code>diagnostics(...)</code></td>
+                <td>every diagnostic the run raises</td></tr>
+            <tr><td><code>WeavePolicy</code></td><td><code>policy(...)</code></td>
+                <td>refusing a class before it is woven</td></tr>
+            <tr><td><code>ClassSource</code></td><td><code>classSource(...)</code></td>
+                <td>bytes, and never a loaded Class</td></tr>
+            <tr><td><code>WeaveSource</code></td><td>a driver, by hand</td>
+                <td>which classes declare a weave</td></tr>
+        </table>
+
+        <p>
+            No <code>ServiceLoader</code> lookup of <code>WeaveSource</code> exists. The runtime
+            constructs the manifest one directly, which
+            <a href="weave-discovery.topic">How a weave is found</a> covers.
+            <a href="policy-and-safety.topic">Policy and safety</a> has what a driver does with a
+            refusal.
+        </p>
+    </chapter>
+
+    <chapter title="What the engine hands you" id="handed">
+        <table style="header-row">
+            <tr><td>Type</td><td>Handed over by</td><td>It carries</td></tr>
+            <tr><td><code>PluginContext</code></td><td><code>contribute</code></td>
+                <td>everything a plugin registers</td></tr>
+            <tr><td><code>ConfigView</code></td><td><code>PluginContext</code></td>
+                <td>string keys the driver supplied</td></tr>
+            <tr><td><code>PluginEvent</code></td><td><code>observe</code></td>
+                <td>one of four nested records</td></tr>
+            <tr><td><code>PlanView</code></td><td><code>Prepared</code></td>
+                <td>entries, targets, a fingerprint</td></tr>
+            <tr><td><code>PlanEntryView</code></td><td>PlanView, validate, entry()</td>
+                <td>one declaration, one target class</td></tr>
+            <tr><td><code>StatisticsView</code></td><td><code>WeavingFinished</code></td>
+                <td>five counters and plannedTargets</td></tr>
+            <tr><td><code>TargetView</code></td><td>validate, and target()</td>
+                <td>the class before this weave</td></tr>
+            <tr><td><code>MethodView</code></td><td>TargetView, find, method()</td>
+                <td>name, descriptor, flags, body</td></tr>
+            <tr><td><code>CodeView</code></td><td>MethodView.code(), find</td>
+                <td>every Code element, in order</td></tr>
+            <tr><td><code>InjectionContext</code></td><td><code>Injector.emitter</code></td>
+                <td>the sites, bindings and target</td></tr>
+        </table>
+
+        <p>
+            <code>TargetView</code>, <code>MethodView</code> and <code>CodeView</code> are
+            snapshots, taken before this weave ran. A <code>StatisticsView</code> is read when
+            asked: five counters summed across the weaving threads, and
+            <code>plannedTargets</code>, fixed when the weaver is built. Every member of a view is
+            declared, never inherited. Walk <code>superclass()</code> and
+            <code>interfaces()</code> with a <code>ClassSource</code> to reach the rest.
+        </p>
+
+        <p>
+            A <code>CodeView</code> index counts
+            elements, labels and line numbers included. It is no bytecode offset, and inside a slice
+            it counts from the slice. <a href="injection-points.topic">Injection points</a> has what
+            the built-in points make of it.
+        </p>
+    </chapter>
+
+    <chapter title="The values" id="values">
+        <table style="header-row">
+            <tr><td>Record</td><td>Built for</td><td>It holds</td></tr>
+            <tr><td><code>PluginId</code></td><td><code>id()</code></td>
+                <td>a namespace, a name, a version</td></tr>
+            <tr><td><code>Alias</code></td><td>a factory's <code>aliases()</code></td>
+                <td>an id, its replacement, a version</td></tr>
+            <tr><td><code>Site</code></td><td><code>InjectionPoint.find</code></td>
+                <td>an index, a kind, maybe an element</td></tr>
+            <tr><td><code>HandlerBinding</code></td><td>an injector emitting</td>
+                <td>how a handler's arguments load</td></tr>
+            <tr><td><code>WeaveTarget</code></td><td>a policy decision</td>
+                <td>a name, a version, two flags</td></tr>
+            <tr><td><code>DiscoveryContext</code></td><td>a <code>WeaveSource</code> call</td>
+                <td>a loader and a reporter</td></tr>
+            <tr><td><code>WeaverApi</code></td><td><code>apiLevel()</code></td>
+                <td>the one constant to return</td></tr>
+        </table>
+
+        <p>
+            <code>Site.element()</code> may be <code>null</code>, and so may two components of
+            <code>HandlerBinding.Load</code>. No other component of these records is nullable.
+            The grammar these identifiers must satisfy is
+            <a href="namespaces.topic">Namespaces and identifiers</a>.
+        </p>
+
+        <p>
+            <code>apiLevel()</code> returns <code>WeaverApi.LEVEL</code>. The engine accepts every
+            level from its oldest supported generation up to its own. A higher one is
+            <code>AW3112</code>, a lower one <code>AW3113</code>. The constant is folded into your
+            class file, so a literal in its place compiles and then stops tracking.
+        </p>
+    </chapter>
+
+    <chapter title="Where you report" id="report">
+        <p>
+            <code>Reporter</code> is the last of the twenty-eight. Every handle below is one.
+            Each ends at the driver's listener, except the two that are
+            <code>Reporter.NOOP</code>. Reporting by itself stops nothing —
+            <a href="reporting.topic">Report rather than throw</a> has the convention.
+        </p>
+
+        <deflist type="full">
+            <def title="PluginContext.diagnostics()">
+                <p>Yours while <code>contribute</code> runs. An error here drops neither the plugin
+                    nor what it has already registered.</p>
+            </def>
+            <def title="InjectionPoint.find, fourth argument">
+                <p>Yours while one <code>@At</code> is resolved. Resolving a slice bound passes
+                    <code>Reporter.NOOP</code>, so anything said there is discarded.</p>
+            </def>
+            <def title="Injector.validate, third argument">
+                <p>The one handle whose severities change what the engine does. A single error
+                    abandons that declaration before an emitter exists.</p>
+            </def>
+            <def title="InjectionContext.diagnostics()">
+                <p>Yours while an emitter is built. Report, then answer
+                    <code>Injector.Emitter.NOTHING</code>.</p>
+            </def>
+            <def title="DiscoveryContext.reporter()">
+                <p>Yours inside a <code>WeaveSource</code>. <code>DiscoveryContext.of(loader)</code>
+                    fills it with <code>Reporter.NOOP</code>.</p>
+            </def>
+        </deflist>
+
+        <p>
+            <code>HandlerBinding.bind(...)</code> takes a reporter of yours and answers
+            <code>null</code> once it has said why the handler does not fit.
+        </p>
+    </chapter>
+
+    <chapter title="What throws instead of reporting" id="throws">
+        <deflist type="full">
+            <def title="metadata(key, value)">
+                <p>
+                    A key must not be blank. Key and value are each at most 128 characters. One
+                    plugin records at most 8 entries, and rewriting a key replaces its value rather
+                    than adding a ninth. Past a bound this throws
+                    <code>IllegalArgumentException</code>. The throw lands inside
+                    <code>contribute</code> and costs the whole contribution as
+                    <code>AW3115</code> — measure a derived value before you pass it.
+                </p>
+            </def>
+            <def title="new PluginId(...) and new Alias(...)">
+                <p>
+                    <code>Alias</code> throws on any blank component, <code>PluginId</code> on a
+                    blank display name or version. An empty namespace is legal here; the loader
+                    refuses it later, as <code>AW3101</code>. A namespace off the grammar, the
+                    reserved word <code>aether</code>, and an alias pointing at itself are refused
+                    the same way.
+                    A plugin that cannot build its identity never loads, so build it from
+                    constants.
+                </p>
+            </def>
+            <def title="new Site(...) and HandlerBinding.bind(...)">
+                <p>
+                    A negative index and a negative <code>skipLeading</code> both throw. Neither is
+                    a mistake in a weave, so neither is reported. Answer with the element index you
+                    counted, and with the operands your own injector arranged.
+                </p>
+            </def>
+        </deflist>
+
+        <warning>
+            <p>
+                Containment is entered only for an <code>@At</code> identifier carrying a colon. A
+                contributed point resolving a slice bound of a built-in <code>@At</code> therefore
+                runs outside it. A throw there leaves <code>weave</code> with no diagnostic. Catch
+                it yourself, or keep the point off a slice bound.
+            </p>
+        </warning>
+    </chapter>
+
+    <seealso>
+        <category ref="plugins">
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a>
+            <a href="write-a-plugin.topic">Write a plugin</a>
+            <a href="loading-plugins.topic">Loading and isolating plugins</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">AW3xxx - policy and plugins</a>
+            <a href="artifacts.topic">Artefacts and modules</a>
+        </category>
+    </seealso>
+</topic>

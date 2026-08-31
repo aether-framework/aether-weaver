@@ -1,0 +1,7 @@
+# Gradle
+.gradle/
+build/
+
+# The IntelliJ Platform distribution the build downloads
+.intellijPlatform/
+sample/target/

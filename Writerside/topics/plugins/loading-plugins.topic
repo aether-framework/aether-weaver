@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="loading-plugins" title="Loading and isolating plugins">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <tldr>
+        <p>
+            No shipped driver loads a third-party <code>WeaverPlugin</code> on its own — see
+            <a href="what-a-plugin-can-do.topic">What a plugin can do</a>.
+        </p>
+    </tldr>
+
+    <p>
+        Two routes put a <code>WeaverPlugin</code> in front of a weaver. Both belong to the program
+        that builds one. Neither puts your plugin behind a class loader, reduced JVM privileges, or
+        a clock.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Your program builds a weaver"] --> B["plugin(instance)"]
+    A --> C["discoverPlugins(loader)"]
+    C --> D["ServiceLoader lists the providers"]
+    D -->|"AW3114"| E["Nothing from that loader"]
+    D --> F["Each constructor called on its own"]
+    B --> G["Candidates"]
+    F --> G
+    G --> H["Sorted by namespace, then class"]
+    H --> I["Four gates, one plugin at a time"]
+    I --> J["contribute, inside the guard"]
+    J --> K["Registry frozen"]
+    </code-block>
+
+    <chapter title="The two routes in" id="routes">
+        <deflist type="full">
+            <def title="An instance you hand over">
+                <p>
+                    <code>Weaver.builder().plugin(p)</code> adds <code>p</code> to the candidates.
+                    The order you add in does not survive. Every gate applies to it, exactly as to
+                    a discovered plugin.
+                    <a href="plugin-lifecycle.topic">The plugin lifecycle</a> has the four.
+                </p>
+            </def>
+            <def title="A class loader you name">
+                <p>
+                    <code>discoverPlugins(loader)</code> asks <code>ServiceLoader</code> for every
+                    <code>WeaverPlugin</code> on that loader. Discovery runs only when a loader was
+                    set. What it finds is appended to the instances you registered.
+                </p>
+            </def>
+            <def title="Neither">
+                <p>
+                    The weaver still gets the engine's own built-in plugin. The builder installs
+                    that one directly. Every shipped driver is in this case, and
+                    <a href="choose-a-driver.topic">Choose a driver</a> compares the four.
+                </p>
+            </def>
+        </deflist>
+
+        <warning>
+            <p>
+                One unreadable service declaration costs every plugin on that loader. A throw while
+                <code>ServiceLoader</code> lists the providers is reported as <code>AW3114</code>,
+                and the loader hands back an empty list. Check every
+                <code>META-INF/services</code> entry for <code>WeaverPlugin</code>. Each line must
+                name a public class with a public no-argument constructor. A constructor that
+                throws costs only its own plugin.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="Which namespaces may load" id="permission">
+        <p>
+            One predicate over <code>PluginId</code>, passed to <code>permitPlugins(...)</code>,
+            decides whether a namespace may load.
+            <a href="plugin-lifecycle.topic">The plugin lifecycle</a> has the gate and its
+            diagnostic. The built-in plugin skips it and one other of the four gates. No
+            predicate can leave a weaver without injectors.
+        </p>
+        <p>
+            <code>aether.weaver.plugins.enabled</code>, <code>.allow</code> and <code>.deny</code>
+            are names no driver reads. <a href="configuration-keys.topic">Configuration keys</a>
+            has the family, and <a href="diagnostics-policy.topic">AW3xxx</a> how they would weigh
+            against each other.
+        </p>
+    </chapter>
+
+    <chapter title="What the guard contains" id="contains">
+        <p>
+            Every call into plugin code crosses one boundary. It catches <code>Throwable</code>
+            and reports the phase's diagnostic. Most phases name the plugin; two name the point's
+            identifier or the contributed kind instead.
+            <a href="reporting.topic">Report rather than throw</a> has what each covered call
+            costs, and which calls it does not cover.
+        </p>
+        <p>
+            A <code>VirtualMachineError</code> is re-thrown untouched. What happens next is the
+            driver's. The agent halts by default, or continues under
+            <code>aether.weaver.onError=report</code>; the class loader driver does not catch it
+            at all. A <code>LinkageError</code> is contained instead, and its remedy names the SPI
+            generation rather than the phase — <a href="spi.topic#values">The plugin SPI</a> has the
+            level to return.
+        </p>
+    </chapter>
+
+    <chapter title="What isolation does not promise" id="limits">
+        <deflist type="full">
+            <def title="No class loader of its own">
+                <p>
+                    The engine creates none. Your plugin's classes come from the loader you named,
+                    or from the instance you passed. They sit beside the engine's.
+                </p>
+            </def>
+            <def title="No reduced privileges">
+                <p>
+                    A plugin reads the files, sockets and system properties the build process can.
+                    Review a jar before you permit it. The predicate is where you say no.
+                </p>
+            </def>
+            <def title="No time or memory limit">
+                <p>
+                    Nothing interrupts a plugin, and nothing caps what it allocates. A
+                    <code>contribute</code> that blocks blocks the thread building the weaver.
+                </p>
+            </def>
+            <def title="No separation of state">
+                <p>
+                    Every call runs on the caller's thread. For <code>ClassWoven</code> that is the
+                    weaving thread. Nothing keeps a plugin away from what the rest of the classpath
+                    holds. Report through the context rather than throwing, which
+                    <a href="reporting.topic">Report rather than throw</a> covers.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            Sorting is one of several places plugin code runs outside the guard, not the only one.
+            <a href="plugin-lifecycle.topic">The plugin lifecycle</a> has the sort itself: a throw
+            from <code>id()</code> there ends the build with no diagnostic. Return a constant from
+            <code>id()</code>, which <a href="write-a-plugin.topic">Write a plugin</a> shows.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="determinism.topic">What is guaranteed to be identical</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics-policy.topic">AW3xxx - policy and plugins</a>
+            <a href="configuration-keys.topic">Configuration keys</a>
+        </category>
+        <category ref="plugins">
+            <a href="namespaces.topic">Namespaces and identifiers</a>
+        </category>
+    </seealso>
+</topic>

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="what-a-plugin-can-do" title="What a plugin can do">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <tldr>
+        <p>A <code>WeaverPlugin</code> extends the engine, and only a weaver your own program
+        builds loads one. The build plugin is in <a href="maven-goals.topic">Maven goals</a>,
+        the editor plugin in <a href="tooling.topic">Tooling</a>.</p>
+    </tldr>
+
+    <p>
+        You implement one interface, <code>WeaverPlugin</code>, and register everything you add
+        from a single <code>contribute</code> call. Six methods on <code>PluginContext</code>
+        take a registration, and what you register arrives through them. Loading the plugin
+        itself reaches further. You compile against <code>aether-weaver-api</code> and read
+        views, never an engine type. Even one that registers nothing moves the plan's fingerprint and
+        the class's <code>@Woven</code> stamp. Both record its namespace and version.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    P["Your WeaverPlugin"] --> C["One contribute call"]
+    C --> A["Injection points: identifiers an @At may name"]
+    C --> B["Injector kinds, and instructions behind each"]
+    C --> M["Metadata written into every woven class"]
+    C --> O["An opt-in for classes that were rewritten"]
+    A --> E["The weaver, while it plans and rewrites"]
+    B --> E
+    M --> E
+    E --> V["Four events your plugin observes"]
+    O --> V
+    </code-block>
+
+    <chapter title="What reaches the weaver" id="surface">
+        <deflist type="full">
+            <def title="Injection points">
+                <p>
+                    <code>points(...)</code> registers the identifiers an <code>@At</code> may
+                    name, and builds the point behind each one. A point decides <b>where</b>, and
+                    answers with the positions it found. Every identifier you offer is written
+                    <code>namespace:NAME</code>, and
+                    <a href="namespaces.topic">Namespaces and identifiers</a> has the rule.
+                    <a href="injection-points.topic">Injection points</a> covers what the built-in
+                    ones already find.
+                </p>
+            </def>
+            <def title="Injector kinds">
+                <p>
+                    <code>injectors(...)</code> registers the kinds a hand-built
+                    <code>InjectorSpec</code> may carry. No annotation lets a weave name a
+                    contributed kind: <code>@Inject</code>, <code>@Redirect</code> and
+                    <code>@Wrap</code> are the only ones an annotated weave can carry.
+                    <a href="contribute-an-injector.topic">Contribute an injector</a> covers building one by hand. A
+                    kind no injector was registered for is <code>AW4090</code> and costs that one
+                    declaration; install the plugin that registers it on the weaver being built,
+                    with <code>plugin(...)</code> or <code>discoverPlugins(...)</code>.
+                </p>
+            </def>
+            <def title="Metadata">
+                <p>
+                    <code>metadata(key, value)</code> records entries under your namespace; the
+                    count and length limits are in <a href="spi.topic#throws">The plugin SPI</a>.
+                    Exceeding one throws, and a throw out of <code>contribute</code> costs the
+                    plugin its entire contribution as <code>AW3115</code>.
+                </p>
+                <p>
+                    What is recorded always folds into the plan's fingerprint. It reaches the
+                    <code>@Woven</code> annotation only when the weaver's detail is above
+                    <code>NONE</code>. <a href="determinism.topic">Determinism</a> covers why a
+                    changed value changes what counts as already woven.
+                </p>
+            </def>
+            <def title="Events">
+                <p>
+                    <code>observeApply()</code> asks to be told about each <code>ClassWoven</code>
+                    event, published once a class is rewritten, verified and stamped. A
+                    class the extension pass alone touched, or one the verifier refused, produces
+                    none.
+                </p>
+                <p>
+                    <code>PluginsLoaded</code> and <code>Prepared</code> reach every loaded plugin
+                    regardless of <code>observeApply()</code>. <code>WeavingFinished</code>
+                    arrives only if the program that built the weaver calls <code>finish()</code>
+                    itself, which no shipped driver does. An observer cannot change what it is
+                    told, and the bytes are never offered to it.
+                    <a href="plugin-lifecycle.topic">The plugin lifecycle</a> has the four events
+                    in order.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                The annotation processor validates <code>@At</code> against the built-in points
+                only when the target's class file can already be read. Otherwise it reports
+                <code>AW1200</code> and defers the check to weave time. Where it does check,
+                naming a contributed identifier is <code>AW1101</code> at compile time, whether or
+                not your plugin is on the classpath. Name a built-in point, or keep that weave out
+                of a module the processor compiles.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Two calls nothing reads back" id="inert">
+        <p>
+            Both are accepted, and both land on the registry the weaver was built with. Neither
+            list is read again.
+        </p>
+
+        <list>
+            <li><p>A <code>SelectorResolver</code> changes no match. What a selector does match is
+                in <a href="selectors.topic">Selectors</a>, and its syntax in
+                <a href="selector-grammar.topic">the selector grammar</a>.</p></li>
+            <li><p>A <code>DiagnosticListener</code> is fed nothing. The weaver reports through
+                the listener its driver installed, so keep your own record as you report —
+                <a href="reporting.topic">Report rather than throw</a>.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="What a plugin does not decide" id="limits">
+        <table style="header-row">
+            <tr><td>Not yours to register</td><td>Where it comes from</td></tr>
+            <tr><td>A policy refusing a class</td><td>Whoever builds the weaver sets it</td></tr>
+            <tr><td>Which weaves exist</td><td>A source the driver constructs itself</td></tr>
+            <tr><td>The bytes handed back</td><td>Injectors write them, observers hear of them</td></tr>
+            <tr><td>The built-in namespace</td><td>Its owner is the engine's own plugin</td></tr>
+        </table>
+
+        <p>
+            <a href="policy-and-safety.topic">Weave policy</a> has the first row and
+            <a href="weave-discovery.topic">How a weave is found</a> the second.
+        </p>
+    </chapter>
+
+    <chapter title="Only a weaver you build loads one" id="reach">
+        <warning>
+            <p>
+                No shipped driver loads a plugin of yours. The Maven goal, the agent, the weaving
+                class loader and the testkit each assemble their weaver without
+                <code>plugin(...)</code> and without <code>discoverPlugins(...)</code>, so the
+                engine's own built-in plugin is the only one they load.
+            </p>
+        </warning>
+
+        <p>
+            Both calls belong to the program that builds the weaver.
+            <code>Weaver.builder().plugin(...)</code> installs an instance you hand it, and
+            <code>discoverPlugins(loader)</code> asks for a <code>ServiceLoader</code> lookup on
+            that loader. Discovery happens only when a loader was set.
+        </p>
+
+        <p>
+            Such a weaver gives every plugin an empty configuration, so your defaults are all you
+            get. <a href="loading-plugins.topic">Loading and isolating plugins</a> covers discovery and the
+            allowlist, and <a href="write-a-plugin.topic">Write a plugin</a> is the class itself.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="injection-points.topic">Injection points</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+        </category>
+        <category ref="reference">
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+    </seealso>
+</topic>

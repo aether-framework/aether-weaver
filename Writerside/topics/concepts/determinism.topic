@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="determinism" title="Determinism">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        The guarantee holds under one plan, one weaver version and one detail level. Weave a
+        class file under all three unchanged, and the bytes come back identical. Your machine
+        and the build server agree. Nothing woven records where it was built, or when.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    T["The target class file"] --> R["Weaving"]
+    W["Parsed weaves, put in one order"] --> P["The plan and its fingerprint"]
+    G["Loaded plugins"] --> P
+    P --> R
+    V["Weaver version"] --> R
+    R --> O["Woven bytes, stamped"]
+    </code-block>
+
+    <chapter title="What decides the bytes" id="inputs">
+        <p>
+            Each class is woven from its own bytes. The plan was fixed before the run began. The
+            order classes arrive in changes nothing.
+        </p>
+
+        <deflist type="full">
+            <def title="The target class file">
+                <p>
+                    <code>Weaver.weave</code> takes an internal name and bytes, and nothing else.
+                    It never sees a path or a file date, so neither can reach the output.
+                </p>
+            </def>
+            <def title="A dissolving weave's own class file">
+                <p>
+                    A dissolving weave contributes its own class file too. Its method bodies are
+                    copied out of that file, not out of the parsed model. That file is an input
+                    in the same sense the target's is.
+                </p>
+            </def>
+            <def title="One order, settled before the first class">
+                <p>
+                    The planner sorts every declaration once. Conflict detection, the fingerprint
+                    and the report then all read that one sequence.
+                    <a href="ordering.topic">Ordering</a> has the four parts of the key it sorts
+                    by.
+                </p>
+            </def>
+            <def title="The fingerprint">
+                <p>
+                    A SHA-256 of what the plan will do, never of where its weaves were found.
+                    <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="weave-discovery.topic">How a weave is found</a> lists what goes into it and
+                    what the weaver does with it.
+                </p>
+            </def>
+            <def title="A name the weaver has to invent">
+                <p>
+                    A <code>@Unique</code> member that collides takes a suffix from a digest of
+                    the weave's own name, never from a counter. So it lands alike everywhere.
+                    <a href="weave-members.topic">Weave members</a> has the form.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What moves them" id="moves">
+        <table style="header-row">
+            <tr>
+                <td>What changed</td>
+                <td>The fingerprint</td>
+                <td>The bytes</td>
+            </tr>
+            <tr>
+                <td>A weave's targets, selectors or members</td>
+                <td>moves</td>
+                <td>move</td>
+            </tr>
+            <tr>
+                <td>The directory a weave was found in</td>
+                <td>holds</td>
+                <td>hold</td>
+            </tr>
+            <tr>
+                <td>The order two dissolving weaves are <a href="weave-discovery.topic">discovered</a> in</td>
+                <td>moves</td>
+                <td>move</td>
+            </tr>
+            <tr>
+                <td>Which plugins load, or what they register</td>
+                <td>moves</td>
+                <td>move</td>
+            </tr>
+            <tr>
+                <td>The detail level of the annotation</td>
+                <td>holds</td>
+                <td>move</td>
+            </tr>
+            <tr>
+                <td>The weaver version</td>
+                <td>holds</td>
+                <td>move</td>
+            </tr>
+            <tr>
+                <td>The compiler that produced the target, or a dissolving weave</td>
+                <td>holds</td>
+                <td>move</td>
+            </tr>
+        </table>
+
+        <p>
+            A moved fingerprint is a different plan. At build time, a class some other plan
+            already stamped is refused as <code>AW2201</code>. Build the module clean. If that is
+            not it, the input has been woven before. Weave the original classes instead.
+            <a href="choose-a-driver.topic">Choose a driver</a> has what a load-time driver does.
+        </p>
+
+        <warning>
+            <p>
+                Watch the three rows where the fingerprint holds and the bytes move. A class the
+                current plan already stamped is skipped regardless. An upgraded weaver, a new
+                compiler or a changed detail level reaches only what is rebuilt. Delete the
+                output directory after any of them.
+            </p>
+        </warning>
+    </chapter>
+
+    <chapter title="What it does not cover" id="limits">
+        <deflist type="full">
+            <def title="What the woven code does">
+                <p>
+                    The bytes are fixed; the behaviour is your handler's. A handler that reads a
+                    clock or iterates a hash set gives a different run every time, and nothing
+                    here reports it.
+                </p>
+            </def>
+            <def title="What a plugin contributes">
+                <p>
+                    Its metadata is folded into the fingerprint. Only the value reaches the
+                    annotation unchanged. The key gains the plugin's namespace as a prefix, and
+                    entries are written in key order, not the order the plugin gave them. Under
+                    <code>Woven.Detail.NONE</code> no annotation is written at all, so no class
+                    carries it. A plugin publishing a build time moves every fingerprint on every
+                    run. <a href="plugins.topic">Extending the engine</a> covers what a plugin may
+                    register.
+                </p>
+            </def>
+            <def title="The compiler in front of it">
+                <p>
+                    A JDK upgrade can change the class file <code>javac</code> emits. That reaches
+                    a dissolving weave's own file as well as the target's. The weave output
+                    follows, and a committed fixture moves with nothing wrong.
+                </p>
+            </def>
+            <def title="The JDK the weaver runs on">
+                <p>
+                    The written bytes come from the JDK's own class file writer, not from
+                    anything this repository controls. That JDK is part of the toolchain this
+                    guarantee is stated over.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Proving it in a test" id="testkit">
+        <p>
+            The testkit weaves every target twice, over the original bytes both times. Both
+            results are kept. The comparison costs your test one line.
+        </p>
+
+        <code-block lang="java">
+assertThatWoven(weaving.weave(Ledger.class))
+        .wasWoven()
+        .isDeterministic();
+        </code-block>
+
+        <p>
+            <code>isDeterministic()</code> compares the two passes byte for byte. A
+            constant-pool difference that changes no behaviour fails it, which is the point.
+            Only the bytes are compared. The second pass's diagnostics are dropped before the
+            result is built. A warning only it raises is lost.
+        </p>
+
+        <p>
+            Two more checks build on this one and compare against a committed fixture.
+            <a href="testing-woven-code.topic">Testing a weave</a> covers both.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="ordering.topic">Ordering</a>
+            <a href="weave-members.topic">Weave members</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">Annotations</a>
+        </category>
+    </seealso>
+</topic>

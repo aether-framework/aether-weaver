@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="intellij-plugin" title="The IntelliJ IDEA plugin">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <tldr>
+        <p>Needs IntelliJ IDEA 2026.2 or newer and the IDE's own Java plugin. Nothing publishes
+            it, so you build it yourself:
+            <a href="building-and-testing.topic">Building and testing</a>.</p>
+    </tldr>
+
+    <p>
+        The IntelliJ IDEA plugin shows you the class the build produces. It changes no bytes.
+    </p>
+
+    <table style="header-row">
+        <tr><td>In the editor</td><td>What the plugin adds</td></tr>
+        <tr><td>Completion</td><td>Merged members, extensions, selectors</td></tr>
+        <tr><td>Red underlines</td><td>Six inspections and ten quick fixes</td></tr>
+        <tr><td>Alt+Enter</td><td>Nine intentions, two write a handler</td></tr>
+        <tr><td>Alt+Insert</td><td>Weave Handler..., in the Generate menu</td></tr>
+        <tr><td>Gutter</td><td>Three markers, in both directions</td></tr>
+        <tr><td>Inlays</td><td>The injected code, where it lands</td></tr>
+        <tr><td>Tool window</td><td>Weaves: every weave and holder in sight</td></tr>
+    </table>
+
+    <chapter title="What the inspections report" id="inspections">
+        <p>
+            Six, enabled at error level, under <control>Aether Weaver</control> in the
+            inspection settings.
+        </p>
+
+        <deflist type="full">
+            <def title="Selector does not bind to a target member">
+                <p>
+                    A <code>method</code> selector that does not parse. One that names no method
+                    any target declares or inherits. A bare name where the targets have several
+                    of them.
+                </p>
+                <p>
+                    <code>AW1020</code>, <code>AW1021</code>, and the parser's own
+                    <code>AW1015</code>, <code>AW1017</code> to <code>AW1019</code>: name a
+                    method a target declares, spelled as
+                    <a href="selector-grammar.topic">the selector grammar</a> accepts.
+                </p>
+            </def>
+            <def title="Weave declaration cannot work as written">
+                <p>
+                    A <code>@Weave</code> naming no target, or naming its targets as literals and
+                    as strings at once. Also what a static weave may not hold: a
+                    <code>@Shadow</code>, a <code>@Unique</code>, a non-static handler.
+                </p>
+                <p>
+                    <code>AW1001</code>, <code>AW1002</code>, <code>AW1005</code>,
+                    <code>AW1090</code>, <code>AW1091</code>: name the targets once, and keep
+                    those three out of a static weave.
+                </p>
+            </def>
+            <def title="Handler signature does not fit the target">
+                <p>
+                    A handler that returns something. One whose parameters are not a prefix of
+                    the target's, or whose callback names the wrong value type.
+                </p>
+                <p>
+                    <code>AW1040</code>, <code>AW1041</code>, <code>AW1070</code>,
+                    <code>AW1071</code>: declare it <code>void</code>, with the parameters and
+                    the callback type <a href="handlers-and-callbacks.topic">Handlers</a> gives.
+                </p>
+            </def>
+            <def title="Weave member conflicts with the target">
+                <p>
+                    A <code>@Shadow</code> field typed differently from the target's. An
+                    <code>@Accessor</code> or <code>@Invoker</code> landing on a member that
+                    exists. A merged member colliding, or a handler the injected call cannot
+                    reach.
+                </p>
+                <p>
+                    <code>AW1031</code>, <code>AW1042</code>, <code>AW1080</code>,
+                    <code>AW1095</code>: match the target's type, rename what collides, or make
+                    the handler reachable.
+                    <a href="weave-members.topic">Weave members</a> has the merge rules.
+                </p>
+            </def>
+            <def title="Extension declaration cannot work as written">
+                <p>
+                    A holder that is not final, is generic, or has a supertype. A contributed
+                    method that is not static or is generic. A receiver that is missing, doubled,
+                    not first, parameterised or <code>Object</code>. A contribution the receiver
+                    already has.
+                </p>
+                <p>
+                    Fourteen codes, all of them <code>AW13xx</code>: make the holder final, the
+                    contribution static, and its first parameter the receiver.
+                    <a href="extension-methods.topic">Extension methods</a> has the form.
+                </p>
+            </def>
+            <def title="@At target cannot name an operation">
+                <p>
+                    A <code>target</code> written on a point that names a position. A point that
+                    needs one and has none. A target whose owner has no such member.
+                </p>
+                <p>
+                    <code>AW1043</code>, and the parser's codes where the target does not parse:
+                    name a member the owner has, on a point that takes a target.
+                    <a href="injection-points.topic">Injection points</a> lists them.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            The editor cannot invent a code. It carries the API's own selector parser and the
+            framework's own <code>DiagnosticCode</code>.
+            <a href="diagnostics-declaration.topic">AW1xxx</a> has the entry behind each one.
+        </p>
+    </chapter>
+
+    <chapter title="Where the editor shows less than the build" id="limits">
+        <p>
+            An inspection reports what the source shows. Three things belong to the build.
+        </p>
+
+        <list>
+            <li><p>The editor says less than the build, never something else. One corpus of wrong
+                weaves runs through the annotation processor and through five of the six
+                inspections. The two sets of codes are compared; the <code>@At</code> target
+                inspection is left out.</p></li>
+            <li><p>Which positions an injection point matched is decided against compiled bytes,
+                so every site the plugin draws is a plan. The <control>Weaves</control> window
+                says so in its footer.</p></li>
+            <li><p>Nothing is numbered without a class file newer than its source.
+                <control>Weave here</control> and <control>Weave Handler...</control> say why.
+                Completion and the inspections fall back to the source in silence.</p></li>
+        </list>
+
+        <note>
+            <p>One shape is the editor's alone. <code>AW1070</code> underlines a
+                <code>cancel()</code> that passes no value, on a <code>ReturnableCallback</code>
+                whose target returns one. The declaration is right; the call becomes
+                <code>cancel(value)</code>.</p>
+        </note>
+    </chapter>
+
+    <chapter title="Quick fixes" id="fixes">
+        <table style="header-row">
+            <tr><td>When the editor underlines</td><td>Quick fix</td><td>Code</td></tr>
+            <tr><td>a non-static handler, static weave</td><td>Declare the handler static</td>
+                <td><code>AW1005</code></td></tr>
+            <tr><td>a handler the call cannot reach</td><td>Make the handler and its weave public</td>
+                <td><code>AW1042</code></td></tr>
+            <tr><td>parameters that are not a prefix</td><td>Adjust handler parameters to the target</td>
+                <td><code>AW1040</code></td></tr>
+            <tr><td>a selector naming no such method</td><td>Change selector to an existing member</td>
+                <td><code>AW1020</code></td></tr>
+            <tr><td>text that reads as a descriptor</td><td>Apply the selector parser's suggestion</td>
+                <td><code>AW1017</code></td></tr>
+            <tr><td>a @Shadow field in a static weave</td><td>Replace @Shadow with an @Accessor pair</td>
+                <td><code>AW1090</code></td></tr>
+            <tr><td>a @Shadow method in a static weave</td><td>Replace @Shadow with an @Invoker</td>
+                <td><code>AW1090</code></td></tr>
+            <tr><td>a holder that is not final</td><td>Declare the extension class final</td>
+                <td><code>AW1300</code></td></tr>
+            <tr><td>a contribution that is not static</td><td>Declare the contributed method static</td>
+                <td><code>AW1301</code></td></tr>
+            <tr><td>a contribution naming no receiver</td><td>Mark the first parameter @Receiver</td>
+                <td><code>AW1302</code></td></tr>
+            <tr><td>@Receiver on a later parameter</td><td>Move the @Receiver parameter first</td>
+                <td><code>AW1303</code></td></tr>
+        </table>
+    </chapter>
+
+    <chapter title="Intentions and generated handlers" id="intentions">
+        <table style="header-row">
+            <tr><td>Intention</td><td>Offered on</td></tr>
+            <tr><td>Weave here</td><td>a method body outside a weave</td></tr>
+            <tr><td>Weave where this variable is live</td><td>a local in that same body</td></tr>
+            <tr><td>Declare @Shadow for the target's member</td><td>a red reference in a weave</td></tr>
+            <tr><td>Create a weave for this class</td><td>a top-level or nested class, no @Weave</td></tr>
+            <tr><td>Create extension method '...' in ...</td><td>a red call on an extended type</td></tr>
+            <tr><td>Qualify the selector's parameter types</td><td>a selector that writes a parameter list</td></tr>
+            <tr><td>Convert selector to source form</td><td>a selector in descriptor form</td></tr>
+            <tr><td>Convert the target to source form</td><td>an @At target in descriptor form</td></tr>
+            <tr><td>Convert the target to descriptor form</td><td>an @At target naming one method</td></tr>
+        </table>
+
+        <p>
+            <control>Weave Handler...</control> generates the same handler from the Generate
+            menu, in a weave whose targets resolve. It and the two Weave intentions each write one
+            method, with imports rather than qualified names. Nothing is written where the
+            selector, the type or the operation does not come back. A conversion re-resolves
+            first, so a rewrite renames nothing.
+        </p>
+
+        <p>
+            <control>Weave where this variable is live</control> offers the positions the
+            variable can still be read at. The target has to carry a local variable table.
+            <a href="locals.topic">Locals</a> has what <code>@Local</code> binds by.
+        </p>
+    </chapter>
+
+    <chapter title="Members that are not in the source" id="augmentation">
+        <p>
+            Two providers put on a class what the build gives it. Completion, navigation and
+            Find Usages then see the woven class.
+        </p>
+
+        <deflist type="medium">
+            <def title="On a weave's target">
+                <p>
+                    Every member a weave that dissolves merges in, its accessors and invokers, and
+                    its handlers as private. A <code>@Shadow</code> is left off, and so is a member
+                    whose name the target already has.
+                </p>
+            </def>
+            <def title="On an extension's receiver">
+                <p>
+                    Contributed methods without their receiver parameter, and contributed
+                    constants. A holder in the project and one in a jar arrive the same way. The
+                    completion row carries a tail naming the class it comes from.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            No source calls a handler or assigns a shadow field. The unused-declaration
+            inspection is told to leave both alone. An ordinary private method of a weave is
+            still reported. So is a <code>@Shadow</code> method nothing calls.
+        </p>
+    </chapter>
+
+    <chapter title="Gutter, navigation and inlays" id="navigation">
+        <p>
+            A selector string works like a call site. <control>Go to declaration</control>,
+            <control>Find Usages</control> and <control>Rename</control> all reach the member it
+            names. A rename rewrites the name inside the literal and leaves the parameter list
+            standing.
+        </p>
+
+        <p>
+            Completion inside a selector offers the target's own methods and its merged
+            members. Inherited methods are left out. Inside an <code>@At</code> target it offers
+            the operations of the compiled method. Each row says how often that operation
+            occurs. Name a class there and you get its members instead, without a count.
+        </p>
+
+        <deflist type="medium">
+            <def title="Three gutter markers">
+                <p>
+                    On a woven member, every handler reaching it, from this project and from a
+                    dependency. On a handler carrying <code>@Inject</code> or
+                    <code>@Redirect</code>, the members it weaves into. On an extension
+                    declaration, the type that gains it.
+                </p>
+            </def>
+            <def title="Injected code, in place">
+                <p>
+                    A block inlay draws each handler above the line it lands on.
+                    <control>Show Injected Code</control>, in the View menu and the editor popup,
+                    collapses every one of them in every open project.
+                </p>
+            </def>
+            <def title="Injection-site hints">
+                <p>
+                    Read from the weave's side: an end-of-line hint on the annotation names the
+                    lines of the target the injection reaches. A point that matches nothing shows
+                    no hint.
+                </p>
+            </def>
+            <def title="The Weaves window">
+                <p>
+                    A snapshot on the right, rebuilt on demand: every weave with its targets and
+                    handlers, every extension holder with its contributions. A row from the
+                    project opens its declaration on a double-click.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="What it reads, and what it needs" id="requirements">
+        <p>
+            Three sources, none of them the framework at run time.
+        </p>
+
+        <deflist type="medium">
+            <def title="The weave manifest of every library">
+                <p>
+                    <code>META-INF/aether/weaves.json</code>, from each library root, jar or
+                    directory. That is where the weaves and extensions a dependency ships come
+                    from. A manifest that cannot be read is skipped in silence, and the result is
+                    re-read when the dependencies change.
+                    <a href="manifest-format.topic">The manifest reference</a> has the format.
+                </p>
+            </def>
+            <def title="The target's class file">
+                <p>
+                    Read whenever a declaration counts instructions rather than statements: any
+                    <code>ordinal</code>, <code>shift</code> or <code>slice</code>. Read too
+                    wherever the source has no body to walk, as a decompiled target has none.
+                    Every feature that names an operation reaches for it.
+                </p>
+            </def>
+            <def title="Two indexes over the project">
+                <p>
+                    Weaves by target name and holders by receiver name, both read as text.
+                    A target the indexer cannot read is kept rather than dropped. A weave being
+                    typed never disappears from the file it applies to.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            <code>sinceBuild</code> is 262 and no <code>untilBuild</code> is declared, so a
+            newer IDE is never refused. <code>./gradlew runIde</code> starts an IDE with the
+            plugin and its sample project open.
+            <a href="building-and-testing.topic">Building and testing</a> has that build.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="selectors.topic">Selectors</a>
+            <a href="extension-methods.topic">Extension methods</a>
+            <a href="injection-points.topic">Injection points</a>
+        </category>
+        <category ref="reference">
+            <a href="selector-grammar.topic">The selector grammar</a>
+            <a href="diagnostics-declaration.topic">AW1xxx</a>
+            <a href="manifest-format.topic">The weave manifest</a>
+        </category>
+        <category ref="guides">
+            <a href="diagnosing-a-weave.topic">Diagnosing a weave</a>
+        </category>
+        <category ref="contributing">
+            <a href="building-and-testing.topic">Building and testing</a>
+        </category>
+    </seealso>
+</topic>

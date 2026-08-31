@@ -1,0 +1,75 @@
+# Gradle
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IntelliJ IDEA
+.idea/
+.idea/libraries/
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Maven
+/target/
+**/target/
+
+# Claude Code
+# Only the machine-local half is ignored. The agents, the skill and the shared settings
+# are project infrastructure: a clone without them has the units, the style guide and
+# every gate, and nothing that knows how to run them.
+/.claude/settings.local.json
+# CLAUDE.md is tracked: it carries the documentation policy every agent works to, and a
+# fresh clone or worktree that silently lacked it would produce work to no rules at all.
+
+# GitHub
+current-ticket.md
+/data/
+
+# Logs
+logs/
+/old_assets/
+/mc_assets/
+/bs_assets/
+/experimental_assets/
+img.png
+/bss_images/
+/preview/
+build-config/docsite/jetbrains-idea-help.txt
+
+# Python bytecode, produced when selftest.py imports the gate
+__pycache__/
+*.pyc

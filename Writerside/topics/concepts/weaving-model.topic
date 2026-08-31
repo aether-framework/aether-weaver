@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="weaving-model" title="The weaving model">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        A weave is a declaration, and the engine treats it as one. It reads your annotations once
+        and folds every weave of the run into a single plan. Every class a driver offers is then
+        answered from that plan.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Parser reads your @Weave class"] --> C["Declarations: targets, handlers, members"]
+    C --> D["Planner orders and compares"]
+    D --> E["One plan, keyed by internal name"]
+    F["A class offered by a driver"] --> G{"Named in the plan?"}
+    E --> G
+    G -->|no| H["Left unwoven"]
+    G -->|yes| I["Injections, then merging"]
+    I --> J["Rewritten bytes"]
+    </code-block>
+
+    <chapter title="What a weave hands over" id="declares">
+        <p>
+            The parse builds an eleven-part <code>WeaveClass</code>. This page follows three of
+            them: targets, handlers and members.
+        </p>
+
+        <deflist type="medium">
+            <def title="Targets">
+                <p>
+                    The classes the weave claims, each recorded with the spelling you used. A
+                    weave needs at least one; <code>require()</code> only decides whether a
+                    missing one fails the build, and nothing past the parse reads it. Any error
+                    during the parse throws the whole weave away, never half of it.
+                    <a href="annotations.topic">The annotation reference</a> has every element of
+                    <code>@Weave</code>.
+                </p>
+            </def>
+            <def title="Handlers">
+                <p>
+                    Your methods carrying <code>@Inject</code>, <code>@Redirect</code> or
+                    <code>@Wrap</code>, each paired with the site it claims. A handler is never
+                    also a member. <a href="handlers-and-callbacks.topic">Handlers and callbacks</a> covers what one
+                    may take and return.
+                </p>
+            </def>
+            <def title="Members">
+                <p>
+                    Fields and methods in one of four shapes: merged, shadowed, accessor, invoker.
+                    The shape decides what the merge stage does with the name.
+                    <a href="weave-members.topic">Weave members</a> has the four.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Three moments, three views" id="moments">
+        <p>
+            Each moment sees more than the one before it. That decides where a rule can be
+            enforced at all.
+        </p>
+
+        <table style="header-row">
+            <tr>
+                <td>Moment</td>
+                <td>What it reads</td>
+                <td>What it settles</td>
+            </tr>
+            <tr>
+                <td>The parse</td>
+                <td>one weave's class file</td>
+                <td>its targets, handlers and members</td>
+            </tr>
+            <tr>
+                <td>Planning</td>
+                <td>every weave of the run</td>
+                <td>order, and conflicting declarations</td>
+            </tr>
+            <tr>
+                <td>Weaving</td>
+                <td>the target, and again for merging</td>
+                <td>whether every name resolves</td>
+            </tr>
+        </table>
+
+        <p>
+            No target is read until the third. So planning compares the text you wrote. Two
+            weaves that name one call site in different words never look like one claim.
+            <a href="ordering.topic">Ordering</a> covers priority and the tie-breakers behind it.
+        </p>
+
+        <note>
+            <p>
+                A contradiction found during planning does not stop the plan. Every pass runs and
+                reports, so one build shows all of them instead of one per rebuild. Two weaves
+                merging one member into one class is <code>AW1080</code>. Rename all but one.
+                Marking them <code>@Unique</code> silences the code without separating the
+                names: a member is <a href="weave-members.topic">mangled</a> only where the
+                target declares that name itself.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Dissolved, or left standing" id="dissolve">
+        <p>
+            The plan asks one question of each weave. Both halves of it count.
+        </p>
+
+        <deflist type="medium">
+            <def title="An instance weave with a member or an injector">
+                <p>
+                    It dissolves into every target it names. A target is rebuilt only where the
+                    weave has something to contribute; a plain <code>@Shadow</code> alone changes
+                    nothing.
+                </p>
+            </def>
+            <def title="An instance weave with neither">
+                <p>
+                    It reaches none of its targets. Declaring a target and nothing else is valid
+                    — and does nothing.
+                </p>
+            </def>
+            <def title="A static weave">
+                <p>
+                    Never dissolves, whatever it declares. Members it writes are modelled and
+                    never moved. Only its injections change a target.
+                    <a href="weave-members.topic">Weave members</a> says which shapes are worth declaring
+                    there.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            The plan indexes dissolving weaves separately from injections, both keyed by
+            internal name — the slash-separated form the class file itself uses. That second
+            index is why a weave which only merges still reaches its targets.
+        </p>
+    </chapter>
+
+    <chapter title="Declarations, and no bodies" id="bodies">
+        <p>
+            A member records a name, a type and its flags. It never records code. Nothing in the
+            model holds a parsed class.
+        </p>
+
+        <p>
+            A stage that has to move a body therefore reads the weave's class file a second time.
+            Where nothing supplies it, merging refuses with <code>AW1096</code>. Give the weaver a
+            source for the weave's own bytes; <a href="choose-a-driver.topic">each driver wires
+            that up its own way</a>.
+            <a href="diagnostics.topic">Diagnostics</a> explains the ranges.
+        </p>
+
+        <tip>
+            <p>
+                An accessor and an invoker are built onto the target from the declaration alone.
+                A weave of nothing but those needs no class file at all.
+            </p>
+        </tip>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="what-is-aether-weaver.topic">What Aether Weaver is</a>
+            <a href="first-weave.topic">Your first weave</a>
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="weave-discovery.topic">How a weave is found</a>
+            <a href="selectors.topic">Selectors</a>
+            <a href="injection-points.topic">Injection points</a>
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a>
+            <a href="locals.topic">Locals</a>
+            <a href="weave-members.topic">Weave members</a>
+            <a href="ordering.topic">Ordering</a>
+        </category>
+        <category ref="reference">
+            <a href="annotations.topic">Annotations</a>
+            <a href="diagnostics.topic">Diagnostic codes</a>
+        </category>
+    </seealso>
+</topic>

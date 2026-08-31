@@ -1,0 +1,178 @@
+<!--
+  The plugin descriptor.
+
+  Everything here is registered lazily by the platform: an extension point costs nothing until the
+  IDE actually reaches it, which is what keeps a plugin that is installed but unused free.
+-->
+<idea-plugin>
+    <id>de.splatgames.aether.weaver</id>
+    <name>Aether Weaver</name>
+    <vendor email="support@splatgames.de" url="https://splatgames.de">
+        Splatgames.de Software
+    </vendor>
+
+    <description><![CDATA[
+      Makes Aether Weaver's weaves and extensions readable while you write them.
+      <ul>
+        <li><b>Extension methods resolve</b> — a method contributed to <code>String</code> or
+            <code>BigDecimal</code> completes, navigates and documents on the type that gained it,
+            including types that come from a jar</li>
+        <li><b>Find Usages</b> on an extension finds the call sites written on its receiver</li>
+        <li><b>Go To Declaration</b> and <b>Find Usages</b> through a selector string</li>
+        <li><b>Rename</b> a target member and every selector that names it follows</li>
+        <li><b>Completion</b> inside the string, offering the target's own members</li>
+        <li>Inspections that refuse a declaration before the build does</li>
+      </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <psi.referenceContributor language="JAVA"
+            implementation="de.splatgames.aether.weaver.idea.selector.SelectorReferenceContributor"/>
+        <highlightingPassFactory
+            implementation="de.splatgames.aether.weaver.idea.preview.WeaveInlayPass$Factory"/>
+        <highlightingPassFactory
+            implementation="de.splatgames.aether.weaver.idea.preview.InjectionSiteHintPass$Factory"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="de.splatgames.aether.weaver.idea.marker.WeaveLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="de.splatgames.aether.weaver.idea.marker.HandlerLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="de.splatgames.aether.weaver.idea.marker.ExtensionLineMarkerProvider"/>
+        <localInspection language="JAVA"
+            shortName="AetherWeaverSelector"
+            displayName="Selector does not bind to a target member"
+            groupName="Aether Weaver"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="de.splatgames.aether.weaver.idea.inspection.SelectorInspection"/>
+        <localInspection language="JAVA"
+            shortName="AetherWeaverWeaveDeclaration"
+            displayName="Weave declaration cannot work as written"
+            groupName="Aether Weaver"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="de.splatgames.aether.weaver.idea.inspection.WeaveDeclarationInspection"/>
+        <localInspection language="JAVA"
+            shortName="AetherWeaverHandlerSignature"
+            displayName="Handler signature does not fit the target"
+            groupName="Aether Weaver"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="de.splatgames.aether.weaver.idea.inspection.HandlerSignatureInspection"/>
+        <localInspection language="JAVA"
+            shortName="AetherWeaverWeaveMember"
+            displayName="Weave member conflicts with the target"
+            groupName="Aether Weaver"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="de.splatgames.aether.weaver.idea.inspection.WeaveMemberInspection"/>
+        <localInspection language="JAVA"
+            shortName="AetherWeaverExtensionDeclaration"
+            displayName="Extension declaration cannot work as written"
+            groupName="Aether Weaver"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="de.splatgames.aether.weaver.idea.inspection.ExtensionDeclarationInspection"/>
+        <localInspection language="JAVA"
+            shortName="AetherWeaverPointTarget"
+            displayName="@At target cannot name an operation"
+            groupName="Aether Weaver"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="de.splatgames.aether.weaver.idea.inspection.PointTargetInspection"/>
+        <completion.contributor language="JAVA"
+            implementationClass="de.splatgames.aether.weaver.idea.selector.SelectorCompletionContributor"/>
+        <completion.contributor language="JAVA"
+            implementationClass="de.splatgames.aether.weaver.idea.selector.PointTargetCompletionContributor"/>
+        <!--
+          order="first" is load-bearing: this contributor decorates what the contributors after it
+          produce, and one that runs last has nothing left to decorate.
+        -->
+        <completion.contributor language="JAVA" order="first"
+            implementationClass="de.splatgames.aether.weaver.idea.completion.ContributedMethodCompletionContributor"/>
+        <implicitUsageProvider
+            implementation="de.splatgames.aether.weaver.idea.usage.WeaveImplicitUsageProvider"/>
+        <implicitUsageProvider
+            implementation="de.splatgames.aether.weaver.idea.usage.ExtensionImplicitUsageProvider"/>
+        <fileBasedIndex implementation="de.splatgames.aether.weaver.idea.index.WeaveTargetIndex"/>
+        <fileBasedIndex
+            implementation="de.splatgames.aether.weaver.idea.index.ExtensionReceiverIndex"/>
+        <lang.psiAugmentProvider
+            implementation="de.splatgames.aether.weaver.idea.augment.WeaveAugmentProvider"/>
+        <lang.psiAugmentProvider
+            implementation="de.splatgames.aether.weaver.idea.augment.ExtensionAugmentProvider"/>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.intention.ConvertSelectorToSourceFormIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.intention.QualifySelectorIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.intention.ConvertPointTargetToSourceFormIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.intention.ConvertPointTargetToDescriptorFormIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.intention.AddShadowIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.intention.CreateWeaveIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.generate.WeaveHereIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.generate.CaptureLocalIntention</className>
+        </intentionAction>
+        <intentionAction>
+            <language>JAVA</language>
+            <category>Aether Weaver</category>
+            <className>de.splatgames.aether.weaver.idea.intention.CreateExtensionMethodIntention</className>
+        </intentionAction>
+        <toolWindow id="Weaves"
+            anchor="right"
+            secondary="true"
+            icon="AllIcons.Nodes.Plugin"
+            factoryClass="de.splatgames.aether.weaver.idea.toolwindow.WeavesToolWindowFactory"/>
+    </extensions>
+
+    <actions>
+        <action id="AetherWeaver.ToggleInjectedCode"
+                class="de.splatgames.aether.weaver.idea.preview.ToggleInjectedCodeAction"
+                text="Show Injected Code"
+                description="Show the code Aether Weaver injects, in place, or collapse it to a strip">
+            <add-to-group group-id="ViewMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <!--
+          In GenerateGroup, which is what Alt+Insert opens. The action decides for itself that it
+          only appears inside a weave, so the menu stays as short as it was everywhere else.
+        -->
+        <action id="AetherWeaver.AddHandler"
+                class="de.splatgames.aether.weaver.idea.generate.AddHandlerAction"
+                text="Weave Handler..."
+                description="Generate an @Inject handler for a method of this weave's target">
+            <add-to-group group-id="GenerateGroup" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

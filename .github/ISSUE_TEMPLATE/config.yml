@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Documentation
+    url: https://software.splatgames.de/docs/aether-weaver/
+    about: The getting-started path, the concepts, every reference table and every diagnostic code.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/aether-framework/aether-weaver/security/advisories/new
+    about: Report privately. Never in a public issue.
+  - name: 🤝 Contributing
+    url: https://github.com/aether-framework/aether-weaver/blob/main/CONTRIBUTING.md
+    about: How to build the project, the rules the build enforces, and how a change gets reviewed.

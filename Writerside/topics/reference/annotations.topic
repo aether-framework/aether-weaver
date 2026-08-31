@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="annotations" title="Annotations">
+
+    <show-structure for="chapter,procedure" depth="2"/>
+
+    <p>
+        Every annotation the API declares, with the type and the declared default of each element.
+    </p>
+
+    <table style="header-row">
+        <tr><td>Annotation</td><td>Goes on</td><td>What it declares</td></tr>
+        <tr><td><code>@Weave</code></td><td>class</td><td>Marks a class as a weave and names its targets</td></tr>
+        <tr><td><code>@Group</code></td><td>class, repeatable</td><td>Accounts several declarations together</td></tr>
+        <tr><td><code>@Inject</code></td><td>method, repeatable</td><td>Calls a handler at a position in the target</td></tr>
+        <tr><td><code>@Redirect</code></td><td>method</td><td>Replaces the matched operation with a call</td></tr>
+        <tr><td><code>@Wrap</code></td><td>method</td><td>Hands the matched operation to a handler</td></tr>
+        <tr><td><code>@At</code></td><td>annotation value</td><td>One position inside the target method</td></tr>
+        <tr><td><code>@Slice</code></td><td>annotation value</td><td>A named region a point searches within</td></tr>
+        <tr><td><code>@Local</code></td><td>parameter</td><td>Captures a local variable of the target</td></tr>
+        <tr><td><code>@Result</code></td><td>parameter</td><td>Captures the value the preceding call produced</td></tr>
+        <tr><td><code>@Shadow</code></td><td>field or method</td><td>Names a member the target already declares</td></tr>
+        <tr><td><code>@Unique</code></td><td>field or method</td><td>Renames a merged member on collision</td></tr>
+        <tr><td><code>@Accessor</code></td><td>method</td><td>Generates a field getter or setter</td></tr>
+        <tr><td><code>@Invoker</code></td><td>method</td><td>Generates a call to a target method</td></tr>
+        <tr><td><code>@Extension</code></td><td>class</td><td>Declares a class of extension methods</td></tr>
+        <tr><td><code>@Receiver</code></td><td>member or parameter</td><td>Names the type an extension member joins</td></tr>
+        <tr><td><code>@Woven</code></td><td>class</td><td>The record the weaver stamps onto a target</td></tr>
+        <tr><td><code>@Woven.Entry</code></td><td>annotation value</td><td>One declaration the plan carried</td></tr>
+    </table>
+
+    <note>
+        <p>
+            <code>@At</code>, <code>@Slice</code> and <code>@Woven.Entry</code> declare
+            <code>@Target({})</code>. You write them only as the value of another element.
+        </p>
+    </note>
+
+    <chapter title="@Weave and @Group" id="weave">
+
+        <table style="header-row">
+            <tr><td><code>@Weave</code></td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>value</code></td><td><code>Class&lt;?&gt;[]</code> = <code>{}</code></td><td>The targets, as class literals. Prefer this</td></tr>
+            <tr><td><code>targets</code></td><td><code>String[]</code> = <code>{}</code></td><td>Targets off the compile classpath, as names</td></tr>
+            <tr><td><code>kind</code></td><td><code>Kind</code> = <code>INSTANCE</code></td><td>INSTANCE dissolves the weave, STATIC keeps it</td></tr>
+            <tr><td><code>priority</code></td><td><code>int</code> = <code>0</code></td><td>Higher runs first; a negative runs after 0</td></tr>
+            <tr><td><code>require</code></td><td><code>Require</code> = <code>REQUIRED</code></td><td>OPTIONAL accepts a name that will not resolve</td></tr>
+            <tr><td><code>tags</code></td><td><code>String[]</code> = <code>{}</code></td><td>Labels a deployment includes or excludes by</td></tr>
+            <tr><td><code>phase</code></td><td><code>Phase</code> = <code>DEFAULT</code></td><td>EARLY or DEFAULT; recorded, never selected on</td></tr>
+        </table>
+
+        <list>
+            <li><p>Name the targets with <code>value</code> or with <code>targets</code>, never
+                both. Neither is <code>AW1001</code>, both is <code>AW1002</code>.</p></li>
+            <li><p>Only the annotation processor acts on <code>require</code>, and it answers for
+                <code>targets</code> alone.</p></li>
+            <li><p><a href="ordering.topic">Ordering</a> has what <code>priority</code> decides,
+                and <a href="weave-discovery.topic">How a weave is found</a> what
+                <code>tags</code> do.</p></li>
+        </list>
+
+        <table style="header-row">
+            <tr><td><code>@Group</code></td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>name</code></td><td><code>String</code>, required</td><td>What a declaration's group element matches</td></tr>
+            <tr><td><code>min</code></td><td><code>int</code> = <code>1</code></td><td>Fewest matches the members must total</td></tr>
+            <tr><td><code>max</code></td><td><code>int</code> = <code>0</code></td><td>Most they may total; 0 is unbounded</td></tr>
+        </table>
+
+        <note>
+            <p>
+                <code>@Inject</code> and <code>@Group</code> are repeatable, so the compiler wraps
+                the repetitions in <code>@Inject.Container</code> or
+                <code>@Group.Container</code>. Each holds one <code>value</code> array, and
+                neither is written by hand.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="@Inject, @Redirect and @Wrap" id="handlers">
+        <p>The three share their element set. Only <code>at</code> differs in shape.</p>
+
+        <table style="header-row">
+            <tr><td>Element</td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>method</code></td><td><code>String</code>, required</td><td>Selector for the method to weave into</td></tr>
+            <tr><td><code>at</code></td><td><code>At[]</code> or <code>At</code>, required</td><td>An array on @Inject, one point on the others</td></tr>
+            <tr><td><code>slice</code></td><td><code>Slice[]</code> = <code>{}</code></td><td>Regions to search; empty searches the method</td></tr>
+            <tr><td><code>id</code></td><td><code>String</code> = <code>""</code></td><td>The name diagnostics print; derived if empty</td></tr>
+            <tr><td><code>require</code></td><td><code>int</code> = <code>0</code></td><td>Fewest matches that count as success</td></tr>
+            <tr><td><code>allow</code></td><td><code>int</code> = <code>0</code></td><td>Most matches; 0 is no upper bound</td></tr>
+            <tr><td><code>group</code></td><td><code>String</code> = <code>""</code></td><td>Accounts the matches against a @Group</td></tr>
+        </table>
+
+        <list>
+            <li><p>An omitted <code>require</code> is not <code>require = 0</code>. The engine
+                reads an absent one as one match. Write <code>0</code> to make the declaration
+                deliberately optional.</p></li>
+            <li><p>Set <code>group</code> and neither <code>require</code> nor <code>allow</code>
+                is read. The group's total is checked instead.</p></li>
+            <li><p><code>method</code> is a selector, and
+                <a href="selector-grammar.topic">The selector grammar</a> gives every form of
+                one.</p></li>
+            <li><p><code>@Redirect</code> and <code>@Wrap</code> both take only
+                <code>INVOKE</code>, <code>FIELD</code> and <code>NEW</code>, and neither accepts
+                a <code>shift</code>: see <a href="redirect-and-wrap.topic">Redirect and
+                Wrap</a>.</p></li>
+        </list>
+    </chapter>
+
+    <chapter title="@At and @Slice" id="positions">
+
+        <table style="header-row">
+            <tr><td><code>@At</code></td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>value</code></td><td><code>Point</code> = <code>HEAD</code></td><td>The built-in point; unread if custom is set</td></tr>
+            <tr><td><code>custom</code></td><td><code>String</code> = <code>""</code></td><td>A contributed point, as namespace:NAME</td></tr>
+            <tr><td><code>target</code></td><td><code>String</code> = <code>""</code></td><td>What the point matches; some require one</td></tr>
+            <tr><td><code>ordinal</code></td><td><code>int</code> = <code>-1</code></td><td>Which match, from zero; -1 keeps them all</td></tr>
+            <tr><td><code>shift</code></td><td><code>Shift</code> = <code>NONE</code></td><td>NONE, BEFORE, AFTER or BY</td></tr>
+            <tr><td><code>by</code></td><td><code>int</code> = <code>0</code></td><td>Code elements to move; read for BY alone</td></tr>
+            <tr><td><code>access</code></td><td><code>Access</code> = <code>ANY</code></td><td>GET, PUT, STATIC_GET, STATIC_PUT; FIELD only</td></tr>
+            <tr><td><code>slice</code></td><td><code>String</code> = <code>""</code></td><td>The id to search; empty takes the unnamed</td></tr>
+        </table>
+
+        <note>
+            <p>
+                <code>by</code> and <code>access</code>, like <code>shift</code>, are always part
+                of the plan fingerprint. Weaving reads <code>by</code> only under <code>BY</code>
+                and <code>access</code> only for <code>FIELD</code>; changing either on an
+                already-stamped class is <code>AW2201</code>, not a no-op.
+            </p>
+        </note>
+
+        <p>
+            On a built-in point, <code>target</code> is a selector — see
+            <a href="selector-grammar.topic">The selector grammar</a>. A contributed point may
+            define its own grammar for it instead. The nine values of <code>Point</code>, and
+            which of them need a <code>target</code>, are in
+            <a href="injection-points.topic">Injection points</a>. A plugin registers what
+            <code>custom</code> names — <a href="contribute-an-injection-point.topic">Contribute an injection point</a>.
+        </p>
+
+        <table style="header-row">
+            <tr><td><code>@Slice</code></td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>id</code></td><td><code>String</code> = <code>""</code></td><td>What an @At slice matches; empty is unnamed</td></tr>
+            <tr><td><code>from</code></td><td><code>At</code> = <code>@At(Point.HEAD)</code></td><td>Lower bound, inclusive</td></tr>
+            <tr><td><code>to</code></td><td><code>At</code> = <code>@At(Point.TAIL)</code></td><td>Upper bound, exclusive</td></tr>
+        </table>
+
+        <note>
+            <p>
+                A bound resolves against the whole method and must land on exactly one position.
+                Its <code>ordinal</code> therefore defaults to <code>0</code> rather than
+                <code>-1</code>. An explicit <code>-1</code> on a bound throws
+                <code>IllegalArgumentException</code> while the weave class is read — it carries
+                no <code>AW####</code> code.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="@Local and @Result" id="parameters">
+
+        <table style="header-row">
+            <tr><td><code>@Local</code></td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>name</code></td><td><code>String</code> = <code>""</code></td><td>The variable's name; needs debug information</td></tr>
+            <tr><td><code>index</code></td><td><code>int</code> = <code>-1</code></td><td>The slot to read; beats every other element</td></tr>
+            <tr><td><code>ordinal</code></td><td><code>int</code> = <code>-1</code></td><td>Which live variable of the parameter's type</td></tr>
+            <tr><td><code>mutable</code></td><td><code>boolean</code> = <code>false</code></td><td>Writes the variable back; <code>@Inject</code> only</td></tr>
+        </table>
+
+        <p>
+            A <code>@Redirect</code> handler reads the carrier and nothing is stored back, and
+            <code>@Wrap</code> binds no locals at all. <a href="locals.topic">Locals</a> covers
+            capture and write-back.
+        </p>
+
+        <p>
+            <code>@Result</code> declares no elements. It is read on a handler's first parameter,
+            and only on an <code>@Inject</code> handler. A <code>@Redirect</code> or
+            <code>@Wrap</code> handler parses it and ignores it.
+            <a href="handlers-and-callbacks.topic">Handlers and callbacks</a> has the order the
+            parameters are read in.
+        </p>
+    </chapter>
+
+    <chapter title="@Shadow, @Unique, @Accessor and @Invoker" id="members">
+
+        <table style="header-row">
+            <tr><td>Annotation</td><td>Element, type, default</td><td>What it does</td></tr>
+            <tr><td><code>@Shadow</code></td><td><code>value: String</code> = <code>""</code></td><td>The target's name for it; own name if empty</td></tr>
+            <tr><td><code>@Shadow</code></td><td><code>mutable: boolean</code> = <code>false</code></td><td>Drops final from the field; fields only</td></tr>
+            <tr><td><code>@Unique</code></td><td><code>silent: boolean</code> = <code>false</code></td><td>Renames without saying so</td></tr>
+            <tr><td><code>@Accessor</code></td><td><code>value: String</code> = <code>""</code></td><td>The field's name; empty strips get, set, is</td></tr>
+            <tr><td><code>@Invoker</code></td><td><code>value: String</code> = <code>""</code></td><td>The method's name; empty strips call, invoke</td></tr>
+        </table>
+
+        <p>
+            A prefix is stripped only before an upper-case letter, which is then lower-cased.
+            <a href="weave-members.topic">Weave members</a> has what each of the four does to the
+            target, and <a href="diagnostics.topic">Diagnostic codes</a> the codes they raise.
+        </p>
+    </chapter>
+
+    <chapter title="@Extension and @Receiver" id="extensions">
+        <secondary-label ref="experimental"/>
+
+        <table style="header-row">
+            <tr><td><code>@Extension</code></td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>value</code></td><td><code>Class&lt;?&gt;</code> = <code>void.class</code></td><td>The receiver for methods naming none</td></tr>
+            <tr><td><code>require</code></td><td><code>Require</code> = <code>REQUIRED</code></td><td>OPTIONAL skips an absent receiver</td></tr>
+            <tr><td><code>scope</code></td><td><code>Scope</code> = <code>PUBLIC</code></td><td>MODULE offers them to the declaring module</td></tr>
+        </table>
+
+        <table style="header-row">
+            <tr><td><code>@Receiver</code></td><td>Type and default</td><td>What it does</td></tr>
+            <tr><td><code>value</code></td><td><code>Class&lt;?&gt;</code> = <code>void.class</code></td><td>The type that gains it; unread on a parameter</td></tr>
+            <tr><td><code>nulls</code></td><td><code>Nulls</code> = <code>UNCHECKED</code></td><td>NULLABLE, CHECKED or UNCHECKED</td></tr>
+        </table>
+
+        <p>
+            <code>void.class</code> is a sentinel for no receiver named, not a type.
+            <code>nulls</code> is read on a parameter alone, and only <code>CHECKED</code> changes
+            the emitted code. <a href="extension-methods.topic">Extension methods</a> has the rest.
+        </p>
+    </chapter>
+
+    <chapter title="@Woven" id="woven">
+        <p>The weaver stamps this on once the verifier accepts the result. Nothing writes it by
+            hand.</p>
+
+        <table style="header-row">
+            <tr><td><code>@Woven</code></td><td>Type and default</td><td>What it holds</td></tr>
+            <tr><td><code>schema</code></td><td><code>int</code> = <code>1</code></td><td>The record's shape; written as 1</td></tr>
+            <tr><td><code>weaver</code></td><td><code>String</code>, required</td><td>The weaver version that wrote the class</td></tr>
+            <tr><td><code>fingerprint</code></td><td><code>String</code>, required</td><td>64 hex characters; a digest of the whole plan</td></tr>
+            <tr><td><code>detail</code></td><td><code>Detail</code> = <code>SUMMARY</code></td><td>NONE, SUMMARY or FULL</td></tr>
+            <tr><td><code>flags</code></td><td><code>int</code> = <code>0</code></td><td>0x0001 override, 0x0002 structural, 0x0004 cut</td></tr>
+            <tr><td><code>weaves</code></td><td><code>String[]</code> = <code>{}</code></td><td>Weave classes planned against it, sorted</td></tr>
+            <tr><td><code>plugins</code></td><td><code>String[]</code> = <code>{}</code></td><td>Registered plugins, as namespace:version</td></tr>
+            <tr><td><code>entries</code></td><td><code>Entry[]</code> = <code>{}</code></td><td>Planned declarations, under FULL only</td></tr>
+            <tr><td><code>extra</code></td><td><code>String[]</code> = <code>{}</code></td><td>Plugin metadata, as key=value, ordered by key</td></tr>
+        </table>
+
+        <table style="header-row">
+            <tr><td><code>@Woven.Entry</code></td><td>Type</td><td>What it holds</td></tr>
+            <tr><td><code>weave</code></td><td><code>String</code>, required</td><td>Binary name of the weave class</td></tr>
+            <tr><td><code>kind</code></td><td><code>String</code>, required</td><td>What kind of modification it was</td></tr>
+            <tr><td><code>handler</code></td><td><code>String</code>, required</td><td>The handler's name and its JVM descriptor</td></tr>
+            <tr><td><code>target</code></td><td><code>String</code>, required</td><td>The selector as written, not what it matched</td></tr>
+        </table>
+
+        <list>
+            <li><p>An entry's <code>kind</code> is <code>inject</code>, <code>redirect</code> or
+                <code>wrap</code> — the three a handler annotation parses into. A contributed one
+                carries its namespace.</p></li>
+            <li><p><code>entries</code> is capped at 32, and the <code>0x0004</code> bit says it
+                was cut.</p></li>
+            <li><p><a href="determinism.topic">Determinism</a> has what <code>fingerprint</code>
+                covers. <code>detail</code> is set by <code>WeaverBuilder.wovenDetail</code>, not
+                by a configuration key.</p></li>
+        </list>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="injection-points.topic">Injection points</a>
+            <a href="weave-members.topic">Weave members</a>
+            <a href="extension-methods.topic">Extension methods</a>
+        </category>
+        <category ref="reference">
+            <a href="selector-grammar.topic">The selector grammar</a>
+            <a href="diagnostics.topic">Diagnostic codes</a>
+            <a href="configuration-keys.topic">Configuration keys</a>
+        </category>
+    </seealso>
+</topic>

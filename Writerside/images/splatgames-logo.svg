@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Splatgames.de Software mark, as supplied. Only the viewBox is changed: the
+  original 560x380 canvas carries about 60px of margin on every side, which at footer
+  size leaves the drawing too small to read. Cropped to the artwork itself; every
+  path, gradient and colour below is untouched.
+-->
+<svg width="467" height="312" viewBox="64 34 467 312"
+     xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Splatgames.de Software">
+    <defs>
+        <!-- Left diamond -->
+        <linearGradient id="gradLeft" x1="0.2" y1="0.2" x2="0.8" y2="0.8">
+            <stop offset="0%" stop-color="#6aa3fb"/>
+            <stop offset="100%" stop-color="#5c96f0"/>
+        </linearGradient>
+
+        <!-- Right diamond -->
+        <linearGradient id="gradRight" x1="0.2" y1="0.2" x2="0.8" y2="0.8">
+            <stop offset="0%" stop-color="#5865C7"/>
+            <stop offset="100%" stop-color="#4e59b5"/>
+        </linearGradient>
+
+        <!-- Small path -->
+        <linearGradient id="gradPath" x1="0.2" y1="0.2" x2="0.8" y2="0.8">
+            <stop offset="0%" stop-color="#4a94f2"/>
+            <stop offset="100%" stop-color="#3685ff"/>
+        </linearGradient>
+
+        <!-- Middle diamond -->
+        <linearGradient id="gradMiddle" x1="0.2" y1="0.2" x2="0.8" y2="0.8">
+            <stop offset="0%" stop-color="#314ab6"/>
+            <stop offset="100%" stop-color="#2a409f"/>
+        </linearGradient>
+    </defs>
+
+
+    <!-- Left diamond -->
+    <rect x="-110" y="-110" width="220" height="220" rx="26" ry="26"
+          transform="translate(220 190) rotate(45)"
+          fill="url(#gradLeft)" opacity="0.95" />
+
+    <path d="M -84 -110 A 26 26 0 0 0 -110 -84 V 0 H 0 V -110 Z"
+          transform="translate(220 190) rotate(45)"
+          fill="url(#gradPath)" opacity="1"/>
+
+    <!-- Right diamond -->
+    <rect x="-110" y="-110" width="220" height="220" rx="26" ry="26"
+          transform="translate(375 190) rotate(45)"
+          fill="url(#gradRight)" opacity="0.95" />
+
+    <!-- Middle diamond -->
+    <rect x="-110" y="-110" width="110" height="110"
+          transform="translate(297.5 268.08) rotate(45)"
+          fill="url(#gradMiddle)" opacity="0.95" />
+</svg>

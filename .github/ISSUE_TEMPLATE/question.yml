@@ -1,0 +1,41 @@
+name: ❓ Question
+description: You are stuck and the documentation did not get you unstuck.
+title: "[Question]: "
+labels: [ question, needs-triage ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: the [getting started path](https://software.splatgames.de/docs/aether-weaver/)
+        goes from an empty pom to a woven class, and the diagnostics reference explains every
+        `AW####` code the framework can report.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What you are trying to do
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempt
+    attributes:
+      label: What you tried
+      description: Code, configuration, and what came out.
+      render: java
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: docs
+    attributes:
+      label: Which documentation you looked at
+      description: >-
+        Naming the page that should have answered this is genuinely useful — it usually turns into
+        a documentation fix.

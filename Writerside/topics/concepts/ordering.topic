@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="ordering" title="Ordering">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Two declarations that land on one site are put in order before any target class is read.
+        <code>priority</code> decides. Where it does not, three names do. A stable sort holds whatever is
+        still level.
+    </p>
+
+    <code-block lang="mermaid">
+flowchart TB
+    A["Two declarations, one site"] --> B{"Priority equal?"}
+    B -->|no| C["The higher value goes first"]
+    B -->|yes| D{"Declared by one weave?"}
+    D -->|no| E["Weave class names decide, ascending"]
+    D -->|yes| F{"Handlers named alike?"}
+    F -->|no| G["Handler names decide, ascending"]
+    F -->|yes| H{"Descriptors alike?"}
+    H -->|no| I["Descriptors decide, ascending"]
+    H -->|yes| J["Parse order, kept by a stable sort"]
+    </code-block>
+
+    <chapter title="The key, part by part" id="key">
+        <table style="header-row">
+            <tr>
+                <td>Part</td>
+                <td>Compared</td>
+                <td>Taken from</td>
+            </tr>
+            <tr>
+                <td><code>priority</code></td>
+                <td>highest first</td>
+                <td><code>@Weave(priority)</code>, default <code>0</code></td>
+            </tr>
+            <tr>
+                <td>weave class name</td>
+                <td>ascending</td>
+                <td>the declaring class's binary name</td>
+            </tr>
+            <tr>
+                <td>handler name</td>
+                <td>ascending</td>
+                <td>the method carrying the injector</td>
+            </tr>
+            <tr>
+                <td>handler descriptor</td>
+                <td>ascending</td>
+                <td>what separates two overloads</td>
+            </tr>
+        </table>
+
+        <p>
+            The key names a handler and nothing else. No target, no
+            <a href="injection-points.topic">injection point</a> and no injector kind reach it.
+            One handler carries one key, however many classes the weave modifies. A negative
+            priority is allowed. It puts the weave behind everything that declares none.
+        </p>
+    </chapter>
+
+    <chapter title="What going first means" id="first">
+        <deflist type="medium">
+            <def title="Injections">
+                <p>
+                    The earlier declaration's call is written first at the site. It runs first
+                    there. <a href="injection-points.topic">Injection points</a> covers where
+                    in the method that site lies.
+                </p>
+            </def>
+            <def title="Wraps">
+                <p>
+                    The first wrap keeps the site. Every other wrap there is nested inside the
+                    operation handed to that one, innermost last.
+                    <a href="redirect-and-wrap.topic">Redirect and Wrap</a> has what a handler is
+                    given.
+                </p>
+            </def>
+            <def title="Redirects">
+                <p>
+                    A redirect does not share a call site, and priority never decides who wins it:
+                    meeting a second redirect or a wrap there is <code>AW1060</code> regardless.
+                    <a href="redirect-and-wrap.topic">Redirect and Wrap</a> has the full rule.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="When the key ties" id="ties">
+        <p>
+            Two weave classes tie only when they share a binary name. That is
+            <code>AW2303</code>: two artefacts declaring one weave class, both still parsed and
+            both candidates kept. Inside one weave the same key repeats too, in two ways.
+        </p>
+
+        <list>
+            <li><p>A weave naming three targets produces three entries under one key. They land on
+                three classes, so none of them meets another.</p></li>
+            <li><p><code>@Inject</code> is repeatable. Two of them on one handler share its name
+                and its descriptor, and both can reach one method.</p></li>
+        </list>
+
+        <p>
+            The sort settles all three, not the key. Tied entries keep the order they were built
+            in: weave by weave, then target, then declaration. For the duplicate-class case, that
+            order is whichever artefact the discovery source handed over first.
+            <a href="weave-discovery.topic">How a weave is found</a> has what that source is.
+        </p>
+    </chapter>
+
+    <chapter title="What priority does not order" id="not">
+        <deflist type="full">
+            <def title="Members merged into a target">
+                <p>
+                    Each dissolving weave contributes in the order the planner received it.
+                    Priority reaches merging at one point only. Shadowing a member that a
+                    <b>different</b> weave merges is <code>AW1034</code> unless that weave
+                    declares a strictly higher priority — raise the adding weave above the
+                    shadowing one. A weave shadowing what it merges itself is never reported.
+                    <a href="weave-members.topic">Weave members</a> has the four shapes.
+                </p>
+            </def>
+            <def title="The declared phase">
+                <p>
+                    <code>@Weave(phase)</code> is recorded on the parsed weave and written to a
+                    manifest. No stage of planning reads it, so <code>EARLY</code> moves nothing
+                    by itself.
+                </p>
+            </def>
+            <def title="A priority set in configuration">
+                <p>
+                    A configuration file accepts a <code>priority</code> for one weave class, and
+                    the value is parsed and resolved. Nothing reads it back: discovery consults
+                    the same override only for whether the weave is enabled.
+                    <a href="configuration-keys.topic">The configuration reference</a> has the key.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="The same order on every machine" id="stable">
+        <p>
+            Nothing positional is in the key: no path, no timestamp, no place in a scan. Two keys
+            that differ at all therefore sort alike wherever the build runs.
+        </p>
+
+        <p>
+            A tie inside one weave resolves from its own class file. The target list decides first,
+            then the order its injectors were parsed. A driver's order reaches none of that.
+        </p>
+
+        <p>
+            It does reach the one tie a duplicate weave class produces. There the fallback is the order the driver handed the candidates over. Under Maven that is the generated manifest's own order, which
+            <a href="weave-discovery.topic">How a weave is found</a> covers. Dissolving weaves put that order into the plan's digest too.
+            <a href="pipeline.topic">The pipeline</a> says what a digest that moves costs you.
+        </p>
+
+        <tip>
+            <p>
+                The explain report prints the resolved order: every place that has a declaration,
+                numbered, with the priority each one carries.
+                <a href="diagnosing-a-weave.topic">Explain a build</a> shows how to switch it on.
+            </p>
+        </tip>
+    </chapter>
+
+    <seealso>
+        <category ref="concepts">
+            <a href="weaving-model.topic">The weaving model</a>
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="injection-points.topic">Injection points</a>
+            <a href="redirect-and-wrap.topic">Redirect and Wrap</a>
+            <a href="weave-members.topic">Weave members</a>
+            <a href="weave-discovery.topic">How a weave is found</a>
+        </category>
+        <category ref="reference">
+            <a href="configuration-keys.topic">Configuration keys</a>
+        </category>
+    </seealso>
+</topic>

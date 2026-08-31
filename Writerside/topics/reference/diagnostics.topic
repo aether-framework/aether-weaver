@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic SYSTEM "https://resources.jetbrains.com/writerside/1.0/xhtml-entities.dtd">
+<topic xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/topic.v2.xsd"
+       id="diagnostics" title="Diagnostic codes">
+
+    <show-structure for="chapter" depth="2"/>
+
+    <p>
+        Every condition %product% reports carries a code: <code>AW</code> and exactly four
+        digits. The message changes with the class being woven. The code does not. The digits
+        also fix the range, and the range says which part of the system refused.
+    </p>
+
+    <chapter title="Which range you are in" id="ranges">
+
+        <table style="header-row">
+            <tr>
+                <td>Range</td>
+                <td>Raised by</td>
+                <td>When it appears</td>
+            </tr>
+            <tr>
+                <td><a href="diagnostics-declaration.topic">AW1xxx</a></td>
+                <td>Processor, engine and extensions</td>
+                <td>At compile and weave time</td>
+            </tr>
+            <tr>
+                <td><a href="diagnostics-environment.topic">AW2xxx</a></td>
+                <td>Drivers, engine and processor</td>
+                <td>Mostly once; a few per class</td>
+            </tr>
+            <tr>
+                <td><a href="diagnostics-policy.topic">AW3xxx</a></td>
+                <td>Engine and drivers</td>
+                <td>While a run is set up, and per class</td>
+            </tr>
+            <tr>
+                <td><a href="diagnostics-verification.topic">AW4xxx</a></td>
+                <td>Engine, every driver</td>
+                <td>While a class is woven, or before or after</td>
+            </tr>
+        </table>
+
+        <note>
+            <p>
+                A code with a colon in it, such as <code>acme:WRAP_NOT_REENTRANT</code>, belongs
+                to a plugin rather than to this catalogue. The namespace before the colon names
+                the plugin that owns it.
+                <a href="plugins.topic">Extending the engine</a> covers what a plugin may report.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Reading one line of output" id="anatomy">
+        <p>
+            A diagnostic prints as one line for the code, the place and the message. Then one
+            indented line per detail, and a last line for the remedy.
+        </p>
+
+        <code-block lang="console">
+AW1043 com.acme.audit.LedgerWeave.onCharge(Ljava/math/BigDecimal;)V matched 0 positions in charge, and requires at least 1
+    injection: onCharge
+    point: INVOKE target=Gateway.send
+  remedy: the point's own diagnostic above lists what was found instead. If the target
+    legitimately varies — two library versions, say — declare @Group(name = "…", min = 1)
+    across the alternatives instead of requiring each one
+        </code-block>
+
+        <deflist type="medium">
+            <def title="The code">
+                <p>
+                    The one part that is stable across releases and across messages. Search on
+                    this, not on the wording.
+                </p>
+            </def>
+            <def title="The place">
+                <p>
+                    One description, never three. A source file, line and column wins; failing
+                    that the target class and method, then the weave class and its handler, then
+                    <code>&lt;unknown location&gt;</code>. A report that named no place at all
+                    prints none — the sample above reports no target, so its line skips straight
+                    to the message.
+                </p>
+            </def>
+            <def title="The message">
+                <p>
+                    What happened here. Where the reporting site supplied none, the catalogue's
+                    one-line summary stands in, and that summary names no class or position.
+                </p>
+            </def>
+            <def title="The details">
+                <p>
+                    Indented lines the reporting site added: the candidates it found, the locals
+                    live at that position, the members it compared.
+                    <a href="injection-points.topic">Injection points</a> covers what a candidate
+                    listing is telling you.
+                </p>
+            </def>
+            <def title="The remedy">
+                <p>
+                    Written by the reporting site rather than by the code, and absent from the
+                    output when the site offered none. Most remedies are the same fixed sentence
+                    for every occurrence of their code; the class, the method and what was found
+                    are in the message and the details above it, not here.
+                </p>
+            </def>
+        </deflist>
+
+        <note>
+            <p>
+                The severity does not appear on this line — <code>Diagnostic.format()</code>
+                never writes it. Under the Maven plugin, the log level each diagnostic was
+                printed at is the severity; under the annotation processor, the compiler's own
+                prefix for the kind of message carries it.
+            </p>
+        </note>
+    </chapter>
+
+    <chapter title="Severity" id="severity">
+        <p>
+            Severity belongs to the condition, and a reporting site may raise or lower it for a
+            single report.
+        </p>
+
+        <deflist type="narrow">
+            <def title="ERROR">
+                <p>A declaration that cannot be honoured, or output that would be wrong.</p>
+            </def>
+            <def title="WARNING">
+                <p>Honoured, and more often a mistake than an intention.</p>
+            </def>
+            <def title="INFO">
+                <p>A decision the framework made that you would not otherwise see.</p>
+            </def>
+            <def title="DEBUG">
+                <p>Detail outside the normal narrative of a build.</p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Whether an error stops you" id="stopping">
+        <p>
+            That is the driver's decision, not the code's.
+            <a href="choose-a-driver.topic">Choose a driver</a> has all three.
+        </p>
+
+        <p>The four Maven goals differ in what they report and whether it can fail the build:</p>
+
+        <table style="header-row">
+            <tr>
+                <td>Goal</td>
+                <td>Diagnostics</td>
+                <td>Fails on an error</td>
+            </tr>
+            <tr>
+                <td><code>weave</code></td>
+                <td>Logged at their own severity</td>
+                <td>Yes, unless <code>failOnError</code> is <code>false</code></td>
+            </tr>
+            <tr>
+                <td><code>weave-tests</code></td>
+                <td>Logged at their own severity</td>
+                <td>Yes, unless <code>failOnError</code> is <code>false</code></td>
+            </tr>
+            <tr>
+                <td><code>stubs</code></td>
+                <td><code>ERROR</code> at error; the rest at warn</td>
+                <td>Never</td>
+            </tr>
+            <tr>
+                <td><code>audit</code></td>
+                <td>None reported</td>
+                <td>Never</td>
+            </tr>
+        </table>
+
+        <p><a href="maven-goals.topic">Maven goals</a> has the <code>failOnError</code> parameter.</p>
+
+        <deflist type="medium">
+            <def title="The weaving class loader">
+                <p>
+                    An error does not stop it by itself. <code>aether.weaver.onError</code>
+                    decides what happens to a class whose handling threw, and defaults to
+                    <code>fail</code>: it stops rather than letting that class through unwoven.
+                    <code>report</code> keeps the class as it arrived and the run goes on.
+                    <a href="configuration-keys.topic">Configuration keys</a> has the key.
+                </p>
+                <p>
+                    The failure reaches the listener its caller supplied as <code>AW4090</code>
+                    first, before the policy is read. Give that message and a class dump to the
+                    <a href="%issues%">issue tracker</a>.
+                </p>
+            </def>
+            <def title="The agent">
+                <p>
+                    Same policy, same default — but no caller-supplied listener exists. The agent
+                    collects diagnostics into its own list and prints it once, while installing;
+                    one added afterward, while an ordinary class loads, is never printed. Under
+                    <code>onError=fail</code> the transformer instead prints three lines and a
+                    stack trace directly.
+                </p>
+            </def>
+        </deflist>
+    </chapter>
+
+    <chapter title="Where the remedy comes from" id="remedy">
+        <p>
+            Two places carry it, and they are not the same thing.
+        </p>
+
+        <deflist type="medium">
+            <def title="The remedy in your output">
+                <p>
+                    The reporting site's own advice for this occurrence, absent when it offered
+                    none. Read it first, since the code and the message already told you what
+                    failed.
+                </p>
+            </def>
+            <def title="The range page">
+                <p>
+                    It carries the condition in general: every situation that raises the code, and
+                    what each one asks you to change. Follow the range from the table above.
+                </p>
+            </def>
+        </deflist>
+
+        <p>
+            Five numbers are held against reuse, and no build produces one: <code>AW1003</code>,
+            <code>AW1085</code>, <code>AW1086</code>, <code>AW2403</code> and
+            <code>AW4002</code>. There is nothing to do about them.
+        </p>
+    </chapter>
+
+    <seealso>
+        <category ref="start">
+            <a href="choose-a-driver.topic">Choose a driver</a>
+        </category>
+        <category ref="concepts">
+            <a href="pipeline.topic">The weaving pipeline</a>
+            <a href="injection-points.topic">Injection points</a>
+        </category>
+    </seealso>
+</topic>
