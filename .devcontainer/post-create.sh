@@ -22,8 +22,10 @@ fi
 WORKSPACE_DIR="${WORKSPACE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 echo "=== Setting up ownership ==="
-sudo chown -R vscode:vscode "$WORKSPACE_DIR" 2>/dev/null || true
-sudo chown -R vscode:vscode /home/vscode/.claude 2>/dev/null || true
+# Ownership is settled by sandbox-entrypoint.sh, as root, before this script
+# runs. It used to be attempted here with `sudo ... || true`, which under
+# `no-new-privileges` failed on every container start and reported nothing --
+# the same fault that left the egress firewall unapplied.
 
 echo "=== Refreshing user-scope skills from image staging area ==="
 # /opt/aether-skills/skills/ is baked into the image; ~/.claude/skills/ lives
@@ -36,6 +38,12 @@ echo "=== Refreshing user-scope skills from image staging area ==="
 mkdir -p /home/vscode/.claude/skills
 cp -a /opt/aether-skills/skills/. /home/vscode/.claude/skills/
 chown -R vscode:vscode /home/vscode/.claude/skills
+
+echo "=== Installing the status line ==="
+# Same staging-to-volume copy as the skills above, and for the same reason:
+# ~/.claude is a volume, so a script that only ever lived there never reached a
+# new machine. Overwritten on every run so an image rebuild ships changes.
+install -m 0755 /opt/aether-claude/statusline.sh /home/vscode/.claude/statusline.sh
 
 echo "=== Installing Claude Code native binary ==="
 curl $CURL_FLAGS https://claude.ai/install.sh | bash $BASH_DEBUG_FLAG
@@ -131,6 +139,18 @@ jq '.extraKnownMarketplaces = (.extraKnownMarketplaces // {})
     | .enabledPlugins         = (.enabledPlugins // {})' \
     "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
 
+# The status line, pointed at the script installed above. Set rather than
+# merged: this is the configuration this image ships, and a half-updated
+# statusLine block from an older volume is worse than a replaced one. Nothing
+# else in settings.json is touched.
+tmp=$(mktemp)
+jq '.statusLine = {
+        "type": "command",
+        "command": "~/.claude/statusline.sh",
+        "padding": 0,
+        "refreshInterval": 5
+    }' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+
 echo "=== Pre-populating ~/.claude/plugins/cache from baked-in marketplaces ==="
 for target in "${PLUGIN_TARGETS[@]}"; do
     mkt_dir="${target%%:*}"
@@ -216,7 +236,7 @@ chown -R vscode:vscode /home/vscode/.claude
 echo "installed_plugins.json:"
 jq . "$INSTALLED_FILE"
 echo "settings.json (relevant fields):"
-jq '{extraKnownMarketplaces, enabledPlugins}' "$SETTINGS_FILE"
+jq '{extraKnownMarketplaces, enabledPlugins, statusLine}' "$SETTINGS_FILE"
 
 echo "=== Verifying Claude Code state ==="
 if command -v claude >/dev/null 2>&1; then
@@ -228,11 +248,11 @@ if command -v claude >/dev/null 2>&1; then
     claude plugin list 2>&1 || echo "INFO: claude plugin list unavailable"
 fi
 
-echo "=== Configuring strict egress firewall ==="
-# Single source of truth for the allowlist lives in refresh-firewall.sh so
-# postStartCommand can re-run it on every container start (Cloudflare-backed
-# endpoints rotate IPs and the original one-shot rules go stale overnight).
-bash "$WORKSPACE_DIR/.devcontainer/refresh-firewall.sh"
+# The firewall is not configured here, and cannot be: this script runs as
+# `vscode`, and `no-new-privileges` makes sudo unusable. It is applied by
+# sandbox-entrypoint.sh as PID 1, as root, before this script exists. Calling
+# it from here is what produced a container that reported an active firewall
+# while having none -- every sudo failed and nothing checked.
 
 git config --global --add safe.directory "$WORKSPACE_DIR"
 
@@ -250,4 +270,5 @@ echo "  LSP         : jdtls (auto-activates for .java)"
 echo "                typescript-language-server (auto-activates for .ts/.tsx/.js/.jsx)"
 echo "                kotlin-lsp (auto-activates for .kt/.kts)"
 echo "  Skills      : user-scope, under ~/.claude/skills/"
-echo "  Firewall    : active — only whitelisted hosts reachable"
+echo "  Status line : ~/.claude/statusline.sh (context, limits, cost, branch)"
+echo "  Firewall    : applied by PID 1 before this session; see .devcontainer/README.md"

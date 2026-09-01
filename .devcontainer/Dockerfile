@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     jq \
     unzip \
+    iptables \
     xvfb \
     x11-utils \
     libxext6 \
@@ -157,6 +158,13 @@ RUN install -d -o vscode -g vscode \
         /opt/aether-skills/skills
 COPY --chown=vscode:vscode claude/skills/ /opt/aether-skills/skills/
 
+# The status line, staged for the same reason the skills are: ~/.claude is a
+# named volume, so anything written there by a previous container survives and
+# anything only ever written there is lost to a fresh one. Baking it into the
+# image and copying it out on every postCreate is what makes a new machine
+# come up looking like this one.
+COPY --chown=vscode:vscode --chmod=0755 claude/statusline.sh /opt/aether-claude/statusline.sh
+
 # leonxlnx/taste-skill: curated frontend/design skill collection. Every entry
 # under `skills/` follows the standard `<name>/SKILL.md` layout, so the tree
 # merges directly into the staging directory. The stray `llms.txt`
@@ -235,3 +243,20 @@ RUN for p in jdtls-lsp typescript-lsp kotlin-lsp; do \
 
 COPY --from=skill-sources --chown=vscode:vscode /marketplaces/impeccable/ \
         /opt/claude-marketplaces/impeccable/
+
+
+# The egress firewall, applied by PID 1 as root before any session exists.
+#
+# It cannot be applied anywhere else. `--security-opt=no-new-privileges` in
+# devcontainer.json stops sudo from raising privileges, so every lifecycle
+# hook -- all of which run as the unprivileged `vscode` user -- is unable to
+# touch iptables. Until this entrypoint existed the rules were never applied
+# at all, and post-create.sh printed "Firewall: active" over a container with
+# entirely open egress.
+#
+# ENTRYPOINT survives the dev container's command override, so the rules are
+# in place whatever CMD the tooling substitutes. `exec "$@"` then hands over
+# to it, and the developer's session arrives afterwards as `vscode` with no
+# route back to root.
+COPY --chmod=0755 sandbox-entrypoint.sh refresh-firewall.sh /usr/local/lib/sandbox/
+ENTRYPOINT ["/usr/local/lib/sandbox/sandbox-entrypoint.sh"]

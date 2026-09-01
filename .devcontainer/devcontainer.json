@@ -3,7 +3,15 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "containerUser": "vscode",
+  // PID 1 runs as root so that sandbox-entrypoint.sh can write the iptables
+  // rules; the session you and every tool get is `remoteUser`, unprivileged
+  // and with no route back. This is not a loosening: before it, the rules
+  // were never applied at all, because `no-new-privileges` makes sudo
+  // unusable for `vscode` in every lifecycle hook. Now they are applied
+  // before any session exists, and nothing that runs afterwards can reach
+  // iptables to flush them.
+  "containerUser": "root",
+  "remoteUser": "vscode",
   "customizations": {
     "jetbrains": {
       "backend": "IntelliJ",
@@ -48,11 +56,16 @@
     "source=splatgames-claude-${devcontainerId},target=/home/vscode/.claude,type=volume"
   ],
   "postCreateCommand": "bash ${containerWorkspaceFolder}/.devcontainer/post-create.sh",
-  "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/refresh-firewall.sh && echo 'Aether Weaver sandbox active. Egress firewall refreshed against current DNS. Run `claude` to start; plugins and MCP are pre-provisioned.'",
+  // Not the firewall -- this hook runs as `vscode` and cannot touch iptables.
+  // It checks that the rules PID 1 wrote are actually in force, by reaching
+  // for a host that is not on the allowlist and requiring the attempt to
+  // fail. The old command here claimed the firewall was refreshed; it could
+  // not have been, and nothing noticed for the life of this configuration.
+  "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/verify-firewall.sh",
   "containerEnv": {
     "CLAUDE_CODE_SANDBOX": "true",
     "NO_PROXY": "localhost,127.0.0.1",
     "no_proxy": "localhost,127.0.0.1",
     "WORKSPACE_DIR": "${containerWorkspaceFolder}"
-  },
+  }
 }
