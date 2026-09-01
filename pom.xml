@@ -112,7 +112,7 @@
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <checkstyle.version>10.21.1</checkstyle.version>
         <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
-        <maven-clean-plugin.version>3.4.0</maven-clean-plugin.version>
+        <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
 
         <!--
           Release-only plugins. Pinned here rather than in the profile so that every version this
