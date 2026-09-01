@@ -45,10 +45,16 @@ signature without asking for it. Rotating the key means replacing all three in t
 
 | Secret | What it is |
 |---|---|
-| `MAVEN_CENTRAL_USERNAME` | The user token's username half |
-| `MAVEN_CENTRAL_TOKEN` | The user token's password half |
-| `MAVEN_GPG_PRIVATE_KEY` | The armoured private key, including the BEGIN and END lines |
-| `MAVEN_GPG_PASSPHRASE` | That key's passphrase |
+| `CENTRAL_USERNAME` | The user token's username half |
+| `CENTRAL_TOKEN` | The user token's password half |
+| `GPG_PRIVATE_KEY` | The armoured private key, including the BEGIN and END lines |
+| `GPG_PASSPHRASE` | That key's passphrase |
+
+A secret cannot be renamed, only deleted and recreated, so these names are the ones the workflow
+follows rather than the other way round. They are not the same as the environment variables the
+publish job sets from them — `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_TOKEN` and
+`MAVEN_GPG_PASSPHRASE` — and those are fixed: the first two are the placeholders `settings.xml`
+resolves by name, and the third is what `maven-gpg-plugin` reads by default.
 
 ### Repository settings
 
