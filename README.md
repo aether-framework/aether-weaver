@@ -11,6 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://openjdk.org/projects/jdk/25/"><img src="https://img.shields.io/badge/Java-25%2B-orange" alt="Java 25+"></a>
   <a href="https://github.com/aether-framework/aether-weaver/actions/workflows/build.yml"><img src="https://github.com/aether-framework/aether-weaver/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/aether-framework/aether-weaver/actions/workflows/codeql.yml"><img src="https://github.com/aether-framework/aether-weaver/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
   <a href="https://software.splatgames.de/docs/aether-weaver/"><img src="https://img.shields.io/badge/docs-software.splatgames.de-7A5CFF" alt="Documentation"></a>
 </p>
 
