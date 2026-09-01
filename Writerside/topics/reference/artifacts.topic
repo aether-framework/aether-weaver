@@ -8,7 +8,7 @@
 
     <p>
         Nine artefacts are published under <code>%group%</code>: seven jars, the BOM, and
-        its parent. Every jar names <code>aether-weaver-parent</code> as its own.
+        its parent. Every jar names <code>aether-weaver</code> as its own.
         <code>aether-weaver-bom</code> manages six of the jars' versions; the plugin supplies
         its own. <code>aether-weaver-tests</code> is never installed.
     </p>
