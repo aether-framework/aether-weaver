@@ -79,10 +79,10 @@ resolves by name, and the third is what `maven-gpg-plugin` reads by default.
 
 ## 2. Cutting a release
 
-### Step 1 — the version lives in four files
+### Step 1 — the version lives in six files
 
-The release workflow reads all four and refuses a tag that disagrees with any of them. Update them
-in one commit:
+Four of them the release workflow reads, and it refuses a tag that disagrees with any of them.
+Update those four in one commit:
 
 | File | What to change |
 |---|---|
@@ -94,9 +94,16 @@ in one commit:
 The poms are **not** touched. They stay on `-SNAPSHOT`; the workflow stamps the release version in
 from the tag. That way a build from `main` can never overwrite a released artefact.
 
-Also worth doing, though nothing checks it: `Writerside/versions.json`, if the site is to offer a
-version switcher, and `aether-weaver-ide/aether-weaver-idea/gradle.properties`, which pins the
-framework version the IDE plugin resolves.
+**The IDE plugin has two more, and nothing checks either.** It is a separate Gradle build, so the
+release workflow never sees it — but it ships to the Marketplace beside the release, and both of
+these decide what it ships as.
+
+| File | What to change | What it breaks if you forget |
+|---|---|---|
+| `aether-weaver-ide/aether-weaver-idea/build.gradle.kts` | `version = "x.y.z"` | The archive uploads as `x.y.z-SNAPSHOT` |
+| `aether-weaver-ide/aether-weaver-idea/gradle.properties` | `aetherWeaverVersion=x.y.z` | The plugin bundles the API and engine it resolves, so it ships the `-SNAPSHOT` jars from whoever built it rather than the published ones |
+
+Also worth doing: `Writerside/versions.json`, if the site is to offer a version switcher.
 
 ### Step 2 — check it locally
 
@@ -140,9 +147,30 @@ shortly after.
 
 ### Step 5 — afterwards
 
+- Publish the IDE plugin — the next section.
 - Publish the documentation — section 3 below — and confirm
   <https://software.splatgames.de/docs/aether-weaver/> serves the new version.
 - Add the release's contributors to [CONTRIBUTORS.md](../CONTRIBUTORS.md).
+
+### Step 6 — the IDE plugin
+
+**Wait until `aether-weaver-api:x.y.z` is actually on Central.** The plugin resolves it as an
+ordinary dependency and bundles it, so a build started before Central serves it either fails to
+resolve or quietly bundles something else.
+
+With the two versions from step 1 set:
+
+```bash
+cd aether-weaver-ide/aether-weaver-idea
+./gradlew buildPlugin
+```
+
+The archive lands in `build/distributions/`. Upload it at
+<https://plugins.jetbrains.com/vendor/splatgames-software>.
+
+`publishPlugin` and `signPlugin` exist — the Gradle plugin registers them — but neither is
+configured here: there is no Marketplace token and no signing certificate in `build.gradle.kts`.
+Uploading is a manual step until that changes.
 
 ---
 

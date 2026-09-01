@@ -7,8 +7,8 @@
     <show-structure for="chapter" depth="2"/>
 
     <tldr>
-        <p>Needs IntelliJ IDEA 2026.2 or newer and the IDE's own Java plugin. Nothing publishes
-            it, so you build it yourself:
+        <p>Needs IntelliJ IDEA 2026.2 or newer and the IDE's own Java plugin.</p>
+        <p>Install it from the JetBrains Marketplace, or build it yourself:
             <a href="building-and-testing.topic">Building and testing</a>.</p>
     </tldr>
 
