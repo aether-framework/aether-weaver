@@ -19,6 +19,7 @@ a ready-to-use Writerside documentation builder on the side.
 | `verify-firewall.sh`                                      | `postStartCommand`. Proves the firewall is in force by requesting a host outside the allowlist and failing if it answers.                                                                        |
 | `writerside.sh`                                           | Wrapper around JetBrains' headless Writerside builder (`helpbuilderinspect`). Starts an Xvfb display on demand and forwards arguments. Available on `$PATH` as `writerside`.    |
 | `claude/skills/`                                          | User-scope Claude Code skills, staged into `/opt/aether-skills/skills/` at image build and synced into `~/.claude/skills/` on every `post-create.sh` run.                       |
+| `claude/statusline.sh`                                    | The status line: context bar, model, 5h/7d limits with reset times, cost, lines changed, directory, branch. Staged into `/opt/aether-claude/` and installed into `~/.claude/` on every `post-create.sh` run, which also registers it in `settings.json`. |
 | `claude/marketplaces/java-dev-assistant/marketplace.json` | Local wrapper marketplace pointing at the cloned `pluginagentmarketplace/custom-plugin-java` plugin.                                                                            |
 
 ## Image build

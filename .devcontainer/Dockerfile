@@ -158,6 +158,13 @@ RUN install -d -o vscode -g vscode \
         /opt/aether-skills/skills
 COPY --chown=vscode:vscode claude/skills/ /opt/aether-skills/skills/
 
+# The status line, staged for the same reason the skills are: ~/.claude is a
+# named volume, so anything written there by a previous container survives and
+# anything only ever written there is lost to a fresh one. Baking it into the
+# image and copying it out on every postCreate is what makes a new machine
+# come up looking like this one.
+COPY --chown=vscode:vscode --chmod=0755 claude/statusline.sh /opt/aether-claude/statusline.sh
+
 # leonxlnx/taste-skill: curated frontend/design skill collection. Every entry
 # under `skills/` follows the standard `<name>/SKILL.md` layout, so the tree
 # merges directly into the staging directory. The stray `llms.txt`

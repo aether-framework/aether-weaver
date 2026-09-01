@@ -32,6 +32,17 @@ fi
 
 echo "sandbox-entrypoint: applying egress firewall"
 "$HERE/refresh-firewall.sh"
+
+# The workspace and the ~/.claude volume, made writable by the session user.
+# post-create.sh used to attempt this with `sudo chown ... || true`, which
+# under no-new-privileges failed silently on every start -- the same fault
+# that left the firewall unapplied. Here it is root doing it, before the
+# session exists, and a failure is reported rather than discarded.
+for dir in "${WORKSPACE_DIR:-}" /home/vscode/.claude; do
+    [ -n "$dir" ] && [ -d "$dir" ] || continue
+    chown -R vscode:vscode "$dir"
+done
+
 echo "sandbox-entrypoint: firewall applied, dropping to the container command"
 
 exec "$@"
