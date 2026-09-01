@@ -20,7 +20,7 @@
 
     <groupId>de.splatgames.aether.weaver</groupId>
     <artifactId>aether-weaver</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Aether Weaver (Parent)</name>
