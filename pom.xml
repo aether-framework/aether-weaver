@@ -591,6 +591,18 @@
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
                             <waitUntil>published</waitUntil>
+                            <!--
+                              The default wait is 30 minutes, and 0.1.0 hit it exactly: Central had
+                              accepted the deployment and was still PUBLISHING when the plugin gave
+                              up, so the job failed while the release went out anyway and the
+                              GitHub Release job was skipped behind it.
+
+                              `published` stays. The point of it is that this job fails when Central
+                              rejects a deployment rather than leaving one in VALIDATED for somebody
+                              to find next week, and that is worth keeping. What was wrong was the
+                              timer, not the condition.
+                            -->
+                            <waitMaxTime>3600</waitMaxTime>
                             <deploymentName>${project.groupId}:${project.version}</deploymentName>
                             <checksums>all</checksums>
                             <excludeArtifacts>
