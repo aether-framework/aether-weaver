@@ -20,6 +20,7 @@ a ready-to-use Writerside documentation builder on the side.
 | `writerside.sh`                                           | Wrapper around JetBrains' headless Writerside builder (`helpbuilderinspect`). Starts an Xvfb display on demand and forwards arguments. Available on `$PATH` as `writerside`.    |
 | `claude/skills/`                                          | User-scope Claude Code skills, staged into `/opt/aether-skills/skills/` at image build and synced into `~/.claude/skills/` on every `post-create.sh` run.                       |
 | `claude/statusline.sh`                                    | The status line: context bar, model, 5h/7d limits with reset times, cost, lines changed, directory, branch. Staged into `/opt/aether-claude/` and installed into `~/.claude/` on every `post-create.sh` run, which also registers it in `settings.json`. |
+| `claude/agents/`                                          | The nine subagents the `docsite` and `reweave` skills dispatch to. Staged into `/opt/aether-claude/agents/` and synced into `~/.claude/agents/` on every `post-create.sh` run. They name this repository's paths and gates; in another project they will say so rather than guess. |
 | `claude/marketplaces/java-dev-assistant/marketplace.json` | Local wrapper marketplace pointing at the cloned `pluginagentmarketplace/custom-plugin-java` plugin.                                                                            |
 
 ## Image build

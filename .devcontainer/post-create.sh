@@ -45,6 +45,13 @@ echo "=== Installing the status line ==="
 # new machine. Overwritten on every run so an image rebuild ships changes.
 install -m 0755 /opt/aether-claude/statusline.sh /home/vscode/.claude/statusline.sh
 
+echo "=== Refreshing user-scope agents from image staging area ==="
+# The subagents the docsite and reweave skills dispatch to. Same copy-without-
+# delete as the skills above: image-baked agents are overwritten in place and
+# anything the user added themselves is left alone.
+mkdir -p /home/vscode/.claude/agents
+cp -a /opt/aether-claude/agents/. /home/vscode/.claude/agents/
+
 echo "=== Installing Claude Code native binary ==="
 curl $CURL_FLAGS https://claude.ai/install.sh | bash $BASH_DEBUG_FLAG
 
@@ -271,4 +278,5 @@ echo "                typescript-language-server (auto-activates for .ts/.tsx/.j
 echo "                kotlin-lsp (auto-activates for .kt/.kts)"
 echo "  Skills      : user-scope, under ~/.claude/skills/"
 echo "  Status line : ~/.claude/statusline.sh (context, limits, cost, branch)"
+echo "  Agents      : user-scope, under ~/.claude/agents/ (docsite, reweave)"
 echo "  Firewall    : applied by PID 1 before this session; see .devcontainer/README.md"
