@@ -339,7 +339,7 @@ way.
 | [`aether-weaver-runtime`](aether-weaver-runtime) | Weaver facade, weaving class loader, classpath discovery | For the class-loader driver |
 | [`aether-weaver-testkit`](aether-weaver-testkit) | JUnit 5 extension, bytecode assertions, in-memory weaving | **Yes** — `test` scope |
 | [`aether-weaver-tests`](aether-weaver-tests) | Cross-module, end-to-end and architecture tests | Never — not published |
-| [`aether-weaver-ide`](aether-weaver-ide) | The IntelliJ IDEA plugin. A Gradle build, outside the reactor | Not published |
+| [`aether-weaver-ide`](aether-weaver-ide) | The IntelliJ IDEA plugin. A Gradle build, outside the reactor | No — installed in the IDE |
 
 📖 What each one puts on your classpath:
 **[Artefacts and modules](https://software.splatgames.de/docs/aether-weaver/latest/artifacts.html)**.
@@ -448,9 +448,10 @@ Completion for merged members and selectors, six inspections with quick fixes th
 codes with the annotation processor, gutter markers in both directions between a weave and its
 target, inlay hints showing where injected code lands, and a *Weaves* tool window.
 
-It is a separate Gradle build outside the Maven reactor — building an IntelliJ plugin downloads a
-full IDE distribution, and `mvn install` must never depend on that. It is not published yet; build
-it from [`aether-weaver-ide`](aether-weaver-ide).
+Install it from the JetBrains Marketplace — *Settings → Plugins → Marketplace*, search for
+**Aether Weaver** — or build it from [`aether-weaver-ide`](aether-weaver-ide). That is a separate
+Gradle build outside the Maven reactor: building an IntelliJ plugin downloads a full IDE
+distribution, and `mvn install` must never depend on that.
 
 📖 **[The IntelliJ IDEA plugin](https://software.splatgames.de/docs/aether-weaver/latest/intellij-plugin.html)**.
 
@@ -501,7 +502,6 @@ marked, and it is worth knowing which:
 
 - **`api.experimental` is experimental**, and says so on every type in it. Extension methods live
   there. No compatibility guarantee is stated for those declarations.
-- **The IntelliJ plugin is not published** to the JetBrains Marketplace yet. Build it from source.
 - **There is no Gradle plugin.** Weaving from a Gradle build means the agent or the runtime driver.
 - **Plugin discovery is opt-in**, by a program that builds its own `Weaver`. See the note above.
 

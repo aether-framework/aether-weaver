@@ -96,8 +96,9 @@ rather than a list of changes.
 
 - An **IntelliJ IDEA plugin** with completion for merged members and selectors, six inspections
   whose codes match the annotation processor's, quick fixes, intentions, gutter markers in both
-  directions between a weave and its target, inlay hints, and a *Weaves* tool window. Built from
-  source; not published to the Marketplace yet.
+  directions between a weave and its target, inlay hints, and a *Weaves* tool window. On the
+  [JetBrains Marketplace](https://plugins.jetbrains.com/vendor/splatgames-software), and buildable
+  from source.
 
 #### 📦 Distribution and build
 
@@ -145,7 +146,6 @@ Stated here because a first release that hides its edges is worse than one that 
   `policy.allowPackage`. They are documented as inert rather than removed.
 - **There is no Gradle plugin.** A Gradle build can declare and compile-check weaves; applying them
   means the agent or the runtime driver.
-- **The IntelliJ plugin is not published** to the JetBrains Marketplace.
 
 [Unreleased]: https://github.com/aether-framework/aether-weaver/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/aether-framework/aether-weaver/releases/tag/v0.1.0
