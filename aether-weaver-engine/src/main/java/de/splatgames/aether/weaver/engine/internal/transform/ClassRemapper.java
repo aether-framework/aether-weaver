@@ -46,6 +46,7 @@ import java.lang.constant.DirectMethodHandleDesc;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 /**
@@ -692,27 +693,88 @@ public final class ClassRemapper {
     /**
      * Returns a signature with every type in it mapped.
      *
-     * <p>Recursive through the three places that contain another signature: an outer type, a bounded
-     * type argument via {@link #mapTypeArg}, and an array component. A type variable and a primitive
-     * contain no reference and are returned unchanged, which is what the {@code default} covers.
+     * <p>Recursive through the three places that contain another signature: an outer type via
+     * {@link #mapClassTypeSig}, a bounded type argument via {@link #mapTypeArg}, and an array
+     * component. A type variable and a primitive contain no reference and are returned unchanged,
+     * which is what the {@code default} covers.
      *
      * @param signature the signature to rewrite; must not be {@code null}
      * @return the mapped signature
      */
     private Signature mapSignature(@NotNull final Signature signature) {
         return switch (signature) {
-            case Signature.ClassTypeSig classType -> Signature.ClassTypeSig.of(
-                    classType.outerType().map(o -> (Signature.ClassTypeSig) mapSignature(o))
-                            .orElse(null),
-                    map(classType.classDesc()),
-                    // Type arguments carry references of their own: List<Foo> mentions Foo only
-                    // here. Passing them through leaves a stale name in the signature.
-                    classType.typeArgs().stream().map(this::mapTypeArg)
-                            .toArray(Signature.TypeArg[]::new));
+            case Signature.ClassTypeSig classType -> mapClassTypeSig(classType);
             case Signature.ArrayTypeSig array ->
                     Signature.ArrayTypeSig.of(mapSignature(array.componentSignature()));
             default -> signature;
         };
+    }
+
+    /**
+     * Returns a class type signature with its outer type, its own type and its type arguments
+     * mapped.
+     *
+     * <p>A member class is written two ways and the two are not interchangeable. Where no enclosing
+     * type is parameterized it is written flat, as {@code Ljava/util/Map$Entry;}, and
+     * {@link Signature.ClassTypeSig#className()} is the whole slash-separated name. Where one is, it
+     * is written as a chain, as {@code Ljava/util/EnumMap<TK;TV;>.EntrySet;}, and {@code className()}
+     * is the simple name alone — the rest of it is in the outer signature, which is the only place
+     * the enclosing type's arguments can be stated.
+     *
+     * <p>{@link Signature.ClassTypeSig#classDesc()} answers with the whole name either way, so
+     * rebuilding a chained signature from it puts the whole name where the simple name belongs and
+     * produces {@code Ljava/util/EnumMap<TK;TV;>.java/util/EnumMap$EntrySet;}. This takes the whole
+     * name back apart against the mapped outer type to recover the simple name.
+     *
+     * <p>Where the mapping moves the member out of its enclosing type, no simple name relates the
+     * two and the chain cannot be kept. The flat form is emitted instead, which costs the enclosing
+     * type's arguments; a name that no longer nests has nowhere to state them.
+     *
+     * @param classType the class type signature to rewrite; must not be {@code null}
+     * @return the mapped class type signature
+     */
+    @NotNull
+    private Signature.ClassTypeSig mapClassTypeSig(@NotNull final Signature.ClassTypeSig classType) {
+        // Type arguments carry references of their own: List<Foo> mentions Foo only here. Passing
+        // them through leaves a stale name in the signature.
+        final Signature.TypeArg[] typeArgs = classType.typeArgs().stream().map(this::mapTypeArg)
+                .toArray(Signature.TypeArg[]::new);
+        final ClassDesc mapped = map(classType.classDesc());
+        final Optional<Signature.ClassTypeSig> outer = classType.outerType();
+        if (outer.isEmpty()) {
+            return Signature.ClassTypeSig.of(mapped, typeArgs);
+        }
+        final Signature.ClassTypeSig mappedOuter = mapClassTypeSig(outer.get());
+        final String simpleName = simpleNameWithin(mappedOuter.classDesc(), mapped);
+        return simpleName == null
+                ? Signature.ClassTypeSig.of(mapped, typeArgs)
+                : Signature.ClassTypeSig.of(mappedOuter, simpleName, typeArgs);
+    }
+
+    /**
+     * Returns the simple name a member type has within an enclosing type, or {@code null} where the
+     * one is not a member of the other.
+     *
+     * <p>Compared as descriptor strings rather than through {@link ClassDesc#displayName()}, which
+     * reports the whole {@code Outer$Inner} for a nested type and so cannot tell the two apart. A
+     * name is a member when it is the enclosing name, a {@code $}, and at least one more character;
+     * everything after that {@code $} is the simple name, further {@code $} included, so a type
+     * nested three deep in a chain that only names two of them still resolves.
+     *
+     * @param enclosing the enclosing type; must not be {@code null}
+     * @param member    the candidate member type; must not be {@code null}
+     * @return the simple name, or {@code null} where {@code member} is not a member of
+     *         {@code enclosing}
+     */
+    @Contract(pure = true)
+    private static String simpleNameWithin(@NotNull final ClassDesc enclosing,
+                                           @NotNull final ClassDesc member) {
+        final String enclosingDescriptor = enclosing.descriptorString();
+        final String memberDescriptor = member.descriptorString();
+        final String prefix = enclosingDescriptor.substring(0, enclosingDescriptor.length() - 1) + '$';
+        return memberDescriptor.startsWith(prefix) && memberDescriptor.length() > prefix.length() + 1
+                ? memberDescriptor.substring(prefix.length(), memberDescriptor.length() - 1)
+                : null;
     }
 
     /**

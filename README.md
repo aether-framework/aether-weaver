@@ -525,6 +525,17 @@ Aether Weaver rewrites bytecode and, under the agent, runs inside the JVM it mod
 [security policy](SECURITY.md) says what that means, what the standard policy refuses before any
 byte is written, and what stays your responsibility.
 
+Release artefacts on Maven Central are GPG signed. The public key is in [`KEYS`](KEYS), and its
+fingerprint is `C6BE 25BF 2A46 39A6 7A49  1EBD 37B5 9B93 DC75 6EE8`:
+
+```bash
+gpg --import KEYS
+gpg --verify aether-weaver-api-0.1.0.jar.asc aether-weaver-api-0.1.0.jar
+```
+
+[Signing keys](SECURITY.md#signing-keys) has the rest, including why you should check that
+fingerprint somewhere other than here.
+
 Report vulnerabilities **privately** —
 [GitHub Security Advisories](https://github.com/aether-framework/aether-weaver/security/advisories/new)
 or `security@splatgames.de`. Never in a public issue.
