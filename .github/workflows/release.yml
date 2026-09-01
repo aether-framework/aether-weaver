@@ -22,11 +22,15 @@
 #     in no file here.
 #
 # Required secrets:
-#   MAVEN_CENTRAL_USERNAME    the Central Portal user token's username half
-#   MAVEN_CENTRAL_TOKEN       its password half           (central.sonatype.com/usertoken)
-#   MAVEN_GPG_PRIVATE_KEY     the release signing key, armoured
+#   CENTRAL_USERNAME          the Central Portal user token's username half
+#   CENTRAL_TOKEN             its password half           (central.sonatype.com/usertoken)
+#   GPG_PRIVATE_KEY           the release signing key, armoured
 #                             (gpg --armor --export-secret-keys <key id>)
-#   MAVEN_GPG_PASSPHRASE      that key's passphrase
+#   GPG_PASSPHRASE            that key's passphrase
+#
+# Those are the secret names. The environment variable names below are a separate matter and are
+# not free to change: settings.xml resolves the two Central placeholders by name, and
+# MAVEN_GPG_PASSPHRASE is the variable maven-gpg-plugin reads by default (see pom.xml).
 # ---------------------------------------------------------------------------------------------
 name: Release
 
@@ -197,7 +201,7 @@ jobs:
           server-id: central
           server-username: MAVEN_CENTRAL_USERNAME
           server-password: MAVEN_CENTRAL_TOKEN
-          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
       - name: Stamp the release version into every pom
@@ -210,9 +214,9 @@ jobs:
 
       - name: Deploy
         env:
-          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: mvn ${{ env.MAVEN_ARGS }} -Prelease clean deploy -DskipTests
 
   # -------------------------------------------------------------------------------------------
