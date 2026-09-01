@@ -124,14 +124,11 @@ what Maven Central serves.
 
 ### Automated scanning
 
+- **GitHub CodeQL** — static analysis on pull requests, on the long-lived branches, and weekly.
 - **Dependency Review** — flags a dependency change in a pull request: a transitive dependency with
   a known vulnerability, a licence that does not fit the project, and any of the seven banned
   bytecode coordinates.
 - **Dependabot** — Maven and GitHub Actions updates.
-
-There is no static analysis service running over this repository. What the build enforces itself —
-the banned dependencies, the architecture test, the two documentation gates — it enforces on every
-run, and that is described under [Building from Source](README.md#-building-from-source).
 
 The framework itself ships no third-party runtime dependency: the annotations it compiles against
 are `provided` and CLASS-retention, so nothing reaches your runtime classpath but Aether Weaver.

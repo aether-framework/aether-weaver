@@ -82,6 +82,32 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # This job is the only one that can run out of disk, and it does. It downloads a full
+      # IntelliJ IDEA Ultimate distribution to compile against, the Plugin Verifier downloads
+      # another one for every release `recommended()` resolves, and the verifier then walks the
+      # bundled-plugin dependency tree and fetches each of those too — Android, PythonCore,
+      # radler, DevKit. A `ubuntu-latest` image starts with roughly 14 GB free, which is short.
+      #
+      # It fails late and it fails misleadingly: the verification itself finishes and reports the
+      # plugin compatible, and the job then dies in the verifier's HtmlResultPrinter with
+      # `No space left on device`. Reading the tail of that log suggests a broken plugin.
+      #
+      # The Android SDK alone is about 9 GB and nothing here compiles for Android. Removing these
+      # four costs seconds and buys more than the whole verification needs. Each is removed
+      # independently so that an image that stops shipping one of them does not fail the step.
+      - name: Free disk space for the IDE downloads
+        run: |
+          echo "before:"
+          df -h /
+          for dir in /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/boost; do
+            if [ -d "$dir" ]; then
+              echo "removing $dir ($(du -sh "$dir" 2>/dev/null | cut -f1))"
+              sudo rm -rf "$dir"
+            fi
+          done
+          echo "after:"
+          df -h /
+
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:

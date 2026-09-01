@@ -1,0 +1,68 @@
+# ---------------------------------------------------------------------------------------------
+# Static analysis.
+#
+# CodeQL builds the reactor itself and queries the result. It is separate from build.yml because
+# it answers a different question — not "does this work" but "does this contain a known shape of
+# defect" — and because a security finding must not be able to hide behind a red test run.
+#
+# The weekly schedule matters as much as the per-push run: the query packs change, so code that
+# was clean last month can become a finding without a single line of it moving.
+# ---------------------------------------------------------------------------------------------
+name: CodeQL
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Mondays, 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Java
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      # Uploading the SARIF result to the repository's security tab.
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Before the CodeQL init step: the extractor compiles the project, and it compiles it with
+      # whatever JDK is on the PATH. Anything below 25 fails at the enforcer.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          build-mode: manual
+          queries: security-and-quality
+
+      # Built explicitly rather than by autobuild, so that the analysis sees exactly the reactor
+      # the release build produces. Tests are skipped: CodeQL analyses what ships.
+      - name: Build
+        run: mvn -B -ntp -DskipTests clean package
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:java-kotlin
