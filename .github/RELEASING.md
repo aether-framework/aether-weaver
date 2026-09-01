@@ -35,8 +35,9 @@ Central checks the public key against `keyserver.ubuntu.com`, `keys.openpgp.org`
 `pgp.mit.edu`. Publish it to at least one of them **before** the first release, or validation
 fails after the artefacts have already been built.
 
-Add the key's fingerprint to [SECURITY.md](../SECURITY.md) once it exists, so that consumers can
-verify a signature without asking for it.
+The public half is committed as [`KEYS`](../KEYS) at the repository root, and its fingerprint is
+in [SECURITY.md](../SECURITY.md#signing-keys) and the README, so that consumers can verify a
+signature without asking for it. Rotating the key means replacing all three in the same commit.
 
 ### Repository secrets
 

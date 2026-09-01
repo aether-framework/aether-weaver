@@ -83,11 +83,38 @@ An unsigned or unverifiable artefact claiming to be an official release **must n
 
 ### Signing keys
 
+The public key is in [`KEYS`](KEYS) at the root of this repository.
+
+| | |
+|---|---|
+| Owner | `Splatgames.de Software CI Release Signing <release@splatgames.de>` |
+| Fingerprint | `C6BE 25BF 2A46 39A6 7A49  1EBD 37B5 9B93 DC75 6EE8` |
+| Key ID | `37B59B93DC756EE8` |
+| Type | RSA 4096, created 2026-01-11, no expiry |
+
+```bash
+gpg --import KEYS
+gpg --fingerprint 37B59B93DC756EE8
+gpg --verify aether-weaver-api-0.1.0.jar.asc aether-weaver-api-0.1.0.jar
+```
+
+**Check the fingerprint against a source that is not this repository.** A `KEYS` file and the
+signatures it validates can be replaced by the same person in the same push, so importing it and
+verifying against it proves only that the two agree. The same key is published on
+`keyserver.ubuntu.com`, one of the keyservers Maven Central validates a release against:
+
+```bash
+gpg --keyserver keyserver.ubuntu.com --recv-keys 37B59B93DC756EE8
+```
+
 - Releases are signed by a key that belongs to the release pipeline rather than to a person, and
-  the [release runbook](.github/RELEASING.md) requires it to be generated for that purpose.
+  the [release runbook](.github/RELEASING.md) requires it to be generated for that purpose. The
+  address on it is a role, not a mailbox a human reads; vulnerability reports go to
+  `security@splatgames.de`.
 - Private key material is never committed to this repository. It is held as a repository secret and
-  reaches the build only as an environment variable.
-- The public key and its fingerprint are published with the first signed release.
+  reaches the build only as an environment variable. `KEYS` carries the public half alone.
+- Rotating the key means replacing `KEYS`, this table and the fingerprint in the README in the
+  same commit.
 
 ### Reproducible builds
 
