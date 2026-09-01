@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     jq \
     unzip \
+    iptables \
     xvfb \
     x11-utils \
     libxext6 \
@@ -235,3 +236,20 @@ RUN for p in jdtls-lsp typescript-lsp kotlin-lsp; do \
 
 COPY --from=skill-sources --chown=vscode:vscode /marketplaces/impeccable/ \
         /opt/claude-marketplaces/impeccable/
+
+
+# The egress firewall, applied by PID 1 as root before any session exists.
+#
+# It cannot be applied anywhere else. `--security-opt=no-new-privileges` in
+# devcontainer.json stops sudo from raising privileges, so every lifecycle
+# hook -- all of which run as the unprivileged `vscode` user -- is unable to
+# touch iptables. Until this entrypoint existed the rules were never applied
+# at all, and post-create.sh printed "Firewall: active" over a container with
+# entirely open egress.
+#
+# ENTRYPOINT survives the dev container's command override, so the rules are
+# in place whatever CMD the tooling substitutes. `exec "$@"` then hands over
+# to it, and the developer's session arrives afterwards as `vscode` with no
+# route back to root.
+COPY --chmod=0755 sandbox-entrypoint.sh refresh-firewall.sh /usr/local/lib/sandbox/
+ENTRYPOINT ["/usr/local/lib/sandbox/sandbox-entrypoint.sh"]

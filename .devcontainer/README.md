@@ -13,8 +13,10 @@ a ready-to-use Writerside documentation builder on the side.
 |-----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Dockerfile`                                              | Multi-stage image: clones third-party skill/marketplace repos, then layers them onto the Java devcontainer base, plus the Writerside builder and user-scope Claude Code skills. |
 | `devcontainer.json`                                       | Devcontainer spec: features, security flags, port forwarding, post-create hook.                                                                                                 |
-| `post-create.sh`                                          | One-shot provisioning run on first container start. Installs Claude Code, writes MCP/plugin config, pre-populates the plugin cache, then enables the egress firewall.           |
-| `refresh-firewall.sh`                                     | Idempotent rebuild of the egress allowlist from a fresh DNS lookup. Called by `post-create.sh` at create time and by `postStartCommand` on every container start.               |
+| `post-create.sh`                                          | One-shot provisioning run on first container start. Installs Claude Code, writes MCP/plugin config, pre-populates the plugin cache. Runs as `vscode`; it does not touch the firewall and cannot. |
+| `sandbox-entrypoint.sh`                                   | The image's `ENTRYPOINT`, PID 1, root. Applies the egress firewall before any session exists, then hands over to the container command. Fails the start if the rules cannot be written.          |
+| `refresh-firewall.sh`                                     | The allowlist itself. Called only by `sandbox-entrypoint.sh`, as root; refuses to run otherwise.                                                                                                 |
+| `verify-firewall.sh`                                      | `postStartCommand`. Proves the firewall is in force by requesting a host outside the allowlist and failing if it answers.                                                                        |
 | `writerside.sh`                                           | Wrapper around JetBrains' headless Writerside builder (`helpbuilderinspect`). Starts an Xvfb display on demand and forwards arguments. Available on `$PATH` as `writerside`.    |
 | `claude/skills/`                                          | User-scope Claude Code skills, staged into `/opt/aether-skills/skills/` at image build and synced into `~/.claude/skills/` on every `post-create.sh` run.                       |
 | `claude/marketplaces/java-dev-assistant/marketplace.json` | Local wrapper marketplace pointing at the cloned `pluginagentmarketplace/custom-plugin-java` plugin.                                                                            |
@@ -39,8 +41,8 @@ Two stages:
    them into `~/.claude/skills/` on every start — see *Persistence* below),
    and stages the three plugin marketplaces under `/opt/claude-marketplaces/`.
 
-Everything that needs network egress happens at build time, so a
-post-create-time firewall lockdown can be aggressive.
+Everything that needs network egress happens at build time, so the allowlist
+the entrypoint applies can be narrow.
 
 ## Toolchain on `$PATH`
 
@@ -114,39 +116,45 @@ Context7 MCP server entry on every start.
 - `host.docker.internal` mapped to the host gateway for OAuth callback flows.
 
 `refresh-firewall.sh` runs an iptables `OUTPUT DROP` and only allows traffic
-to explicitly whitelisted hosts (resolved on every invocation):
+to the hosts named in its `DOMAINS` array, resolved at container start. If a
+new tool needs an external host, add it there with a comment saying what needs
+it — and expect the build to be the thing that tells you, since a host that is
+not listed is not reachable.
 
-```
-api.anthropic.com   claude.ai            github.com           raw.githubusercontent.com
-maven.apache.org    repo1.maven.org      services.gradle.org  gradle.org
-registry.npmjs.org  registry.yarnpkg.com context7.com         mcp.context7.com
-```
+### Who applies it, and why it cannot be you
 
-If a new tool needs an external host at runtime, append it to the `DOMAINS`
-array in `refresh-firewall.sh`.
+The rules are written by `sandbox-entrypoint.sh`, which is the image's
+`ENTRYPOINT` and therefore PID 1, running as root before any session exists.
+Nothing afterwards can touch them: the session is `vscode`, `sudo` cannot
+raise privileges under `no-new-privileges`, and the unprivileged user holds no
+`CAP_NET_ADMIN`. A process inside the container — an agent included — can hit
+the wall but cannot move it.
 
-### Why the allowlist gets refreshed on every start
+That is also the only place the rules *can* be written. Every dev container
+lifecycle hook runs as `remoteUser`, and `no-new-privileges` makes `sudo`
+unusable there by design.
 
-`api.anthropic.com` and several other whitelisted hosts sit behind Cloudflare
-and rotate IPs frequently (sometimes overnight). The earlier one-shot setup
-in `post-create.sh` resolved each domain to its current IPs and pinned them
-as static `ACCEPT` rules; once Anthropic answered from a freshly-rotated IP,
-iptables silently dropped the response and Claude Code hung on
-"Retrying… (x/10)" with no other visible symptom.
+> **This configuration previously had no firewall at all.** `refresh-firewall.sh`
+> was called with `sudo` from `post-create.sh` and `postStartCommand`, and
+> three separate faults each made it fail: `iptables` was not installed in the
+> image, `sudo` cannot elevate under `no-new-privileges`, and neither the
+> script nor its caller checked an exit status. `post-create.sh` printed
+> `Firewall: active — only whitelisted hosts reachable` over a container with
+> entirely open egress, for the life of the configuration.
 
-`refresh-firewall.sh` is therefore idempotent — it flushes `OUTPUT`, sets the
-default policy to `DROP`, and re-adds the loopback + conntrack + per-domain
-`ACCEPT` rules from a fresh `getent ahosts` lookup. It runs:
+`verify-firewall.sh` runs from `postStartCommand` and exists so that this
+cannot happen again quietly. It requests a host deliberately absent from the
+allowlist and fails the start if the request succeeds. It asserts rather than
+announces.
 
-- once from `post-create.sh` at container-create time, and
-- again from `postStartCommand` on every container start.
+### The limitation that remains
 
-If you keep the same container running for days and the API starts hanging
-mid-day after a DNS rotation, run the refresh manually instead of restarting:
-
-```bash
-bash "$WORKSPACE_DIR/.devcontainer/refresh-firewall.sh"
-```
+Several allowed hosts sit behind CDNs that rotate addresses, and the allowlist
+pins IPs. It is rebuilt on every container start, so a rotation between
+sessions is handled — but a container left running for days can watch an
+address rotate out from under it. The symptom is a request that hangs rather
+than one refused. Restart the container; the rules are re-resolved by PID 1.
+Refreshing from inside is deliberately not possible.
 
 ## Provisioning at first start (`post-create.sh`)
 
@@ -163,8 +171,8 @@ Runs in this order:
    fresh, unauthenticated devcontainer.
 6. **Provision plugins** (see below).
 7. **Verify state** by listing MCP servers / marketplaces / plugins.
-8. **Enable egress firewall** by invoking `refresh-firewall.sh` (same script
-   that `postStartCommand` re-runs on every subsequent container start).
+The firewall is not among these steps. It is already in force before this
+script runs, applied by `sandbox-entrypoint.sh` as PID 1.
 
 ## MCP servers
 
@@ -265,7 +273,9 @@ rm -rf ~/.claude/plugins/cache ~/.claude/plugins/installed_plugins.json
    array in `post-create.sh`. The script reads the marketplace name and
    plugin source from `marketplace.json` automatically.
 3. If a runtime resource (e.g. an MCP server backing the plugin) needs
-   network access, also extend the firewall allowlist in `post-create.sh`.
+   network access, add its host to `DOMAINS` in `refresh-firewall.sh` and
+   rebuild the container — the rules are baked in at start and cannot be
+   amended from inside.
 
 ### Local wrapper marketplaces
 

@@ -228,11 +228,11 @@ if command -v claude >/dev/null 2>&1; then
     claude plugin list 2>&1 || echo "INFO: claude plugin list unavailable"
 fi
 
-echo "=== Configuring strict egress firewall ==="
-# Single source of truth for the allowlist lives in refresh-firewall.sh so
-# postStartCommand can re-run it on every container start (Cloudflare-backed
-# endpoints rotate IPs and the original one-shot rules go stale overnight).
-bash "$WORKSPACE_DIR/.devcontainer/refresh-firewall.sh"
+# The firewall is not configured here, and cannot be: this script runs as
+# `vscode`, and `no-new-privileges` makes sudo unusable. It is applied by
+# sandbox-entrypoint.sh as PID 1, as root, before this script exists. Calling
+# it from here is what produced a container that reported an active firewall
+# while having none -- every sudo failed and nothing checked.
 
 git config --global --add safe.directory "$WORKSPACE_DIR"
 
@@ -250,4 +250,4 @@ echo "  LSP         : jdtls (auto-activates for .java)"
 echo "                typescript-language-server (auto-activates for .ts/.tsx/.js/.jsx)"
 echo "                kotlin-lsp (auto-activates for .kt/.kts)"
 echo "  Skills      : user-scope, under ~/.claude/skills/"
-echo "  Firewall    : active — only whitelisted hosts reachable"
+echo "  Firewall    : applied by PID 1 before this session; see .devcontainer/README.md"
