@@ -44,7 +44,7 @@ jobs:
       # Before the CodeQL init step: the extractor compiles the project, and it compiles it with
       # whatever JDK is on the PATH. Anything below 25 fails at the enforcer.
       - name: Set up JDK 25
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '25'
