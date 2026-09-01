@@ -165,6 +165,12 @@ COPY --chown=vscode:vscode claude/skills/ /opt/aether-skills/skills/
 # come up looking like this one.
 COPY --chown=vscode:vscode --chmod=0755 claude/statusline.sh /opt/aether-claude/statusline.sh
 
+# The subagents the docsite and reweave pipelines dispatch to. Skills alone are
+# not enough: a skill that says "hand this to docsite-reviewer-correctness"
+# does nothing in a container where that agent does not exist. Both halves are
+# staged, for the same volume reason as everything else here.
+COPY --chown=vscode:vscode claude/agents/ /opt/aether-claude/agents/
+
 # leonxlnx/taste-skill: curated frontend/design skill collection. Every entry
 # under `skills/` follows the standard `<name>/SKILL.md` layout, so the tree
 # merges directly into the staging directory. The stray `llms.txt`
