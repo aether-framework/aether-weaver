@@ -102,6 +102,7 @@ these decide what it ships as.
 |---|---|---|
 | `aether-weaver-ide/aether-weaver-idea/build.gradle.kts` | `version = "x.y.z"` | The archive uploads as `x.y.z-SNAPSHOT` |
 | `aether-weaver-ide/aether-weaver-idea/gradle.properties` | `aetherWeaverVersion=x.y.z` | The plugin bundles the API and engine it resolves, so it ships the `-SNAPSHOT` jars from whoever built it rather than the published ones |
+| `aether-weaver-ide/aether-weaver-idea/sample/pom.xml` | `<aether.weaver.version>x.y.z</aether.weaver.version>` | `checkSampleVersion` fails the Gradle build: the sample would resolve a different API than the plugin was built against |
 
 Also worth doing: `Writerside/versions.json`, if the site is to offer a version switcher.
 
@@ -224,6 +225,8 @@ switcher offers.
 | Central rejects the deployment | Read the job log; it carries Central's own validation messages. Nothing was published |
 | Signing fails, or the job hangs | The passphrase secret or the key secret is wrong. The key must be armoured, whole, including its BEGIN and END lines |
 | The deployment sits in `VALIDATED` | `autoPublish` did not take effect. Publish it by hand in the portal, and fix the configuration before the next release |
+| The publish job fails but the portal says `PUBLISHING` | The plugin stopped waiting; Central did not stop publishing. Nothing was lost and nothing may be re-uploaded. Wait for `PUBLISHED`, then create the GitHub Release by hand — the `github-release` job cannot be re-run alone, because it needs `publish`, and re-running failed jobs would deploy a second time |
+| The deployment sits in `PUBLISHING` for over an hour | Sonatype's side. Check <https://status.maven.org>, then open a support ticket with the deployment id. Do not delete the tag and do not deploy again |
 | The release published, the GitHub Release did not | Re-run only the `github-release` job. Central is already done and cannot be redone |
 
 A released version is never re-released. If a release is wrong, release the next patch version.
