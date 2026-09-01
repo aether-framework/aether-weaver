@@ -174,6 +174,78 @@ class ClassRemapperTest {
     }
 
     @Test
+    @DisplayName("a member of a parameterized outer type keeps its simple name")
+    void chainedSignatureKeepsItsSimpleName() {
+        // A member class is written flat as Ljava/util/Map$Entry; where nothing enclosing it is
+        // parameterized, and as a chain Ljava/util/EnumMap<TK;TV;>.EntrySet; where something is.
+        // classDesc() answers with the whole name either way, so a rebuild that feeds it back into
+        // the chained form emits Ljava/util/EnumMap<TK;TV;>.java/util/EnumMap$EntrySet;, which no
+        // reader can parse. Verification does not look at generic signatures, so nothing but this
+        // catches it.
+        assertThat(remapFieldSignature(ClassRemapper.of(type -> type),
+                "Ljava/util/EnumMap<TK;TV;>.EntrySet;"))
+                .isEqualTo("Ljava/util/EnumMap<TK;TV;>.EntrySet;");
+        assertThat(remapFieldSignature(ClassRemapper.of(type -> type),
+                "LOuter<TT;>.Mid.Inner;"))
+                .as("a chain deeper than two must keep each of its simple names")
+                .isEqualTo("LOuter<TT;>.Mid.Inner;");
+        assertThat(remapFieldSignature(ClassRemapper.of(type -> type),
+                "Ljava/util/List<Ljava/util/EnumMap<TK;TV;>.EntrySet;>;"))
+                .as("a chain reached through a type argument is rebuilt by the same code")
+                .isEqualTo("Ljava/util/List<Ljava/util/EnumMap<TK;TV;>.EntrySet;>;");
+    }
+
+    @Test
+    @DisplayName("renaming a parameterized outer type carries its member with it")
+    void chainedSignatureFollowsARename() {
+        final ClassRemapper together = ClassRemapper.of(Map.of(
+                java.lang.constant.ClassDesc.of("java.util.EnumMap"),
+                java.lang.constant.ClassDesc.of("com.acme.Renamed"),
+                java.lang.constant.ClassDesc.of("java.util.EnumMap$EntrySet"),
+                java.lang.constant.ClassDesc.of("com.acme.Renamed$EntrySet")));
+
+        assertThat(remapFieldSignature(together, "Ljava/util/EnumMap<TK;TV;>.EntrySet;"))
+                .isEqualTo("Lcom/acme/Renamed<TK;TV;>.EntrySet;");
+
+        // A mapping that moves the member out of its enclosing type leaves no simple name relating
+        // the two, so the chain cannot be kept and the flat form is emitted instead.
+        final ClassRemapper detaching = ClassRemapper.of(Map.of(
+                java.lang.constant.ClassDesc.of("java.util.EnumMap$EntrySet"),
+                java.lang.constant.ClassDesc.of("com.acme.Detached")));
+
+        assertThat(remapFieldSignature(detaching, "Ljava/util/EnumMap<TK;TV;>.EntrySet;"))
+                .isEqualTo("Lcom/acme/Detached;");
+    }
+
+    @Test
+    @DisplayName("every generic signature in java.base survives a rebuild readable")
+    void rebuiltSignaturesAcrossTheJdkStayParseable() {
+        final ClassFile classFile = ClassFile.of();
+        final ClassRemapper identity = ClassRemapper.of(type -> type);
+        final List<String> broken = new ArrayList<>();
+        final AtomicInteger examined = new AtomicInteger();
+
+        forEachClassInJavaBase((name, bytes) -> {
+            if (examined.incrementAndGet() % 7 != 0) {
+                return;   // a seventh of the corpus keeps this test under a second
+            }
+            final byte[] rewritten =
+                    classFile.transformClass(classFile.parse(bytes), identity.asClassTransform());
+            for (final String signature : signatureStrings(classFile.parse(rewritten))) {
+                try {
+                    parseSignature(signature);
+                } catch (final RuntimeException e) {
+                    if (broken.size() < 10) {
+                        broken.add(name + ": " + signature);
+                    }
+                }
+            }
+        });
+
+        assertThat(broken).as("signatures a rebuild made unreadable").isEmpty();
+    }
+
+    @Test
     @DisplayName("a mapping that returns null is rejected rather than producing a broken class")
     void nullMappingIsRejected() {
         final ClassRemapper broken = ClassRemapper.of(type -> null);
@@ -184,6 +256,49 @@ class ClassRemapperTest {
     }
 
     // -------------------------------------------------------------------------------------
+
+    private static String remapFieldSignature(final ClassRemapper remapper, final String signature) {
+        final ClassFile classFile = ClassFile.of();
+        final byte[] original = classFile.build(
+                java.lang.constant.ClassDesc.of("com.acme.Holder"),
+                cb -> cb.withField("field", java.lang.constant.ConstantDescs.CD_Object,
+                        fb -> fb.with(java.lang.classfile.attribute.SignatureAttribute.of(
+                                java.lang.classfile.Signature.parseFrom(signature)))));
+        final byte[] rewritten =
+                classFile.transformClass(classFile.parse(original), remapper.asClassTransform());
+        return classFile.parse(rewritten).fields().getFirst()
+                .findAttribute(java.lang.classfile.Attributes.signature())
+                .orElseThrow()
+                .signature()
+                .stringValue();
+    }
+
+    private static List<String> signatureStrings(final ClassModel model) {
+        final List<String> signatures = new ArrayList<>();
+        model.findAttribute(java.lang.classfile.Attributes.signature())
+                .ifPresent(a -> signatures.add("C" + a.signature().stringValue()));
+        model.fields().forEach(f -> f.findAttribute(java.lang.classfile.Attributes.signature())
+                .ifPresent(a -> signatures.add("F" + a.signature().stringValue())));
+        model.methods().forEach(m -> m.findAttribute(java.lang.classfile.Attributes.signature())
+                .ifPresent(a -> signatures.add("M" + a.signature().stringValue())));
+        // A generic local's signature is where a chained member type most often turns up, because
+        // the compiler writes one for every declared variable when -g is on.
+        model.methods().forEach(m -> m.code().ifPresent(code -> code.forEach(element -> {
+            if (element instanceof java.lang.classfile.instruction.LocalVariableType localType) {
+                signatures.add("T" + localType.signature().stringValue());
+            }
+        })));
+        return signatures;
+    }
+
+    private static void parseSignature(final String tagged) {
+        final String signature = tagged.substring(1);
+        switch (tagged.charAt(0)) {
+            case 'C' -> java.lang.classfile.ClassSignature.parseFrom(signature);
+            case 'M' -> java.lang.classfile.MethodSignature.parseFrom(signature);
+            default -> java.lang.classfile.Signature.parseFrom(signature);
+        }
+    }
 
     private static byte[] readClass(final Class<?> type) {
         final String resource = type.getName().replace('.', '/') + ".class";

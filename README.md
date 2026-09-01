@@ -339,7 +339,7 @@ way.
 | [`aether-weaver-runtime`](aether-weaver-runtime) | Weaver facade, weaving class loader, classpath discovery | For the class-loader driver |
 | [`aether-weaver-testkit`](aether-weaver-testkit) | JUnit 5 extension, bytecode assertions, in-memory weaving | **Yes** — `test` scope |
 | [`aether-weaver-tests`](aether-weaver-tests) | Cross-module, end-to-end and architecture tests | Never — not published |
-| [`aether-weaver-ide`](aether-weaver-ide) | The IntelliJ IDEA plugin. A Gradle build, outside the reactor | Not published |
+| [`aether-weaver-ide`](aether-weaver-ide) | The IntelliJ IDEA plugin. A Gradle build, outside the reactor | No — installed in the IDE |
 
 📖 What each one puts on your classpath:
 **[Artefacts and modules](https://software.splatgames.de/docs/aether-weaver/latest/artifacts.html)**.
@@ -448,9 +448,10 @@ Completion for merged members and selectors, six inspections with quick fixes th
 codes with the annotation processor, gutter markers in both directions between a weave and its
 target, inlay hints showing where injected code lands, and a *Weaves* tool window.
 
-It is a separate Gradle build outside the Maven reactor — building an IntelliJ plugin downloads a
-full IDE distribution, and `mvn install` must never depend on that. It is not published yet; build
-it from [`aether-weaver-ide`](aether-weaver-ide).
+Install it from the JetBrains Marketplace — *Settings → Plugins → Marketplace*, search for
+**Aether Weaver** — or build it from [`aether-weaver-ide`](aether-weaver-ide). That is a separate
+Gradle build outside the Maven reactor: building an IntelliJ plugin downloads a full IDE
+distribution, and `mvn install` must never depend on that.
 
 📖 **[The IntelliJ IDEA plugin](https://software.splatgames.de/docs/aether-weaver/latest/intellij-plugin.html)**.
 
@@ -501,7 +502,6 @@ marked, and it is worth knowing which:
 
 - **`api.experimental` is experimental**, and says so on every type in it. Extension methods live
   there. No compatibility guarantee is stated for those declarations.
-- **The IntelliJ plugin is not published** to the JetBrains Marketplace yet. Build it from source.
 - **There is no Gradle plugin.** Weaving from a Gradle build means the agent or the runtime driver.
 - **Plugin discovery is opt-in**, by a program that builds its own `Weaver`. See the note above.
 
@@ -524,6 +524,17 @@ Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 Aether Weaver rewrites bytecode and, under the agent, runs inside the JVM it modifies. The
 [security policy](SECURITY.md) says what that means, what the standard policy refuses before any
 byte is written, and what stays your responsibility.
+
+Release artefacts on Maven Central are GPG signed. The public key is in [`KEYS`](KEYS), and its
+fingerprint is `C6BE 25BF 2A46 39A6 7A49  1EBD 37B5 9B93 DC75 6EE8`:
+
+```bash
+gpg --import KEYS
+gpg --verify aether-weaver-api-0.1.0.jar.asc aether-weaver-api-0.1.0.jar
+```
+
+[Signing keys](SECURITY.md#signing-keys) has the rest, including why you should check that
+fingerprint somewhere other than here.
 
 Report vulnerabilities **privately** —
 [GitHub Security Advisories](https://github.com/aether-framework/aether-weaver/security/advisories/new)

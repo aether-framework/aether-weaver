@@ -9,7 +9,7 @@ All anchors are repository-relative; every line number was read from the file na
 
 - **The groupId of every artifact is `de.splatgames.aether.weaver`** — `pom.xml:21`. Every
   module inherits it; no module overrides `<groupId>`.
-- **The reactor root is `de.splatgames.aether.weaver:aether-weaver-parent`, packaging `pom`**
+- **The reactor root is `de.splatgames.aether.weaver:aether-weaver`, packaging `pom`**
   — `pom.xml:22`, `pom.xml:24`. It is the parent of all nine modules and is not something a
   consumer inherits from.
 - **The reactor version is `0.1.0-SNAPSHOT`** — `pom.xml:23`, repeated verbatim in every
@@ -102,7 +102,7 @@ Each `<description>` is the module's own one-line statement of purpose.
 - **`<version>` in every BOM entry is `${project.version}`** — e.g.
   `aether-weaver-bom/pom.xml:28`. It resolves to the BOM's own version, so importing the BOM
   fixes all Aether Weaver versions to the BOM's.
-- **The BOM inherits from `aether-weaver-parent`** — `aether-weaver-bom/pom.xml:11-15`. The
+- **The BOM inherits from `aether-weaver`** — `aether-weaver-bom/pom.xml:11-15`. The
   parent's `<dependencyManagement>` (`pom.xml:120-219`) additionally manages
   `org.junit:junit-bom` (imported, `:192-198`), `org.assertj:assertj-core` at test scope with a
   `net.bytebuddy:byte-buddy` exclusion (`:199-217`), two JMH artifacts (`:179-190`) and
@@ -260,7 +260,7 @@ Spelled as the source spells them.
 
 ```
 groupId:            de.splatgames.aether.weaver
-artifacts:          aether-weaver-parent (pom)      aether-weaver-bom (pom)
+artifacts:          aether-weaver (pom)             aether-weaver-bom (pom)
                     aether-weaver-api               aether-weaver-engine
                     aether-weaver-runtime           aether-weaver-agent
                     aether-weaver-processor         aether-weaver-testkit
@@ -360,7 +360,7 @@ Build commands attested by the repository: `mvn -B -o verify` (CLAUDE.md gate),
 2. **Whether a consumer importing `aether-weaver-bom` also inherits the parent's other managed
    dependencies** — the junit BOM import, AssertJ with its Byte Buddy exclusion, JMH, and
    `org.jetbrains:annotations` at `provided` (`pom.xml:172-217`). The BOM declares
-   `aether-weaver-parent` as its parent (`aether-weaver-bom/pom.xml:11-15`), and whether an
+   `aether-weaver` as its parent (`aether-weaver-bom/pom.xml:11-15`), and whether an
    imported pom's inherited `<dependencyManagement>` reaches the importer is Maven model
    behaviour rather than something a line in this repository states. No test in the repository
    exercises importing the BOM. Settling it needs a real consumer build resolving the deployed
