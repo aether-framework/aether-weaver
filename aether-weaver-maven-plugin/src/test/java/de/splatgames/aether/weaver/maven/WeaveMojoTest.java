@@ -161,7 +161,7 @@ class WeaveMojoTest {
                     .as("this is the one driver whose report can be complete: the goal knows every "
                             + "class it will ever be asked about, so by the time it prints, every "
                             + "point has been resolved against real bytes")
-                    .anyMatch(line -> line.startsWith("Aether Weaver 0.1.0 — plan "))
+                    .anyMatch(line -> line.startsWith("Aether Weaver 0.1.1 — plan "))
                     .anyMatch(line -> line.contains("Weaves (1):"))
                     .anyMatch(line -> line.contains("1 site  @"))
                     .noneMatch(line -> line.contains("not woven yet"));

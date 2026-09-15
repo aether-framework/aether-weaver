@@ -6,6 +6,7 @@ import de.splatgames.aether.weaver.api.diagnostic.DiagnosticCode;
 import de.splatgames.aether.weaver.api.model.HandlerRef;
 import de.splatgames.aether.weaver.api.spi.Reporter;
 import de.splatgames.aether.weaver.engine.internal.transform.ClassRemapper;
+import de.splatgames.aether.weaver.engine.internal.transform.FrameSupport;
 import de.splatgames.aether.weaver.engine.model.WeaveClass;
 import de.splatgames.aether.weaver.engine.model.WeaveMember;
 import org.jetbrains.annotations.NotNull;
@@ -64,13 +65,12 @@ public final class StructuralWeaver {
     }
 
     /**
-     * Applies every weave that dissolves into the given class.
+     * Applies every weave that dissolves into the given class, resolving the hierarchy through the
+     * bootstrap loader.
      *
-     * <p>{@code null} answers a refusal and having nothing to emit alike, and the two cannot be told
-     * apart from the return value; a refusal has reported at least one diagnostic first. Nothing to
-     * emit is an ordinary outcome rather than a degenerate one: a weave admitted only because it asks
-     * for a mutable shadow adds no member, and has nothing left to change once the target's field
-     * turns out not to be final.
+     * <p>Equivalent to {@link #apply(ClassModel, List, Reporter, ClassLoader)} with a {@code null}
+     * loader, which is what a caller with no defining loader to offer, such as a build-time driver,
+     * passes.
      *
      * @param model    the class to weave, as it stands; must not be {@code null}
      * @param weaves   the weaves that dissolve into it; must not be {@code null}
@@ -82,6 +82,31 @@ public final class StructuralWeaver {
     public byte @Nullable [] apply(@NotNull final ClassModel model,
                                    @NotNull final List<WeaveClass> weaves,
                                    @NotNull final Reporter reporter) {
+        return apply(model, weaves, reporter, null);
+    }
+
+    /**
+     * Applies every weave that dissolves into the given class.
+     *
+     * <p>{@code null} answers a refusal and having nothing to emit alike, and the two cannot be told
+     * apart from the return value; a refusal has reported at least one diagnostic first. Nothing to
+     * emit is an ordinary outcome rather than a degenerate one: a weave admitted only because it asks
+     * for a mutable shadow adds no member, and has nothing left to change once the target's field
+     * turns out not to be final.
+     *
+     * @param model    the class to weave, as it stands; must not be {@code null}
+     * @param weaves   the weaves that dissolve into it; must not be {@code null}
+     * @param reporter where refusals are reported; must not be {@code null}
+     * @param loader   the loader that defines the target, whose resources describe the hierarchy the
+     *                 stack-map generator merges over; {@code null} for the bootstrap loader
+     * @return the rebuilt class, or {@code null} when a weave was refused or there was nothing to
+     *         emit
+     * @throws NullPointerException if any argument but {@code loader} is {@code null}
+     */
+    public byte @Nullable [] apply(@NotNull final ClassModel model,
+                                   @NotNull final List<WeaveClass> weaves,
+                                   @NotNull final Reporter reporter,
+                                   @Nullable final ClassLoader loader) {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(weaves, "weaves");
         Objects.requireNonNull(reporter, "reporter");
@@ -103,7 +128,7 @@ public final class StructuralWeaver {
             return null;
         }
 
-        return ClassFile.of().build(model.thisClass().asSymbol(), builder -> {
+        return FrameSupport.forLoadTime(loader).build(model.thisClass().asSymbol(), builder -> {
             // Everything the target had, first and unchanged — except a field whose final flag a
             // @Shadow(mutable = true) asked to drop. A merged member that collided was already
             // refused, so nothing here can be overwritten by what follows.

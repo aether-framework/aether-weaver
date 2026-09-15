@@ -13,6 +13,19 @@ reads it out of this file, so there is one copy of it and it cannot drift.
 
 Nothing yet.
 
+## [0.1.1] - 2026-09-15
+
+### Fixed
+
+- **Load-time weaving of application types now verifies.** On the load-time path, stack-map
+  generation and verification resolved the class hierarchy through the system class loader, so
+  a weave into a class whose method frames merge the application's own types was rejected —
+  dropped silently under `verification=report`, or reported as `AW4001` (or a
+  `Could not resolve class` from the Class-File API) under `verification=strict`. The defining
+  class loader is now threaded from the agent through the injection, merge and verification
+  steps, all of which build through `FrameSupport.forLoadTime(loader)`. Weaves whose signatures
+  reference only JDK types were unaffected, which is why the failure looked selective.
+
 ## [0.1.0] - 2026-08-31
 
 The first release. Everything below is new, so this entry describes the shape of the framework
@@ -147,5 +160,6 @@ Stated here because a first release that hides its edges is worse than one that 
 - **There is no Gradle plugin.** A Gradle build can declare and compile-check weaves; applying them
   means the agent or the runtime driver.
 
-[Unreleased]: https://github.com/aether-framework/aether-weaver/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/aether-framework/aether-weaver/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/aether-framework/aether-weaver/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aether-framework/aether-weaver/releases/tag/v0.1.0

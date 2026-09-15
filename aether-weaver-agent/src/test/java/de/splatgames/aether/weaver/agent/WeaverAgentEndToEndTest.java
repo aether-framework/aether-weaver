@@ -65,7 +65,7 @@ class WeaverAgentEndToEndTest {
             assertThat(result.output())
                     .as("a run whose configuration is not visible in its own log is a run whose "
                             + "behaviour has to be reconstructed from the deployment")
-                    .contains("Aether Weaver 0.1.0")
+                    .contains("Aether Weaver 0.1.1")
                     .contains("1 weave")
                     .contains("fingerprint ")
                     .contains("verification=strict");
