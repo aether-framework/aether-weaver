@@ -135,7 +135,11 @@ final class WeavingTransformer implements ClassFileTransformer {
             return null;
         }
         try {
-            final byte[] woven = this.weaver.weave(className, buffer);
+            // The loader that defines this class is what lets the engine resolve the application's
+            // own types through their class-file resources when it regenerates stack maps. Dropping
+            // it here forces the frame builder onto a resolver that reflects over the system loader
+            // and cannot see host classes, which fails to verify any target whose frames merge them.
+            final byte[] woven = this.weaver.weave(className, buffer, loader);
             if (woven == null) {
                 // Contract point 1. Returning `buffer` here would be correct-looking and would make
                 // the JVM re-verify every class in the application.

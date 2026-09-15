@@ -4,8 +4,10 @@ import de.splatgames.aether.weaver.api.diagnostic.Diagnostic;
 import de.splatgames.aether.weaver.api.diagnostic.DiagnosticCode;
 import de.splatgames.aether.weaver.api.diagnostic.WeaveException;
 import de.splatgames.aether.weaver.api.spi.DiagnosticListener;
+import de.splatgames.aether.weaver.engine.internal.transform.FrameSupport;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.classfile.ClassFile;
 import java.util.List;
@@ -92,6 +94,37 @@ public final class Verifier {
     public byte[] check(@NotNull final String internalName,
                         final byte @NotNull [] original,
                         final byte @NotNull [] woven) {
+        return check(internalName, original, woven, null);
+    }
+
+    /**
+     * Checks a woven class against the type hierarchy the given loader describes.
+     *
+     * <p>Identical to {@link #check(String, byte[], byte[])} except that {@link ClassFile#verify(
+     * byte[])} is run through a {@link FrameSupport#forLoadTime(ClassLoader)} context, so the
+     * assignability questions the verifier asks at frame merges are answered from the loader that
+     * defines the target rather than the system loader. Without it a woven class that merges the
+     * application's own types is reported as unverifiable purely because those types cannot be
+     * resolved, which is a false refusal rather than a real one.
+     *
+     * @param internalName the class's internal name, which the message names; must not be
+     *                     {@code null}
+     * @param original     the class as it arrived, handed back when a refusal is not fatal; must
+     *                     not be {@code null}
+     * @param woven        the class as weaving left it; must not be {@code null}
+     * @param loader       the loader that defines the target, whose resources describe the
+     *                     hierarchy; {@code null} for the bootstrap loader
+     * @return {@code woven} when the policy checks nothing or nothing refuses it, and
+     *         {@code original} when a refusal is not fatal
+     * @throws NullPointerException if {@code internalName}, {@code original} or {@code woven} is
+     *                              {@code null}
+     * @throws WeaveException if the policy is fatal and either check refuses the class
+     */
+    @NotNull
+    public byte[] check(@NotNull final String internalName,
+                        final byte @NotNull [] original,
+                        final byte @NotNull [] woven,
+                        @Nullable final ClassLoader loader) {
         Objects.requireNonNull(internalName, "internalName");
         Objects.requireNonNull(original, "original");
         Objects.requireNonNull(woven, "woven");
@@ -106,7 +139,10 @@ public final class Verifier {
         if (!structural.isEmpty()) {
             return refuse(structuralDiagnostic(internalName, structural), original);
         }
-        final List<VerifyError> errors = ClassFile.of().verify(woven);
+        // Through the load-time context, so the verifier resolves the application's own types the
+        // same way stack-map generation did; a plain ClassFile.of() here uses the system loader and
+        // reports unresolvable application types as spurious verification errors.
+        final List<VerifyError> errors = FrameSupport.forLoadTime(loader).verify(woven);
         if (errors.isEmpty()) {
             return woven;
         }

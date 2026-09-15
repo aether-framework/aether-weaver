@@ -2,7 +2,7 @@
 <vars>
     <var name="product" value="Aether Weaver"/>
     <var name="group" value="de.splatgames.aether.weaver"/>
-    <var name="version" value="0.1.0"/>
+    <var name="version" value="0.1.1"/>
     <var name="jdk" value="25"/>
     <var name="maven" value="3.9"/>
     <var name="repo" value="https://github.com/aether-framework/aether-weaver"/>

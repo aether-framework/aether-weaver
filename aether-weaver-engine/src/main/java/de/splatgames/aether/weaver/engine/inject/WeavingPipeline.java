@@ -25,12 +25,12 @@ import de.splatgames.aether.weaver.engine.plugin.PluginIsolation;
 import de.splatgames.aether.weaver.engine.inject.point.ModelViews;
 import de.splatgames.aether.weaver.engine.inject.point.PointResolver;
 import de.splatgames.aether.weaver.engine.inject.point.Targets;
+import de.splatgames.aether.weaver.engine.internal.transform.FrameSupport;
 import de.splatgames.aether.weaver.engine.internal.transform.LocalTable;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.ClassTransform;
 import java.lang.classfile.CodeElement;
@@ -106,6 +106,28 @@ public final class WeavingPipeline {
     }
 
     /**
+     * Weaves one class, resolving its type hierarchy through the bootstrap loader.
+     *
+     * <p>Equivalent to {@link #weave(ClassModel, List, List, Reporter, ClassLoader)} with a
+     * {@code null} loader: a caller with no defining loader to offer, such as a build-time driver,
+     * lets stack-map generation resolve through class-file resources on the bootstrap loader.
+     *
+     * @param model    the class to weave; must not be {@code null}
+     * @param entries  the declarations to apply, in the order they should be offered each element;
+     *                 must not be {@code null}
+     * @param groups   the groups the entries are accounted against; must not be {@code null}
+     * @param reporter where to report; must not be {@code null}
+     * @return the woven bytes, or {@code null} when the class was not woven
+     * @throws NullPointerException if any argument is {@code null}
+     */
+    public byte @Nullable [] weave(@NotNull final ClassModel model,
+                                   @NotNull final List<PlanEntryView> entries,
+                                   @NotNull final List<GroupSpec> groups,
+                                   @NotNull final Reporter reporter) {
+        return weave(model, entries, groups, reporter, null);
+    }
+
+    /**
      * Weaves one class.
      *
      * <p>Each entry is taken as far as it can go on its own: its target method is found, its points
@@ -128,13 +150,16 @@ public final class WeavingPipeline {
      *                 must not be {@code null}
      * @param groups   the groups the entries are accounted against; must not be {@code null}
      * @param reporter where to report; must not be {@code null}
+     * @param loader   the loader that defines the target, whose resources describe the hierarchy the
+     *                 stack-map generator merges over; {@code null} for the bootstrap loader
      * @return the woven bytes, or {@code null} when the class was not woven
-     * @throws NullPointerException if any argument is {@code null}
+     * @throws NullPointerException if any argument but {@code loader} is {@code null}
      */
     public byte @Nullable [] weave(@NotNull final ClassModel model,
                                    @NotNull final List<PlanEntryView> entries,
                                    @NotNull final List<GroupSpec> groups,
-                                   @NotNull final Reporter reporter) {
+                                   @NotNull final Reporter reporter,
+                                   @Nullable final ClassLoader loader) {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(entries, "entries");
         Objects.requireNonNull(groups, "groups");
@@ -226,10 +251,10 @@ public final class WeavingPipeline {
 
         final String contributed = contributedKinds(byMethod);
         if (contributed.isEmpty()) {
-            return emit(model, internalName, byMethod, reporter);
+            return emit(model, internalName, byMethod, reporter, loader);
         }
         return PluginIsolation.call(contributed, PluginIsolation.Phase.APPLY, reporter,
-                () -> emit(model, internalName, byMethod, reporter)).orElse(null);
+                () -> emit(model, internalName, byMethod, reporter, loader)).orElse(null);
     }
 
     /**
@@ -247,12 +272,15 @@ public final class WeavingPipeline {
      * @param byMethod     the declarations to apply, grouped by target method name; must not be
      *                     {@code null}
      * @param reporter     where to report; must not be {@code null}
+     * @param loader       the loader that defines the target, whose resources describe the hierarchy,
+     *                     or {@code null} for the bootstrap loader
      * @return the woven bytes, or {@code null} when the writer refused the result
      */
     private byte @Nullable [] emit(@NotNull final ClassModel model,
                                    @NotNull final String internalName,
                                    @NotNull final Map<String, List<Resolved>> byMethod,
-                                   @NotNull final Reporter reporter) {
+                                   @NotNull final Reporter reporter,
+                                   @Nullable final ClassLoader loader) {
         ClassTransform transform = ClassTransform.ACCEPT_ALL;
         for (final Map.Entry<String, List<Resolved>> group : byMethod.entrySet()) {
             final String methodName = group.getKey();
@@ -265,7 +293,7 @@ public final class WeavingPipeline {
                     CodeTransform.ofStateful(() -> compose(emissions, ranges))));
         }
         try {
-            return ClassFile.of().transformClass(model, transform);
+            return FrameSupport.forLoadTime(loader).transformClass(model, transform);
         } catch (final IllegalArgumentException refused) {
             // The Class-File API validates while it writes, so the one limit an injection can
             // realistically cross — 65535 bytes of code in one method — surfaces here as an
