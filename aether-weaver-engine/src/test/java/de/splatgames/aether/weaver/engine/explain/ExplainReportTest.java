@@ -40,8 +40,8 @@ class ExplainReportTest {
             final Weaver weaver = explaining(audit());
 
             assertThat(weaver.explain().lines().findFirst().orElseThrow())
-                    .startsWith("Aether Weaver 0.1.0 — plan ")
-                    .hasSizeGreaterThan("Aether Weaver 0.1.0 — plan ".length());
+                    .startsWith("Aether Weaver 0.1.1 — plan ")
+                    .hasSizeGreaterThan("Aether Weaver 0.1.1 — plan ".length());
         }
 
         @Test

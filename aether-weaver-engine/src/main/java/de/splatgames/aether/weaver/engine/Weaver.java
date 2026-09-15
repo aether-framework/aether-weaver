@@ -238,7 +238,7 @@ public final class Weaver {
     }
 
     /** The weaver version, written into every weave record and printed by the explain report. */
-    static final String VERSION = "0.1.0";
+    static final String VERSION = "0.1.1";
 
     /**
      * Every kind this release declares, in one place.
@@ -300,6 +300,28 @@ public final class Weaver {
      */
     public byte @Nullable [] weave(@NotNull final String internalName,
                                    final byte @NotNull [] original) {
+        return weave(internalName, original, null);
+    }
+
+    /**
+     * Weaves a class whose bytes are already in hand, resolving its type hierarchy through the loader
+     * that defines it.
+     *
+     * <p>The loader is what lets load-time stack-map generation resolve the application's own types
+     * through their class-file resources without loading them. {@code null} stands for the bootstrap
+     * loader, for which the platform loader is used, exactly as an agent is handed {@code null} for a
+     * class the bootstrap loader defined.
+     *
+     * @param internalName the class's internal name, such as {@code com/acme/Ledger}
+     * @param original     the class as it stands; not modified
+     * @param loader       the loader that defines the class, whose resources describe the hierarchy,
+     *                     or {@code null} for the bootstrap loader
+     * @return the woven class, or {@code null} when it is to be used unchanged
+     * @throws NullPointerException if {@code internalName} or {@code original} is {@code null}
+     */
+    public byte @Nullable [] weave(@NotNull final String internalName,
+                                   final byte @NotNull [] original,
+                                   @Nullable final ClassLoader loader) {
         Objects.requireNonNull(internalName, "internalName");
         Objects.requireNonNull(original, "original");
         this.statistics.seen();
@@ -307,9 +329,9 @@ public final class Weaver {
         final List<PlanEntryView> entries = this.plan.entriesFor(internalName);
         final List<WeaveClass> dissolving = this.plan.structuralFor(internalName);
         if (entries.isEmpty() && dissolving.isEmpty()) {
-            return extensionsOnly(internalName, original);
+            return extensionsOnly(internalName, original, loader);
         }
-        return timed(internalName, () -> original, entries, dissolving);
+        return timed(internalName, () -> original, entries, dissolving, loader);
     }
 
     /**
@@ -335,10 +357,10 @@ public final class Weaver {
         final List<PlanEntryView> entries = this.plan.entriesFor(internalName);
         final List<WeaveClass> dissolving = this.plan.structuralFor(internalName);
         if (entries.isEmpty() && dissolving.isEmpty()) {
-            return this.extensions.isEmpty() ? null : extensionsOnly(internalName, original.get());
+            return this.extensions.isEmpty() ? null : extensionsOnly(internalName, original.get(), null);
         }
 
-        return timed(internalName, original, entries, dissolving);
+        return timed(internalName, original, entries, dissolving, null);
     }
 
     /**
@@ -353,12 +375,14 @@ public final class Weaver {
      *
      * @param internalName the class's internal name
      * @param original     the class as it stands
+     * @param loader       the loader that defines the class, or {@code null} for the bootstrap loader
      * @return the rewritten class, or {@code null} when neither rewrite applied; also the original
      *         bytes, unrewritten, when a rewrite applied but the verifier refused the result under
      *         {@code REPORT}
      */
     private byte @Nullable [] extensionsOnly(@NotNull final String internalName,
-                                             final byte @NotNull [] original) {
+                                             final byte @NotNull [] original,
+                                             @Nullable final ClassLoader loader) {
         if (this.extensions.isEmpty()) {
             return null;
         }
@@ -373,7 +397,7 @@ public final class Weaver {
         // the original, and a caller that wrote the returned bytes unconditionally still gets a
         // class that loads.
         return this.verifier.check(internalName, original,
-                guarded == null ? rewritten : guarded);
+                guarded == null ? rewritten : guarded, loader);
     }
 
     /**
@@ -386,15 +410,17 @@ public final class Weaver {
      * @param original     supplies the class as it stands
      * @param entries      the injections planned for it
      * @param dissolving   the weaves to merge into it
+     * @param loader       the loader that defines the class, or {@code null} for the bootstrap loader
      * @return whatever {@link #apply} returned
      */
     private byte @Nullable [] timed(@NotNull final String internalName,
                                     @NotNull final ByteSupplier original,
                                     @NotNull final List<PlanEntryView> entries,
-                                    @NotNull final List<WeaveClass> dissolving) {
+                                    @NotNull final List<WeaveClass> dissolving,
+                                    @Nullable final ClassLoader loader) {
         final long started = System.nanoTime();
         try {
-            return apply(internalName, original, entries, dissolving, started);
+            return apply(internalName, original, entries, dissolving, started, loader);
         } finally {
             this.statistics.spent(System.nanoTime() - started);
         }
@@ -428,6 +454,7 @@ public final class Weaver {
      * @param entries      the injections planned for it
      * @param dissolving   the weaves to merge into it
      * @param started      when timing began, for the JFR event
+     * @param loader       the loader that defines the class, or {@code null} for the bootstrap loader
      * @return the woven class, {@code null} when it is to be used unchanged, or the original bytes
      *         when a verifier refusal under {@code REPORT} left {@code checked != woven}
      */
@@ -435,7 +462,8 @@ public final class Weaver {
                                     @NotNull final ByteSupplier original,
                                     @NotNull final List<PlanEntryView> entries,
                                     @NotNull final List<WeaveClass> dissolving,
-                                    final long started) {
+                                    final long started,
+                                    @Nullable final ClassLoader loader) {
         final byte[] bytes = original.get();
         final ClassModel model = ClassFile.of().parse(bytes);
 
@@ -478,7 +506,7 @@ public final class Weaver {
         final Reporter reporter = this.listener::report;
         byte[] current = bytes;
         if (!entries.isEmpty()) {
-            final byte[] woven = this.pipeline.weave(model, entries, this.groups, reporter);
+            final byte[] woven = this.pipeline.weave(model, entries, this.groups, reporter, loader);
             if (woven == null) {
                 // Nothing resolved, or accounting refused it. The pipeline has already said why,
                 // and the original class stands — never a half-woven one, because the pipeline
@@ -489,7 +517,7 @@ public final class Weaver {
         }
         if (!dissolving.isEmpty()) {
             final byte[] merged = this.structural.apply(
-                    ClassFile.of().parse(current), dissolving, reporter);
+                    ClassFile.of().parse(current), dissolving, reporter, loader);
             if (merged == null && current == bytes) {
                 return null;
             }
@@ -520,7 +548,7 @@ public final class Weaver {
 
         // Gate 5: verify. Under REPORT this hands back the ORIGINAL, never the broken class.
         final byte[] woven = current;
-        final byte[] checked = this.verifier.check(internalName, bytes, woven);
+        final byte[] checked = this.verifier.check(internalName, bytes, woven, loader);
         if (checked != woven) {
             // Counted, not returned as a success. The class the caller gets back is the original
             // one, so a run that reported "42 classes woven" while a verifier had quietly handed

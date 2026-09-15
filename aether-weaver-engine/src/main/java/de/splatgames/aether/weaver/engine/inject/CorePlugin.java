@@ -42,7 +42,7 @@ public final class CorePlugin implements WeaverPlugin {
 
     /** Identifies the plugin. The version is a literal here and is not read from the build. */
     private static final PluginId ID = new PluginId(
-            PluginId.BUILT_IN_NAMESPACE, "Aether Weaver", "0.1.0");
+            PluginId.BUILT_IN_NAMESPACE, "Aether Weaver", "0.1.1");
 
     /**
      * Creates the plugin.

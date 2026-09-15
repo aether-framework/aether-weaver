@@ -91,17 +91,25 @@ Update those four in one commit:
 | `Writerside/v.list` | `<var name="version" value="x.y.z"/>` |
 | `aether-weaver-engine/…/engine/Weaver.java` | `static final String VERSION = "x.y.z";` — it is stamped into every weave record |
 
+Two more the release workflow does not read, but that must move with these or the gate fails: the
+agent's own `aether-weaver-agent/…/agent/WeaverAgent.java` `VERSION` — its start-up banner — and the
+built-in plugin id in `aether-weaver-engine/…/engine/inject/CorePlugin.java`. `ExplainReportTest`,
+`WeaverAgentEndToEndTest` and `WeaveMojoTest` pin the printed version, so they move with it too.
+
 The poms are **not** touched. They stay on `-SNAPSHOT`; the workflow stamps the release version in
 from the tag. That way a build from `main` can never overwrite a released artefact.
 
-**The IDE plugin has two more, and nothing checks either.** It is a separate Gradle build, so the
-release workflow never sees it — but it ships to the Marketplace beside the release, and both of
-these decide what it ships as.
+**The IDE plugin has three more, and they are set in [step 6](#step-6--the-ide-plugin), not here.**
+It is a separate Gradle build the release workflow never sees, but the `IntelliJ plugin` CI check
+builds it, and it resolves `aether-weaver-api` and `-engine` as ordinary published dependencies.
+Bumping these before the release is on Central makes that check fail to resolve the version — so set
+them once Central serves it, in step 6, where the plugin is actually built.
 
 | File | What to change | What it breaks if you forget |
 |---|---|---|
 | `aether-weaver-ide/aether-weaver-idea/build.gradle.kts` | `version = "x.y.z"` | The archive uploads as `x.y.z-SNAPSHOT` |
 | `aether-weaver-ide/aether-weaver-idea/gradle.properties` | `aetherWeaverVersion=x.y.z` | The plugin bundles the API and engine it resolves, so it ships the `-SNAPSHOT` jars from whoever built it rather than the published ones |
+| `aether-weaver-ide/aether-weaver-idea/sample/pom.xml` | `<aether.weaver.version>x.y.z</aether.weaver.version>` | `checkSampleVersion` fails the Gradle build: the sample would resolve a different API than the plugin was built against |
 
 Also worth doing: `Writerside/versions.json`, if the site is to offer a version switcher.
 
@@ -158,7 +166,16 @@ shortly after.
 ordinary dependency and bundles it, so a build started before Central serves it either fails to
 resolve or quietly bundles something else.
 
-With the two versions from step 1 set:
+Set the three IDE-plugin versions now — they are left alone during step 1 because this build
+resolves the published artefacts, so bumping them earlier fails the `IntelliJ plugin` CI check:
+
+| File | What to change |
+|---|---|
+| `aether-weaver-ide/aether-weaver-idea/build.gradle.kts` | `version = "x.y.z"` |
+| `aether-weaver-ide/aether-weaver-idea/gradle.properties` | `aetherWeaverVersion=x.y.z` |
+| `aether-weaver-ide/aether-weaver-idea/sample/pom.xml` | `<aether.weaver.version>x.y.z</aether.weaver.version>` |
+
+Then:
 
 ```bash
 cd aether-weaver-ide/aether-weaver-idea
@@ -224,6 +241,8 @@ switcher offers.
 | Central rejects the deployment | Read the job log; it carries Central's own validation messages. Nothing was published |
 | Signing fails, or the job hangs | The passphrase secret or the key secret is wrong. The key must be armoured, whole, including its BEGIN and END lines |
 | The deployment sits in `VALIDATED` | `autoPublish` did not take effect. Publish it by hand in the portal, and fix the configuration before the next release |
+| The publish job fails but the portal says `PUBLISHING` | The plugin stopped waiting; Central did not stop publishing. Nothing was lost and nothing may be re-uploaded. Wait for `PUBLISHED`, then create the GitHub Release by hand — the `github-release` job cannot be re-run alone, because it needs `publish`, and re-running failed jobs would deploy a second time |
+| The deployment sits in `PUBLISHING` for over an hour | Sonatype's side. Check <https://status.maven.org>, then open a support ticket with the deployment id. Do not delete the tag and do not deploy again |
 | The release published, the GitHub Release did not | Re-run only the `github-release` job. Central is already done and cannot be redone |
 
 A released version is never re-released. If a release is wrong, release the next patch version.
