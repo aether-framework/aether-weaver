@@ -98,7 +98,7 @@ import java.util.List;
 public final class WeaverAgent {
 
     /** The version this agent prints on its startup line. */
-    private static final String VERSION = "0.1.0";
+    private static final String VERSION = "0.1.1";
 
     /**
      * Refuses instantiation.
