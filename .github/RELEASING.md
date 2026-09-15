@@ -91,12 +91,19 @@ Update those four in one commit:
 | `Writerside/v.list` | `<var name="version" value="x.y.z"/>` |
 | `aether-weaver-engine/…/engine/Weaver.java` | `static final String VERSION = "x.y.z";` — it is stamped into every weave record |
 
+Two more the release workflow does not read, but that must move with these or the gate fails: the
+agent's own `aether-weaver-agent/…/agent/WeaverAgent.java` `VERSION` — its start-up banner — and the
+built-in plugin id in `aether-weaver-engine/…/engine/inject/CorePlugin.java`. `ExplainReportTest`,
+`WeaverAgentEndToEndTest` and `WeaveMojoTest` pin the printed version, so they move with it too.
+
 The poms are **not** touched. They stay on `-SNAPSHOT`; the workflow stamps the release version in
 from the tag. That way a build from `main` can never overwrite a released artefact.
 
-**The IDE plugin has two more, and nothing checks either.** It is a separate Gradle build, so the
-release workflow never sees it — but it ships to the Marketplace beside the release, and both of
-these decide what it ships as.
+**The IDE plugin has three more, and they are set in [step 6](#step-6--the-ide-plugin), not here.**
+It is a separate Gradle build the release workflow never sees, but the `IntelliJ plugin` CI check
+builds it, and it resolves `aether-weaver-api` and `-engine` as ordinary published dependencies.
+Bumping these before the release is on Central makes that check fail to resolve the version — so set
+them once Central serves it, in step 6, where the plugin is actually built.
 
 | File | What to change | What it breaks if you forget |
 |---|---|---|
@@ -159,7 +166,16 @@ shortly after.
 ordinary dependency and bundles it, so a build started before Central serves it either fails to
 resolve or quietly bundles something else.
 
-With the two versions from step 1 set:
+Set the three IDE-plugin versions now — they are left alone during step 1 because this build
+resolves the published artefacts, so bumping them earlier fails the `IntelliJ plugin` CI check:
+
+| File | What to change |
+|---|---|
+| `aether-weaver-ide/aether-weaver-idea/build.gradle.kts` | `version = "x.y.z"` |
+| `aether-weaver-ide/aether-weaver-idea/gradle.properties` | `aetherWeaverVersion=x.y.z` |
+| `aether-weaver-ide/aether-weaver-idea/sample/pom.xml` | `<aether.weaver.version>x.y.z</aether.weaver.version>` |
+
+Then:
 
 ```bash
 cd aether-weaver-ide/aether-weaver-idea
