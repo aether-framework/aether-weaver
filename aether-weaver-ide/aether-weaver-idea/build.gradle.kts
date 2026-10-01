@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("checkstyle")
-    id("org.jetbrains.intellij.platform") version "2.18.1"
+    id("org.jetbrains.intellij.platform") version "2.19.0"
 }
 
 group = "de.splatgames.aether.weaver"
